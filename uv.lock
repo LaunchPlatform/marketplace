@@ -5,3 +5,18 @@ requires-python = ">=3.11"
 name = "marketplace"
 version = "0.1.0"
 source = { virtual = "." }
+dependencies = [
+    { name = "tinygrad" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tinygrad", specifier = ">=0.10.3" }]
+
+[[package]]
+name = "tinygrad"
+version = "0.10.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d8/26/ed13ccfe488d550726caaaacaf245aa79f40b9153ad6d5c99012a940cc5a/tinygrad-0.10.3.tar.gz", hash = "sha256:e79184ce68a42599e313bacd7283425f4ae2772cc117e0bb5b437465115cb1bf", size = 10352294 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/23/92/6cab3019b093cda0ca863d72d37dc033e0e859ebd3828a89ae56d1145cc1/tinygrad-0.10.3-py3-none-any.whl", hash = "sha256:2b3e19cc427ed9d55d70e785d7e540b4ed2a3460b89a8ef411e4911b13b7e4c1", size = 10561815 },
+]
