@@ -25,10 +25,14 @@ def produce(
             "Provided input data's first dimension doesn't match with the paths' first dimension"
         )
 
+    upstream_sampling = spec.upstream_sampling
+    if upstream_sampling == 0:
+        upstream_sampling = x.shape[0]
+
     input_count = paths.size(0)
     input_indexes = Tensor.stack(
         *(
-            Tensor.randperm(input_count)[: spec.upstream_sampling]
+            Tensor.randperm(input_count)[:upstream_sampling]
             for _ in range(len(spec.vendors))
         ),
         dim=0,
@@ -48,7 +52,7 @@ def produce(
     new_paths = (
         Tensor.arange(len(spec.vendors))
         .unsqueeze(1)
-        .repeat(1, spec.upstream_sampling)
+        .repeat(1, upstream_sampling)
         .flatten()
         .unsqueeze(1)
     )

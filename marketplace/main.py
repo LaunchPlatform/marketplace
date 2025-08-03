@@ -22,30 +22,38 @@ class Model:
         return x.sequential(self.layers)
 
 
-Marketplace = [
-    Spec(
-        vendors=[
-            Model(
-                [
-                    nn.Conv2d(1, 32, 5),
-                    Tensor.relu,
-                ]
-            )
-            for _ in range(10)
-        ]
-    )
-]
-
-
-def train():
-    pass
-
-
 if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    model = Model()
-    print(nn.state.get_parameters(model)[0].tolist())
+    marketplace = [
+        Spec(
+            vendors=[
+                Model(
+                    [
+                        nn.Conv2d(1, 32, 5),
+                        Tensor.relu,
+                    ]
+                )
+                for _ in range(10)
+            ]
+        ),
+        Spec(
+            vendors=[
+                Model(
+                    [
+                        nn.Conv2d(32, 32, 5),
+                        Tensor.relu,
+                    ]
+                )
+                for _ in range(10)
+            ],
+            upstream_sampling=3,
+        ),
+        Spec(
+            vendors=[Model([nn.BatchNorm(32), Tensor.max_pool2d]) for _ in range(10)],
+            upstream_sampling=3,
+        ),
+    ]
 
     # print(nn.state.get_parameters(model)[1].size())
     # print(nn.state.get_parameters(model)[2].size())
