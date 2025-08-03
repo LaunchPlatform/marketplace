@@ -42,7 +42,11 @@ def produce(
         *(vendor(merged) for merged, vendor in zip(merged_batches, spec.vendors)), dim=0
     )
     # breaking down merged batches back to individual batches
-    output_data = output_data.reshape(-1, spec.upstream_sampling, output_data.shape[3:])
+    output_data = output_data.reshape(-1, *input_data.shape[2:])
 
-    # TODO: fix paths
-    return output_data, paths
+    prev_paths = paths.repeat(1, spec.upstream_sampling).flatten(0).unsqueeze(1)
+    new_paths = input_indexes.flatten().unsqueeze(1)
+    merged_paths = prev_paths.cat(new_paths, dim=1)
+
+    print("@" * 10, merged_paths, merged_paths.tolist())
+    return output_data, merged_paths
