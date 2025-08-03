@@ -48,5 +48,4 @@ def produce(
     new_paths = input_indexes.flatten().unsqueeze(1)
     merged_paths = prev_paths.cat(new_paths, dim=1)
 
-    print("@" * 10, merged_paths, merged_paths.tolist())
     return output_data, merged_paths
