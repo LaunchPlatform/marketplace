@@ -54,10 +54,52 @@ if __name__ == "__main__":
             vendors=[Model([nn.BatchNorm(32), Tensor.max_pool2d]) for _ in range(10)],
             upstream_sampling=3,
         ),
+        Spec(
+            vendors=[
+                Model(
+                    [
+                        nn.Conv2d(32, 64, 3),
+                        Tensor.relu,
+                        Tensor.relu,
+                    ]
+                )
+                for _ in range(10)
+            ],
+            upstream_sampling=3,
+        ),
+        Spec(
+            vendors=[
+                Model(
+                    [
+                        nn.Conv2d(64, 64, 3),
+                        Tensor.relu,
+                    ]
+                )
+                for _ in range(10)
+            ],
+            upstream_sampling=3,
+        ),
+        Spec(
+            vendors=[
+                Model(
+                    [
+                        nn.BatchNorm(64),
+                        Tensor.max_pool2d,
+                    ]
+                )
+                for _ in range(10)
+            ],
+            upstream_sampling=3,
+        ),
+        Spec(
+            vendors=[
+                Model([lambda x: x.flatten(1), nn.Linear(576, 10)]) for _ in range(10)
+            ],
+            upstream_sampling=3,
+        ),
     ]
 
-    #
-    # @TinyJit
+    @TinyJit
     def train_step() -> Tensor:
         samples = Tensor.randint(getenv("BS", 512), high=X_train.shape[0])
 
@@ -66,6 +108,7 @@ if __name__ == "__main__":
 
         output, paths = forward(marketplace, x)
 
+        print(output.realize().shape)
         print(paths.tolist())
 
         return output
