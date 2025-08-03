@@ -53,7 +53,21 @@ def test_produce_with_input_data(
                 ]
             ),
             Tensor([[0], [1], [2]]),
-        )
+        ),
+        (
+            Spec(
+                vendors=[lambda x, n=n: x.sum(axis=1) * n for n in (1.0, 3.0, 5.0)],
+                upstream_sampling=2,
+            ),
+            Tensor(
+                [
+                    [[1.0, 2.0, 3.0]],
+                    [[2.0, 3.0, 4.0]],
+                    [[4.0, 5.0, 6.0]],
+                ]
+            ),
+            Tensor([[0], [1], [2]]),
+        ),
     ],
 )
 def test_produce(spec: Spec, x: Tensor, paths: Tensor):
