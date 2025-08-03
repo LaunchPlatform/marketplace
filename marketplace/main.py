@@ -46,15 +46,17 @@ class Model:
     def __call__(self, x: Tensor) -> Tensor:
         l0_products = Tensor.stack(*(m(x) for m in self.l0), dim=0).relu()
 
-        l1_idxes = Tensor.stack(
+        l0_idxes = Tensor.stack(
             *(Tensor.randperm(len(self.l0))[:3] for _ in range(len(self.l1))), dim=0
         )
-        print(l1_idxes.tolist())
+        print(l0_idxes.tolist())
+        l1_idxes = Tensor.arange(len(self.l1)).reshape(-1, 1).repeat(1, 3)
+        print("@@@", l0_idxes.flatten(0).stack(l1_idxes.flatten(0), dim=1).tolist())
 
         return Tensor.stack(
             *(
                 m(Tensor.cat(*items, dim=0))
-                for items, m in zip(l0_products[l1_idxes], self.l1)
+                for items, m in zip(l0_products[l0_idxes], self.l1)
             ),
             dim=0,
         )
