@@ -7,3 +7,7 @@ requires-python = ">=3.11"
 dependencies = [
     "tinygrad>=0.10.3",
 ]
+
+[tool.uv.sources]
+tinygrad = { git = "https://github.com/tinygrad/tinygrad.git", rev="0ce0f5101028e8b5ca70eb8cf8241b7baf945e45" }
+
