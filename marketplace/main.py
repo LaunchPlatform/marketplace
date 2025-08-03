@@ -37,10 +37,33 @@ from tinygrad.nn.datasets import mnist
 
 class Model:
     def __init__(self):
-        self.first_layer = [nn.Conv2d(1, 32, 5) for _ in range(100)]
+        vendor_count = 10
+        self.l0 = [nn.Conv2d(1, 32, 5) for _ in range(vendor_count)]
+
+        vendor_count = 15
+        self.l1 = [nn.Conv2d(32, 32, 5) for _ in range(vendor_count)]
 
     def __call__(self, x: Tensor) -> Tensor:
-        return Tensor.stack(*(m(x) for m in self.first_layer), dim=0)
+        l0_products = Tensor.stack(*(m(x) for m in self.l0), dim=0).relu()
+
+        l1_idxes = Tensor.stack(
+            *(Tensor.randperm(len(self.l0))[:3] for _ in range(len(self.l1))), dim=0
+        )
+        # print(l1_idxes.tolist())
+        # print("@"*10, [Tensor.cat(*items, dim=0) for items in l0_products[l1_idxes]])
+        print(
+            [
+                m(Tensor.cat(*items, dim=0))
+                for items, m in zip(l0_products[l1_idxes], self.l1)
+            ]
+        )
+        return Tensor.stack(
+            *(
+                m(Tensor.cat(*items, dim=0))
+                for items, m in zip(l0_products[l1_idxes], self.l1)
+            ),
+            dim=0,
+        )
 
 
 if __name__ == "__main__":
@@ -60,12 +83,12 @@ if __name__ == "__main__":
     def train_step() -> Tensor:
         samples = Tensor.randint(getenv("BS", 512), high=X_train.shape[0])
         # TODO: this "gather" of samples is very slow. will be under 5s when this is fixed
-        loss = (
-            model(X_train[samples])
-            # .sparse_categorical_crossentropy(Y_train[samples])
-            # .backward()
-        )
-        print(loss.size())
+        loss = model(X_train[samples])
+        # .sparse_categorical_crossentropy(Y_train[samples])
+        # .backward()
+        # )
+        # print(loss.size(), idxes.tolist())
+        print(loss.realize())
         # opt.step()
         return loss
 
