@@ -59,10 +59,17 @@ def test_produce_with_input_data(
 def test_produce(spec: Spec, x: Tensor, paths: Tensor):
     output, out_paths = produce(spec=spec, x=x, paths=paths)
 
-    print("@" * 10, out_paths.tolist())
+    assert all(v >= 0 and v < len(x) for v in out_paths[:, :1].flatten().tolist())
+    assert (
+        out_paths[:, 1:].tolist()
+        == (
+            Tensor.arange(len(spec.vendors))
+            .unsqueeze(1)
+            .repeat(1, spec.upstream_sampling)
+            .flatten()
+            .unsqueeze(1)
+        ).tolist()
+    )
 
-    expected_output = []
-    for i, j in out_paths:
-        input_data = x[i]
-        expected_output.append(spec.vendors[j.item()](input_data).tolist())
+    expected_output = [spec.vendors[j.item()](x[i]).tolist() for i, j in out_paths]
     assert output.tolist() == expected_output

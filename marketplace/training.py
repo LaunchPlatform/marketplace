@@ -52,8 +52,6 @@ def produce(
         .flatten()
         .unsqueeze(1)
     )
-    print("@, prev", prev_paths.tolist())
-    print("@, new ", new_paths.tolist())
     merged_paths = prev_paths.cat(new_paths, dim=1)
 
     return output_data, merged_paths
