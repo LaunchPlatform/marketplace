@@ -62,9 +62,11 @@ def produce(
     return output_data, merged_paths
 
 
-def forward(specs: list[Spec], x: Tensor) -> tuple[Tensor, Tensor]:
+def forward(
+    specs: list[Spec], x: Tensor, initial_paths: Tensor | None = None
+) -> tuple[Tensor, Tensor]:
     def step(acc: tuple[Tensor, Tensor | None], spec: Spec) -> tuple[Tensor, Tensor]:
         data, paths = acc
         return produce(spec=spec, x=data, paths=paths)
 
-    return functools.reduce(step, specs, (x, None))
+    return functools.reduce(step, specs, (x, initial_paths))

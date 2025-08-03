@@ -11,6 +11,7 @@ from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
 
+from marketplace.training import forward
 from marketplace.training import Spec
 
 
@@ -55,25 +56,19 @@ if __name__ == "__main__":
         ),
     ]
 
-    # print(nn.state.get_parameters(model)[1].size())
-    # print(nn.state.get_parameters(model)[2].size())
-    # print(nn.state.get_parameters(model)[3].size())
-    # print(nn.state.get_parameters(model)[4].size())
-    # opt = nn.optim.Adam(nn.state.get_parameters(model))
     #
-    @TinyJit
-    @Tensor.train()
+    # @TinyJit
     def train_step() -> Tensor:
         samples = Tensor.randint(getenv("BS", 512), high=X_train.shape[0])
-        # TODO: this "gather" of samples is very slow. will be under 5s when this is fixed
-        loss = model(X_train[samples])
-        # .sparse_categorical_crossentropy(Y_train[samples])
-        # .backward()
-        # )
-        # print(loss.size(), idxes.tolist())
-        print(loss.realize())
-        # opt.step()
-        return loss
+
+        x = X_train[samples]
+        y = Y_train[samples]
+
+        output, paths = forward(marketplace, x)
+
+        print(paths.tolist())
+
+        return output
 
     #
     # @TinyJit
