@@ -37,30 +37,52 @@ from tinygrad.nn.datasets import mnist
 
 class Model:
     def __init__(self):
-        vendor_count = 10
-        self.l0 = [nn.Conv2d(1, 32, 5) for _ in range(vendor_count)]
+        self.l0_vendor_count = 10
+        self.l0 = [nn.Conv2d(1, 32, 5) for _ in range(self.l0_vendor_count)]
 
-        vendor_count = 15
-        self.l1 = [nn.Conv2d(32, 32, 5) for _ in range(vendor_count)]
+        self.l1_vendor_count = 10
+        self.l1_upstream_sample = 3
+        self.l1 = [nn.Conv2d(32, 32, 5) for _ in range(self.l1_vendor_count)]
+
+        self.l2_vendor_count = 10
+        self.l2_upstream_sample = 3
+        self.l2 = [nn.BatchNorm(32) for _ in range(self.l2_vendor_count)]
 
     def __call__(self, x: Tensor) -> Tensor:
         l0_products = Tensor.stack(*(m(x) for m in self.l0), dim=0).relu()
 
         l0_idxes = Tensor.stack(
-            *(Tensor.randperm(len(self.l0))[:3] for _ in range(len(self.l1))), dim=0
+            *(
+                Tensor.randperm(len(self.l0))[: self.l1_upstream_sample]
+                for _ in range(len(self.l1))
+            ),
+            dim=0,
         )
         print(l0_idxes.tolist())
-        l1_idxes = Tensor.arange(len(self.l1)).reshape(-1, 1).repeat(1, 3)
+        l1_idxes = (
+            Tensor.arange(len(self.l1))
+            .reshape(-1, 1)
+            .repeat(1, self.l1_upstream_sample)
+        )
         l1_paths = l0_idxes.flatten(0).stack(l1_idxes.flatten(0), dim=1)
         print("@@@", l1_paths.tolist())
 
-        return Tensor.stack(
+        l1_products = Tensor.stack(
             *(
                 m(Tensor.cat(*items, dim=0))
                 for items, m in zip(l0_products[l0_idxes], self.l1)
             ),
             dim=0,
+        ).relu()
+
+        l1_products_size = l1_products.size()
+        l1_products.reshape(
+            self.l1_vendor_count * self.l1_upstream_sample,
+            l1_products_size[1] // self.l1_upstream_sample,
+            *l1_products_size[2:],
         )
+
+        return l1_products
 
 
 if __name__ == "__main__":
