@@ -1,4 +1,5 @@
 import dataclasses
+import functools
 import typing
 
 from tinygrad import Tensor
@@ -59,3 +60,11 @@ def produce(
     merged_paths = prev_paths.cat(new_paths, dim=1)
 
     return output_data, merged_paths
+
+
+def forward(specs: list[Spec], x: Tensor) -> tuple[Tensor, Tensor]:
+    def step(acc: tuple[Tensor, Tensor | None], spec: Spec) -> tuple[Tensor, Tensor]:
+        data, paths = acc
+        return produce(spec=spec, x=data, paths=paths)
+
+    return functools.reduce(step, specs, (x, None))
