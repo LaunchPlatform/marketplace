@@ -38,11 +38,11 @@ def test_produce_with_input_data(
 
 
 @pytest.mark.parametrize(
-    "spec, x, paths, expected",
+    "spec, x, paths",
     [
         (
             Spec(
-                vendors=[functools.partial(operator.mul, n) for n in (0.0, 1.0, 2.0)],
+                vendors=[functools.partial(operator.mul, n) for n in (1.0, 3.0, 5.0)],
                 upstream_sampling=2,
             ),
             Tensor(
@@ -53,18 +53,16 @@ def test_produce_with_input_data(
                 ]
             ),
             Tensor([[0], [1], [2]]),
-            (
-                Tensor(
-                    [
-                        [0.0, 0.0, 0.0],
-                        [1.0, 2.0, 3.0],
-                        [2.0, 4.0, 6.0],
-                    ]
-                ),
-                Tensor([[0], [1], [2]]),
-            ),
         )
     ],
 )
-def test_produce(spec: Spec, x: Tensor, paths: Tensor, expected: tuple[Tensor, Tensor]):
-    assert list(map(realize, produce(spec=spec, x=x, paths=paths)))
+def test_produce(spec: Spec, x: Tensor, paths: Tensor):
+    output, out_paths = produce(spec=spec, x=x, paths=paths)
+
+    print("@" * 10, out_paths.tolist())
+
+    expected_output = []
+    for i, j in out_paths:
+        input_data = x[i]
+        expected_output.append(spec.vendors[j.item()](input_data).tolist())
+    assert output.tolist() == expected_output

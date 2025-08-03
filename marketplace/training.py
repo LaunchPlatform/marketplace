@@ -39,13 +39,21 @@ def produce(
     merged_batches = input_data.reshape(input_data.shape[0], -1, *input_data.shape[3:])
 
     output_data = Tensor.stack(
-        *(vendor(merged) for merged, vendor in zip(merged_batches, spec.vendors)), dim=0
+        *(vendor(merged) for vendor, merged in zip(spec.vendors, merged_batches)), dim=0
     )
     # breaking down merged batches back to individual batches
     output_data = output_data.reshape(-1, *input_data.shape[2:])
 
-    prev_paths = paths.repeat(1, spec.upstream_sampling).flatten(0).unsqueeze(1)
-    new_paths = input_indexes.flatten().unsqueeze(1)
+    prev_paths = paths[input_indexes].flatten(0, 1)
+    new_paths = (
+        Tensor.arange(len(spec.vendors))
+        .unsqueeze(1)
+        .repeat(1, spec.upstream_sampling)
+        .flatten()
+        .unsqueeze(1)
+    )
+    print("@, prev", prev_paths.tolist())
+    print("@, new ", new_paths.tolist())
     merged_paths = prev_paths.cat(new_paths, dim=1)
 
     return output_data, merged_paths
