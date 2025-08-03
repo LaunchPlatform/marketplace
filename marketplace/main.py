@@ -11,78 +11,34 @@ from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
 
-
-# class Model:
-#     def __init__(self):
-#         self.layers: List[Callable[[Tensor], Tensor]] = [
-#             nn.Conv2d(1, 32, 5),
-#             Tensor.relu,
-#             # nn.Conv2d(32, 32, 5),
-#             # Tensor.relu,
-#             # nn.BatchNorm(32),
-#             # Tensor.max_pool2d,
-#             # nn.Conv2d(32, 64, 3),
-#             # Tensor.relu,
-#             # nn.Conv2d(64, 64, 3),
-#             # Tensor.relu,
-#             # nn.BatchNorm(64),
-#             # Tensor.max_pool2d,
-#             # lambda x: x.flatten(1),
-#             # nn.Linear(576, 10),
-#         ]
-#
-#     def __call__(self, x: Tensor) -> Tensor:
-#         return x.sequential(self.layers)
+from marketplace.training import Spec
 
 
 class Model:
-    def __init__(self):
-        self.l0_vendor_count = 10
-        self.l0 = [nn.Conv2d(1, 32, 5) for _ in range(self.l0_vendor_count)]
-
-        self.l1_vendor_count = 10
-        self.l1_upstream_sample = 3
-        self.l1 = [nn.Conv2d(32, 32, 5) for _ in range(self.l1_vendor_count)]
-
-        self.l2_vendor_count = 10
-        self.l2_upstream_sample = 3
-        self.l2 = [nn.BatchNorm(32) for _ in range(self.l2_vendor_count)]
+    def __init__(self, layers: List[Callable[[Tensor], Tensor]]):
+        self.layers: List[Callable[[Tensor], Tensor]] = layers
 
     def __call__(self, x: Tensor) -> Tensor:
-        l0_products = Tensor.stack(*(m(x) for m in self.l0), dim=0).relu()
+        return x.sequential(self.layers)
 
-        l0_idxes = Tensor.stack(
-            *(
-                Tensor.randperm(len(self.l0))[: self.l1_upstream_sample]
-                for _ in range(len(self.l1))
-            ),
-            dim=0,
-        )
-        print(l0_idxes.tolist())
-        l1_idxes = (
-            Tensor.arange(len(self.l1))
-            .reshape(-1, 1)
-            .repeat(1, self.l1_upstream_sample)
-        )
-        l1_paths = l0_idxes.flatten(0).stack(l1_idxes.flatten(0), dim=1)
-        print("@@@", l1_paths.tolist())
 
-        l1_products = Tensor.stack(
-            *(
-                m(Tensor.cat(*items, dim=0))
-                for items, m in zip(l0_products[l0_idxes], self.l1)
-            ),
-            dim=0,
-        ).relu()
+Marketplace = [
+    Spec(
+        vendors=[
+            Model(
+                [
+                    nn.Conv2d(1, 32, 5),
+                    Tensor.relu,
+                ]
+            )
+            for _ in range(10)
+        ]
+    )
+]
 
-        l1_products_size = l1_products.size()
-        l1_products.reshape(
-            self.l1_vendor_count * self.l1_upstream_sample,
-            l1_products_size[1] // self.l1_upstream_sample,
-            *l1_products_size[2:],
-        )
 
-        return l1_products
+def train():
+    pass
 
 
 if __name__ == "__main__":
