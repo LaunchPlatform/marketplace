@@ -3,10 +3,12 @@ import typing
 
 from tinygrad import Tensor
 
+Model = typing.Callable[[Tensor], Tensor]
+
 
 @dataclasses.dataclass
 class Spec:
-    vendors: list[typing.Callable[[Tensor], Tensor]]
+    vendors: list[Model]
     upstream_sampling: int = 0
 
 

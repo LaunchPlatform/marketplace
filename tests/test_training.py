@@ -14,9 +14,7 @@ def realize(x: Tensor) -> list:
     [
         (
             Spec(vendors=[lambda x: x * n for n in (0.0, 1.0, 2.0)]),
-            Tensor(
-                [1.0, 2.0, 3.0],
-            ),
+            Tensor([1.0, 2.0, 3.0]),
             (
                 Tensor(
                     [
