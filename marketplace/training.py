@@ -34,3 +34,9 @@ def produce(
         dim=0,
     )
     input_data = x[input_indexes]
+    # merge different batches into one. not sure if this is needed, but at least it saves us from calling the model
+    # multiple times and making the graph more complex
+    input_data = input_data.reshape(input_data.shape[0], -1, *input_data.shape[3:])
+
+    print("@" * 10, input_data.size())
+    print("@" * 10, input_data.tolist())
