@@ -23,11 +23,12 @@ def produce(
             "Provided input data's first dimension doesn't match with the paths' first dimension"
         )
 
-    upstream_product_count = paths.size(0)
-    upstream_indexes = Tensor.stack(
+    input_count = paths.size(0)
+    input_indexes = Tensor.stack(
         *(
-            Tensor.randperm(upstream_product_count)[: spec.upstream_sampling]
+            Tensor.randperm(input_count)[: spec.upstream_sampling]
             for _ in range(len(spec.vendors))
         ),
         dim=0,
     )
+    input_data = x[input_indexes]
