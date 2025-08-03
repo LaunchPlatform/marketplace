@@ -49,14 +49,8 @@ class Model:
         l1_idxes = Tensor.stack(
             *(Tensor.randperm(len(self.l0))[:3] for _ in range(len(self.l1))), dim=0
         )
-        # print(l1_idxes.tolist())
-        # print("@"*10, [Tensor.cat(*items, dim=0) for items in l0_products[l1_idxes]])
-        print(
-            [
-                m(Tensor.cat(*items, dim=0))
-                for items, m in zip(l0_products[l1_idxes], self.l1)
-            ]
-        )
+        print(l1_idxes.tolist())
+
         return Tensor.stack(
             *(
                 m(Tensor.cat(*items, dim=0))
