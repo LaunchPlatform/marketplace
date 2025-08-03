@@ -51,7 +51,8 @@ class Model:
         )
         print(l0_idxes.tolist())
         l1_idxes = Tensor.arange(len(self.l1)).reshape(-1, 1).repeat(1, 3)
-        print("@@@", l0_idxes.flatten(0).stack(l1_idxes.flatten(0), dim=1).tolist())
+        l1_paths = l0_idxes.flatten(0).stack(l1_idxes.flatten(0), dim=1)
+        print("@@@", l1_paths.tolist())
 
         return Tensor.stack(
             *(
