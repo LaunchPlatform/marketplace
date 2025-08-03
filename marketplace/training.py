@@ -7,7 +7,7 @@ from tinygrad import Tensor
 @dataclasses.dataclass
 class Spec:
     vendors: list[typing.Callable[[Tensor], Tensor]]
-    upstream_sampling: int
+    upstream_sampling: int = 0
 
 
 def produce(
