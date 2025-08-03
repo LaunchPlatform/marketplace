@@ -17,9 +17,9 @@ def produce(
 ) -> tuple[Tensor, Tensor]:
     if paths is None:
         # this is the first spec for taking in the raw input, let's feed data to all of them
-        output = Tensor.stack(*(vendor(x) for vendor in spec.vendors), dim=0)
+        output_data = Tensor.stack(*(vendor(x) for vendor in spec.vendors), dim=0)
         paths = Tensor.arange(len(spec.vendors)).unsqueeze(1)
-        return output, paths
+        return output_data, paths
     if x.size(0) != paths.size(0):
         raise ValueError(
             "Provided input data's first dimension doesn't match with the paths' first dimension"
@@ -34,9 +34,15 @@ def produce(
         dim=0,
     )
     input_data = x[input_indexes]
-    # merge different batches into one. not sure if this is needed, but at least it saves us from calling the model
-    # multiple times and making the graph more complex
-    input_data = input_data.reshape(input_data.shape[0], -1, *input_data.shape[3:])
+    # merge different batches for the same vendor into one. not sure if this is needed, but at least it saves us
+    # from calling the model multiple times and making the graph more complex
+    merged_batches = input_data.reshape(input_data.shape[0], -1, *input_data.shape[3:])
 
-    print("@" * 10, input_data.size())
-    print("@" * 10, input_data.tolist())
+    output_data = Tensor.stack(
+        *(vendor(merged) for merged, vendor in zip(merged_batches, spec.vendors)), dim=0
+    )
+    # breaking down merged batches back to individual batches
+    output_data = output_data.reshape(-1, spec.upstream_sampling, output_data.shape[3:])
+
+    # TODO: fix paths
+    return output_data, paths
