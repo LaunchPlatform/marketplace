@@ -47,7 +47,7 @@ def produce(
         *(vendor(merged) for vendor, merged in zip(spec.vendors, merged_batches)), dim=0
     )
     # breaking down merged batches back to individual batches
-    output_data = output_data.reshape(-1, *input_data.shape[2:])
+    output_data = output_data.reshape(-1, input_data.shape[2], *output_data.shape[2:])
 
     prev_paths = paths[input_indexes].flatten(0, 1)
     new_paths = (
