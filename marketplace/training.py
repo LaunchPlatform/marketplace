@@ -17,9 +17,9 @@ def produce(
 ) -> tuple[Tensor, Tensor]:
     if paths is None:
         # this is the first spec for taking in the raw input, let's feed data to all of them
-        data = Tensor.stack(*(vendor(x) for vendor in spec.vendors), dim=0)
+        output = Tensor.stack(*(vendor(x) for vendor in spec.vendors), dim=0)
         paths = Tensor.arange(len(spec.vendors)).unsqueeze(1)
-        return data, paths
+        return output, paths
     if x.size(0) != paths.size(0):
         raise ValueError(
             "Provided input data's first dimension doesn't match with the paths' first dimension"

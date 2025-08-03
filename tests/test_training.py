@@ -1,3 +1,6 @@
+import functools
+import operator
+
 import pytest
 from tinygrad import Tensor
 
@@ -13,7 +16,7 @@ def realize(x: Tensor) -> list:
     "spec, x, expected",
     [
         (
-            Spec(vendors=[lambda x: x * n for n in (0.0, 1.0, 2.0)]),
+            Spec(vendors=[functools.partial(operator.mul, n) for n in (0.0, 1.0, 2.0)]),
             Tensor([1.0, 2.0, 3.0]),
             (
                 Tensor(
