@@ -13,6 +13,7 @@ from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
 
 from marketplace.training import forward
+from marketplace.training import make_offsprings
 from marketplace.training import Spec
 from marketplace.training import uniform_between
 
@@ -31,6 +32,8 @@ if __name__ == "__main__":
     VENDOR_COUNT = 16
     UPSTREAM_SAMPLING = 4
     OFFSPRING_COUNT = 8
+    OFFSPRING_JITTER_SCALE = 0.01
+    OFFSPRING_JITTER_OFFSET = 0.01
 
     marketplace = [
         Spec(
@@ -136,6 +139,14 @@ if __name__ == "__main__":
         for _ in range(100):
             profit_matrix += train_step()
             profit_matrix.realize()
+
+        make_offsprings(
+            profit_matrix=profit_matrix,
+            marketplace=marketplace,
+            offspring_count=OFFSPRING_COUNT,
+            jitter_scale=Tensor(OFFSPRING_JITTER_SCALE),
+            jitter_offset=Tensor(OFFSPRING_JITTER_OFFSET),
+        )
 
         end_time = time.perf_counter()
         run_time = end_time - start_time

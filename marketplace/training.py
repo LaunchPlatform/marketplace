@@ -142,3 +142,8 @@ def make_offsprings(
 
         for params, vendor in zip(new_params, spec.vendors):
             nn.state.load_state_dict(vendor, params, verbose=False)
+
+        new_spawn_count = len(spec.vendors) - offspring_count
+        spec.vendors[offspring_count:] = [
+            spec.model_factory() for _ in range(new_spawn_count)
+        ]
