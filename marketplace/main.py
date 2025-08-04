@@ -139,7 +139,7 @@ if __name__ == "__main__":
             reproduce_matrix = (
                 vendor_profits.reshape(-1, 1) * vendor_profits.reshape(1, -1)
             ).triu(diagonal=1)
-            print(reproduce_matrix.numpy())
+            print(reproduce_matrix.flatten().multinomial(5, replacement=True).numpy())
 
         #
         # profit_matrix.realize()
