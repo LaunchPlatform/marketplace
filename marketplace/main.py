@@ -56,7 +56,12 @@ if __name__ == "__main__":
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
-            model_factory=lambda: Model([nn.BatchNorm(32), Tensor.max_pool2d]),
+            model_factory=lambda: Model(
+                [
+                    # nn.BatchNorm(32),
+                    Tensor.max_pool2d
+                ]
+            ),
             vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
@@ -83,7 +88,7 @@ if __name__ == "__main__":
         Spec(
             model_factory=lambda: Model(
                 [
-                    nn.BatchNorm(64),
+                    # nn.BatchNorm(64),
                     Tensor.max_pool2d,
                 ]
             ),
