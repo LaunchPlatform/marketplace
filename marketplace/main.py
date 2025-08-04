@@ -139,7 +139,11 @@ if __name__ == "__main__":
             reproduce_matrix = (
                 vendor_profits.reshape(-1, 1) * vendor_profits.reshape(1, -1)
             ).triu(diagonal=1)
-            print(reproduce_matrix.flatten().multinomial(5, replacement=True).numpy())
+            parent_indexes = reproduce_matrix.flatten().multinomial(5, replacement=True)
+            lhs_indexes = parent_indexes // vendor_profits.shape[0]
+            rhs_indexes = parent_indexes % vendor_profits.shape[0]
+            print("@" * 10, lhs_indexes.tolist())
+            print("$" * 10, rhs_indexes.tolist())
 
         #
         # profit_matrix.realize()
