@@ -129,7 +129,7 @@ if __name__ == "__main__":
                 for loss, path in zip(all_loss, paths)
             ),
             dim=0,
-        ).sum(axis=0), all_loss.mean()
+        ).sum(axis=0), all_loss.min()
 
     #
     # @TinyJit
