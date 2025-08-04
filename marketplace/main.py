@@ -33,8 +33,8 @@ if __name__ == "__main__":
     UPSTREAM_SAMPLING = 8
     OFFSPRING_COUNT = 8
     KEEP_COUNT = 16
-    OFFSPRING_JITTER_SCALE = 0.001
-    OFFSPRING_JITTER_OFFSET = 0.001
+    OFFSPRING_JITTER_SCALE = 0.1
+    OFFSPRING_JITTER_OFFSET = 0.01
 
     marketplace = [
         Spec(
