@@ -70,3 +70,24 @@ def forward(
         return produce(spec=spec, x=data, paths=paths)
 
     return functools.reduce(step, specs, (x, initial_paths))
+
+
+def uniform_between(
+    lhs: Tensor,
+    rhs: Tensor,
+    jitter_scale: Tensor | None = None,
+    jitter_offset: Tensor | None = None,
+):
+    if lhs.shape != rhs.shape:
+        raise ValueError("Shape of two tensors should be the same")
+    scale = Tensor.uniform(lhs.shape)
+    delta = rhs - lhs
+    base = lhs
+    if jitter_scale is not None:
+        base -= delta * jitter_scale
+        delta *= 1 + jitter_scale * 2
+    if jitter_offset is not None:
+        base -= jitter_offset
+        delta += jitter_offset * 2
+    # Interpolate between two tensor
+    return base + delta * scale

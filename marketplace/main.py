@@ -29,6 +29,7 @@ if __name__ == "__main__":
 
     VENDOR_COUNT = 16
     UPSTREAM_SAMPLING = 4
+    PHASE_OUT_COUNT = 8
 
     marketplace = [
         Spec(
@@ -107,11 +108,8 @@ if __name__ == "__main__":
         ),
     ]
 
-    profit_matrix = Tensor.zeros(len(marketplace), VENDOR_COUNT)
-
     @TinyJit
     def train_step() -> Tensor:
-        global profit_matrix
         samples = Tensor.randint(getenv("BS", 128), high=X_train.shape[0])
 
         x = X_train[samples]
@@ -119,7 +117,7 @@ if __name__ == "__main__":
 
         output, paths = forward(marketplace, x)
 
-        profit_attributions = Tensor.stack(
+        profit_matrix = Tensor.stack(
             *(
                 (
                     Tensor.zeros(len(marketplace), VENDOR_COUNT).scatter(
@@ -136,8 +134,13 @@ if __name__ == "__main__":
             dim=0,
         ).sum(axis=0)
 
-        profit_matrix = profit_matrix.add(profit_attributions)
+        # profit_matrix = profit_matrix.add(profit_attributions)
         profit_matrix.realize()
+
+        phase_out_vals, phase_out_indexes = profit_matrix.topk(
+            VENDOR_COUNT - PHASE_OUT_COUNT, dim=1, largest=False
+        )
+        print("@" * 10, phase_out_indexes.tolist())
 
         return output
 
@@ -156,10 +159,10 @@ if __name__ == "__main__":
         # if i % 10 == 9:
         #     test_acc = get_test_acc().item()
         t.set_description(
-            f"loss: {0:6.2f} test_accuracy: {test_acc:5.2f}% {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
+            f"loss: {0:6.2f}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
         )
 
-    print("profit matrix", profit_matrix.numpy())
+    # print("profit matrix", profit_matrix.numpy())
     # # verify eval acc
     # if target := getenv("TARGET_EVAL_ACC_PCT", 0.0):
     #     if test_acc >= target and test_acc != 100.0:
