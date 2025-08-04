@@ -114,6 +114,20 @@ def test_produce(spec: Spec, x: Tensor, paths: Tensor):
             None,
             (1.0, 1.0),
         ),
+        (
+            Tensor.zeros(100, 100, 100),
+            Tensor.ones(100, 100, 100),
+            Tensor(0.1),
+            None,
+            (-0.1, 1.1),
+        ),
+        (
+            Tensor.zeros(100, 100, 100),
+            Tensor.ones(100, 100, 100),
+            Tensor(0.1),
+            Tensor(0.025),
+            (-0.125, 1.125),
+        ),
     ],
 )
 def test_uniform_between(
