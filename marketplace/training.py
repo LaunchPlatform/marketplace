@@ -150,9 +150,7 @@ def make_offsprings(
 
         _, phase_out_indexes = vendor_profits.topk(phase_out_count, largest=False)
         for params, index in zip(new_params, phase_out_indexes):
-            nn.state.load_state_dict(spec.vendors[index], params, verbose=False)
+            nn.state.load_state_dict(spec.vendors[index.item()], params, verbose=False)
 
-        new_spawn_count = len(spec.vendors) - offspring_count - keep_count
-        spec.vendors[phase_out_indexes[offspring_count:]] = [
-            spec.model_factory() for _ in range(new_spawn_count)
-        ]
+        for idx in phase_out_indexes[offspring_count:]:
+            spec.vendors[idx.item()] = spec.model_factory()
