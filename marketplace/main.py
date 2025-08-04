@@ -113,25 +113,22 @@ if __name__ == "__main__":
         y = Y_train[samples]
 
         output, paths = forward(marketplace, x)
-        mean_loss = Tensor.stack(
+        all_loss = Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in output)
-        ).mean()
+        )
         return Tensor.stack(
             *(
                 (
                     Tensor.zeros(len(marketplace), VENDOR_COUNT).scatter(
                         dim=1,
                         index=path.unsqueeze(1),
-                        src=logits.sparse_categorical_crossentropy(y)
-                        .neg()
-                        .exp()
-                        .repeat(VENDOR_COUNT, 1),
+                        src=loss.neg().exp().repeat(VENDOR_COUNT, 1),
                     )
                 )
-                for logits, path in zip(output, paths)
+                for loss, path in zip(all_loss, paths)
             ),
             dim=0,
-        ).sum(axis=0), mean_loss
+        ).sum(axis=0), all_loss.mean()
 
     #
     # @TinyJit
@@ -145,9 +142,10 @@ if __name__ == "__main__":
         start_time = time.perf_counter()
 
         all_loss = 0.0
-        profit_matrix, loss = Tensor.zeros(len(marketplace), VENDOR_COUNT)
+        profit_matrix = Tensor.zeros(len(marketplace), VENDOR_COUNT)
         for _ in range(EVAL_CYCLE):
-            profit_matrix += train_step()
+            profit_matrix_delta, loss = train_step()
+            profit_matrix += profit_matrix_delta
             profit_matrix.realize()
             all_loss += loss.item()
 
