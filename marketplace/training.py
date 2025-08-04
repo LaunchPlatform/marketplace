@@ -111,12 +111,14 @@ def make_offsprings(
     profit_matrix: Tensor,
     marketplace: list[Spec],
     offspring_count: int,
+    keep_count: int,
     jitter_scale: Tensor | None = None,
     jitter_offset: Tensor | None = None,
 ):
     for vendor_profits, spec in zip(profit_matrix, marketplace):
         if not spec.evolve:
             continue
+
         reproduce_matrix = (
             vendor_profits.reshape(-1, 1) * vendor_profits.reshape(1, -1)
         ).triu(diagonal=1)
@@ -144,10 +146,13 @@ def make_offsprings(
                 }
             )
 
-        for params, vendor in zip(new_params, spec.vendors):
-            nn.state.load_state_dict(vendor, params, verbose=False)
+        phase_out_count = len(spec.vendors) - keep_count
 
-        new_spawn_count = len(spec.vendors) - offspring_count
-        spec.vendors[offspring_count:] = [
+        _, phase_out_indexes = vendor_profits.topk(phase_out_count, largest=False)
+        for params, index in zip(new_params, phase_out_indexes):
+            nn.state.load_state_dict(spec.vendors[index], params, verbose=False)
+
+        new_spawn_count = len(spec.vendors) - offspring_count - keep_count
+        spec.vendors[phase_out_indexes[offspring_count:]] = [
             spec.model_factory() for _ in range(new_spawn_count)
         ]

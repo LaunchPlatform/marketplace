@@ -29,9 +29,10 @@ class Model:
 if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    VENDOR_COUNT = 16
+    VENDOR_COUNT = 32
     UPSTREAM_SAMPLING = 4
     OFFSPRING_COUNT = 8
+    KEEP_COUNT = 16
     OFFSPRING_JITTER_SCALE = 0.01
     OFFSPRING_JITTER_OFFSET = 0.01
 
@@ -135,7 +136,7 @@ if __name__ == "__main__":
     # def get_test_acc() -> Tensor:
     #     return (model(X_test).argmax(axis=1) == Y_test).mean() * 100
     #
-    EVAL_CYCLE = 100
+    EVAL_CYCLE = 4
     test_acc = float("nan")
     for i in (t := trange(getenv("STEPS", 1000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
@@ -153,6 +154,7 @@ if __name__ == "__main__":
             profit_matrix=profit_matrix,
             marketplace=marketplace,
             offspring_count=OFFSPRING_COUNT,
+            keep_count=KEEP_COUNT,
             jitter_scale=Tensor(OFFSPRING_JITTER_SCALE),
             jitter_offset=Tensor(OFFSPRING_JITTER_OFFSET),
         )
