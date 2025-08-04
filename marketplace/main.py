@@ -110,14 +110,13 @@ if __name__ == "__main__":
 
     @TinyJit
     def train_step() -> Tensor:
-        samples = Tensor.randint(getenv("BS", 128), high=X_train.shape[0])
+        samples = Tensor.randint(getenv("BS", 32), high=X_train.shape[0])
 
         x = X_train[samples]
         y = Y_train[samples]
 
         output, paths = forward(marketplace, x)
-
-        profit_matrix = Tensor.stack(
+        return Tensor.stack(
             *(
                 (
                     Tensor.zeros(len(marketplace), VENDOR_COUNT).scatter(
@@ -134,43 +133,6 @@ if __name__ == "__main__":
             dim=0,
         ).sum(axis=0)
 
-        for vendor_profits, spec in zip(profit_matrix, marketplace):
-            reproduce_matrix = (
-                vendor_profits.reshape(-1, 1) * vendor_profits.reshape(1, -1)
-            ).triu(diagonal=1)
-            parent_indexes = reproduce_matrix.flatten().multinomial(
-                OFFSPRING_COUNT, replacement=True
-            )
-            lhs_indexes = parent_indexes // vendor_profits.shape[0]
-            rhs_indexes = parent_indexes % vendor_profits.shape[0]
-            for lhs_idx, rhs_idx in zip(lhs_indexes, rhs_indexes):
-                lhs = spec.vendors[lhs_idx.item()]
-                rhs = spec.vendors[rhs_idx.item()]
-                lhs_params = nn.state.get_state_dict(lhs)
-                rhs_params = nn.state.get_state_dict(rhs)
-                new_params = {
-                    uniform_between(
-                        lhs=lhs_params[key],
-                        rhs=rhs_params[key],
-                    ).realize()
-                    for key in lhs_params
-                }
-                print(new_params)
-
-        #
-        # profit_matrix.realize()
-        #
-        # reproduce_count = VENDOR_COUNT - PHASE_OUT_COUNT
-        # reproduce_weights, reproduce_indexes = profit_matrix.topk(
-        #     reproduce_count, dim=1,
-        # )
-        # print("$" * 10, reproduce_weights.tolist())
-        # # print("@" * 10, phase_out_indexes.tolist())
-        #
-        # print("### reproduce_weights", reproduce_weights[0].multinomial(reproduce_count, replacement=True).tolist())
-
-        return output
-
     #
     # @TinyJit
     # def get_test_acc() -> Tensor:
@@ -180,7 +142,12 @@ if __name__ == "__main__":
     for i in (t := trange(getenv("STEPS", 1000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         start_time = time.perf_counter()
-        loss = train_step()
+
+        profit_matrix = Tensor.zeros(len(marketplace), VENDOR_COUNT)
+        for _ in range(100):
+            profit_matrix += train_step()
+            profit_matrix.realize()
+
         end_time = time.perf_counter()
         run_time = end_time - start_time
         # if i % 10 == 9:
