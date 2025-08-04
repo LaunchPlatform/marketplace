@@ -6,28 +6,33 @@ from tinygrad import nn
 from tinygrad import Tensor
 
 Model = typing.Callable[[Tensor], Tensor]
+ModelFactory = typing.Callable[[], Model]
 
 
 @dataclasses.dataclass
 class Spec:
-    vendors: list[Model]
+    model_factory: ModelFactory
+    vendor_count: int
     upstream_sampling: int = 0
 
 
 def produce(
-    spec: Spec, x: Tensor, paths: Tensor | None = None
+    vendors: list[Model],
+    x: Tensor,
+    paths: Tensor | None = None,
+    upstream_sampling: int = 0,
 ) -> tuple[Tensor, Tensor]:
     if paths is None:
         # this is the first spec for taking in the raw input, let's feed data to all of them
-        output_data = Tensor.stack(*(vendor(x) for vendor in spec.vendors), dim=0)
-        paths = Tensor.arange(len(spec.vendors)).unsqueeze(1)
+        output_data = Tensor.stack(*(vendor(x) for vendor in vendors), dim=0)
+        paths = Tensor.arange(len(vendors)).unsqueeze(1)
         return output_data, paths
     if x.size(0) != paths.size(0):
         raise ValueError(
             "Provided input data's first dimension doesn't match with the paths' first dimension"
         )
 
-    upstream_sampling = spec.upstream_sampling
+    upstream_sampling = upstream_sampling
     if upstream_sampling == 0:
         upstream_sampling = x.shape[0]
 
@@ -35,7 +40,7 @@ def produce(
     input_indexes = Tensor.stack(
         *(
             Tensor.randperm(input_count)[:upstream_sampling]
-            for _ in range(len(spec.vendors))
+            for _ in range(len(vendors))
         ),
         dim=0,
     )
@@ -45,14 +50,14 @@ def produce(
     merged_batches = input_data.reshape(input_data.shape[0], -1, *input_data.shape[3:])
 
     output_data = Tensor.stack(
-        *(vendor(merged) for vendor, merged in zip(spec.vendors, merged_batches)), dim=0
+        *(vendor(merged) for vendor, merged in zip(vendors, merged_batches)), dim=0
     )
     # breaking down merged batches back to individual batches
     output_data = output_data.reshape(-1, input_data.shape[2], *output_data.shape[2:])
 
     prev_paths = paths[input_indexes].flatten(0, 1)
     new_paths = (
-        Tensor.arange(len(spec.vendors))
+        Tensor.arange(len(vendors))
         .unsqueeze(1)
         .repeat(1, upstream_sampling)
         .flatten()
@@ -95,7 +100,11 @@ def uniform_between(
 
 
 def make_offsprings(
-    profit_matrix: Tensor, marketplace: list[Spec], offspring_count: int
+    profit_matrix: Tensor,
+    marketplace: list[Spec],
+    offspring_count: int,
+    jitter_scale: Tensor | None = None,
+    jitter_offset: Tensor | None = None,
 ):
     for vendor_profits, spec in zip(profit_matrix, marketplace):
         reproduce_matrix = (
@@ -106,16 +115,24 @@ def make_offsprings(
         )
         lhs_indexes = parent_indexes // vendor_profits.shape[0]
         rhs_indexes = parent_indexes % vendor_profits.shape[0]
+
+        new_params = []
         for lhs_idx, rhs_idx in zip(lhs_indexes, rhs_indexes):
             lhs = spec.vendors[lhs_idx.item()]
             rhs = spec.vendors[rhs_idx.item()]
             lhs_params = nn.state.get_state_dict(lhs)
             rhs_params = nn.state.get_state_dict(rhs)
-            new_params = {
-                uniform_between(
-                    lhs=lhs_params[key],
-                    rhs=rhs_params[key],
-                ).realize()
-                for key in lhs_params
-            }
-            print(new_params)
+            new_params.append(
+                {
+                    key: uniform_between(
+                        lhs=lhs_params[key],
+                        rhs=rhs_params[key],
+                        jitter_scale=jitter_scale,
+                        jitter_offset=jitter_offset,
+                    ).realize()
+                    for key in lhs_params
+                }
+            )
+
+        for params, vendor in zip(new_params, spec.vendors):
+            nn.state.load_state_dict(vendor, params, verbose=False)
