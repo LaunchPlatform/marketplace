@@ -14,6 +14,7 @@ from tinygrad.nn.datasets import mnist
 
 from marketplace.training import forward
 from marketplace.training import Spec
+from marketplace.training import uniform_between
 
 
 class Model:
@@ -29,7 +30,7 @@ if __name__ == "__main__":
 
     VENDOR_COUNT = 16
     UPSTREAM_SAMPLING = 4
-    PHASE_OUT_COUNT = 8
+    OFFSPRING_COUNT = 8
 
     marketplace = [
         Spec(
@@ -133,17 +134,28 @@ if __name__ == "__main__":
             dim=0,
         ).sum(axis=0)
 
-        # profit_matrix = profit_matrix.add(profit_attributions)
-
-        for vendor_profits in profit_matrix:
+        for vendor_profits, spec in zip(profit_matrix, marketplace):
             reproduce_matrix = (
                 vendor_profits.reshape(-1, 1) * vendor_profits.reshape(1, -1)
             ).triu(diagonal=1)
-            parent_indexes = reproduce_matrix.flatten().multinomial(5, replacement=True)
+            parent_indexes = reproduce_matrix.flatten().multinomial(
+                OFFSPRING_COUNT, replacement=True
+            )
             lhs_indexes = parent_indexes // vendor_profits.shape[0]
             rhs_indexes = parent_indexes % vendor_profits.shape[0]
-            print("@" * 10, lhs_indexes.tolist())
-            print("$" * 10, rhs_indexes.tolist())
+            for lhs_idx, rhs_idx in zip(lhs_indexes, rhs_indexes):
+                lhs = spec.vendors[lhs_idx.item()]
+                rhs = spec.vendors[rhs_idx.item()]
+                lhs_params = nn.state.get_state_dict(lhs)
+                rhs_params = nn.state.get_state_dict(rhs)
+                new_params = {
+                    uniform_between(
+                        lhs=lhs_params[key],
+                        rhs=rhs_params[key],
+                    ).realize()
+                    for key in lhs_params
+                }
+                print(new_params)
 
         #
         # profit_matrix.realize()
