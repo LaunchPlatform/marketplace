@@ -35,7 +35,6 @@ def produce(
             "Provided input data's first dimension doesn't match with the paths' first dimension"
         )
 
-    upstream_sampling = upstream_sampling
     if upstream_sampling == 0:
         upstream_sampling = x.shape[0]
 
