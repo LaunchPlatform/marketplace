@@ -117,7 +117,10 @@ if __name__ == "__main__":
                     Tensor.zeros(len(marketplace), 10).scatter(
                         dim=1,
                         index=path.unsqueeze(1),
-                        src=product.sparse_categorical_crossentropy(y).neg().exp(),
+                        src=product.sparse_categorical_crossentropy(y)
+                        .neg()
+                        .exp()
+                        .repeat(10, 1),
                     )
                 )
                 for product, path in zip(output, paths)
