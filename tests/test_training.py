@@ -6,6 +6,7 @@ from tinygrad import Tensor
 
 from marketplace.training import produce
 from marketplace.training import Spec
+from marketplace.training import uniform_between
 
 
 def realize(x: Tensor) -> list:
@@ -87,3 +88,29 @@ def test_produce(spec: Spec, x: Tensor, paths: Tensor):
 
     expected_output = [spec.vendors[j.item()](x[i]).tolist() for i, j in out_paths]
     assert output.tolist() == expected_output
+
+
+@pytest.mark.parametrize(
+    "lhs, rhs, jitter_scale, jitter_offset, expected",
+    [
+        (
+            Tensor.zeros(100, 100),
+            Tensor.ones(100, 100),
+            None,
+            None,
+            (0.0, 1.0),
+        )
+    ],
+)
+def test_uniform_between(
+    lhs: Tensor,
+    rhs: Tensor,
+    jitter_scale: Tensor | None,
+    jitter_offset: Tensor | None,
+    expected: tuple[float, float],
+):
+    res = uniform_between(
+        lhs=lhs, rhs=rhs, jitter_scale=jitter_scale, jitter_offset=jitter_offset
+    )
+    assert res.min().item() >= expected[0]
+    assert res.max().item() <= expected[1]
