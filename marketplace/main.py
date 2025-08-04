@@ -94,6 +94,9 @@ if __name__ == "__main__":
         ),
     ]
 
+    for spec in marketplace:
+        spec.vendors = [spec.model_factory() for _ in range(spec.vendor_count)]
+
     @TinyJit
     def train_step() -> Tensor:
         samples = Tensor.randint(getenv("BS", 32), high=X_train.shape[0])

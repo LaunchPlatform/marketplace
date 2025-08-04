@@ -13,6 +13,7 @@ ModelFactory = typing.Callable[[], Model]
 class Spec:
     model_factory: ModelFactory
     vendor_count: int
+    vendors: list[Model] | None = None
     upstream_sampling: int = 0
 
 
@@ -73,7 +74,12 @@ def forward(
 ) -> tuple[Tensor, Tensor]:
     def step(acc: tuple[Tensor, Tensor | None], spec: Spec) -> tuple[Tensor, Tensor]:
         data, paths = acc
-        return produce(spec=spec, x=data, paths=paths)
+        return produce(
+            vendors=spec.vendors,
+            x=data,
+            paths=paths,
+            upstream_sampling=spec.upstream_sampling,
+        )
 
     return functools.reduce(step, specs, (x, initial_paths))
 
