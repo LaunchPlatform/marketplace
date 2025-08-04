@@ -117,20 +117,20 @@ if __name__ == "__main__":
                     Tensor.zeros(len(marketplace), 10).scatter(
                         dim=1,
                         index=path.unsqueeze(1),
-                        src=product.sparse_categorical_crossentropy(y)
+                        src=logits.sparse_categorical_crossentropy(y)
                         .neg()
                         .exp()
                         .repeat(10, 1),
                     )
                 )
-                for product, path in zip(output, paths)
+                for logits, path in zip(output, paths)
             ),
-            dim=1,
-        ).sum()
+            dim=0,
+        ).sum(axis=0)
 
         print(output.realize().shape, y.shape)
         print(paths.tolist())
-        #
+
         profit_matrix = profit_matrix.add(profit_attributions)
         profit_matrix.realize()
 
@@ -149,6 +149,7 @@ if __name__ == "__main__":
         #     test_acc = get_test_acc().item()
         t.set_description(f"loss: {0:6.2f} test_accuracy: {test_acc:5.2f}%")
 
+    print("profit matrix", profit_matrix.numpy())
     # # verify eval acc
     # if target := getenv("TARGET_EVAL_ACC_PCT", 0.0):
     #     if test_acc >= target and test_acc != 100.0:
