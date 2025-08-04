@@ -99,8 +99,11 @@ if __name__ == "__main__":
         ),
     ]
 
+    profit_matrix = Tensor.zeros(len(marketplace), 10)
+
     @TinyJit
     def train_step() -> Tensor:
+        global profit_matrix
         samples = Tensor.randint(getenv("BS", 512), high=X_train.shape[0])
 
         x = X_train[samples]
@@ -108,8 +111,25 @@ if __name__ == "__main__":
 
         output, paths = forward(marketplace, x)
 
-        print(output.realize().shape)
+        profit_attributions = Tensor.stack(
+            *(
+                (
+                    Tensor.zeros(len(marketplace), 10).scatter(
+                        dim=1,
+                        index=path.unsqueeze(1),
+                        src=product.sparse_categorical_crossentropy(y).neg().exp(),
+                    )
+                )
+                for product, path in zip(output, paths)
+            ),
+            dim=1,
+        ).sum()
+
+        print(output.realize().shape, y.shape)
         print(paths.tolist())
+        #
+        profit_matrix = profit_matrix.add(profit_attributions)
+        profit_matrix.realize()
 
         return output
 
