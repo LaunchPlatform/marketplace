@@ -68,7 +68,6 @@ if __name__ == "__main__":
                     [
                         nn.Conv2d(32, 64, 3),
                         Tensor.relu,
-                        Tensor.relu,
                     ]
                 )
                 for _ in range(VENDOR_COUNT)
