@@ -34,76 +34,62 @@ if __name__ == "__main__":
 
     marketplace = [
         Spec(
-            vendors=[
-                Model(
-                    [
-                        nn.Conv2d(1, 32, 5),
-                        Tensor.relu,
-                    ]
-                )
-                for _ in range(VENDOR_COUNT)
-            ]
+            model_factory=lambda: Model(
+                [
+                    nn.Conv2d(1, 32, 5),
+                    Tensor.relu,
+                ]
+            ),
+            vendor_count=VENDOR_COUNT,
         ),
         Spec(
-            vendors=[
-                Model(
-                    [
-                        nn.Conv2d(32, 32, 5),
-                        Tensor.relu,
-                    ]
-                )
-                for _ in range(VENDOR_COUNT)
-            ],
+            model_factory=lambda: Model(
+                [
+                    nn.Conv2d(32, 32, 5),
+                    Tensor.relu,
+                ]
+            ),
+            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
-            vendors=[
-                Model([nn.BatchNorm(32), Tensor.max_pool2d])
-                for _ in range(VENDOR_COUNT)
-            ],
+            model_factory=lambda: Model([nn.BatchNorm(32), Tensor.max_pool2d]),
+            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
-            vendors=[
-                Model(
-                    [
-                        nn.Conv2d(32, 64, 3),
-                        Tensor.relu,
-                    ]
-                )
-                for _ in range(VENDOR_COUNT)
-            ],
+            model_factory=lambda: Model(
+                [
+                    nn.Conv2d(32, 64, 3),
+                    Tensor.relu,
+                ]
+            ),
+            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
-            vendors=[
-                Model(
-                    [
-                        nn.Conv2d(64, 64, 3),
-                        Tensor.relu,
-                    ]
-                )
-                for _ in range(VENDOR_COUNT)
-            ],
+            model_factory=lambda: Model(
+                [
+                    nn.Conv2d(64, 64, 3),
+                    Tensor.relu,
+                ]
+            ),
+            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
-            vendors=[
-                Model(
-                    [
-                        nn.BatchNorm(64),
-                        Tensor.max_pool2d,
-                    ]
-                )
-                for _ in range(VENDOR_COUNT)
-            ],
+            model_factory=lambda: Model(
+                [
+                    nn.BatchNorm(64),
+                    Tensor.max_pool2d,
+                ]
+            ),
+            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
-            vendors=[
-                Model([lambda x: x.flatten(1), nn.Linear(576, 10)])
-                for _ in range(VENDOR_COUNT)
-            ],
+            model_factory=lambda: Model([lambda x: x.flatten(1), nn.Linear(576, 10)]),
+            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
     ]
