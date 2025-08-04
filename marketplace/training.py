@@ -119,28 +119,21 @@ def make_offsprings(
         if not spec.evolve:
             continue
 
-        reproduce_matrix = (
-            vendor_profits.reshape(-1, 1) * vendor_profits.reshape(1, -1)
-        ).triu(diagonal=1)
-        parent_indexes = reproduce_matrix.flatten().multinomial(
-            offspring_count, replacement=True
-        )
-        lhs_indexes = parent_indexes // vendor_profits.shape[0]
-        rhs_indexes = parent_indexes % vendor_profits.shape[0]
+        _, mutate_indexes = vendor_profits.topk(offspring_count, largest=False)
 
         new_params = []
-        for lhs_idx, rhs_idx in zip(lhs_indexes, rhs_indexes):
-            lhs = spec.vendors[lhs_idx.item()]
-            rhs = spec.vendors[rhs_idx.item()]
-            lhs_params = nn.state.get_state_dict(lhs)
-            rhs_params = nn.state.get_state_dict(rhs)
+        for src_idx in mutate_indexes:
+            src = spec.vendors[src_idx.item()]
+            src_params = nn.state.get_state_dict(src)
             new_params.append(
                 {
-                    key: uniform_between(
-                        lhs=lhs_params[key],
-                        rhs=rhs_params[key],
-                        jitter_scale=jitter_scale,
-                        jitter_offset=jitter_offset,
+                    key: (
+                        src_params[key]
+                        + Tensor.uniform(
+                            *src_params[key].shape,
+                            low=-jitter_offset,
+                            high=jitter_offset,
+                        )
                     ).realize()
                     for key in lhs_params
                 }
