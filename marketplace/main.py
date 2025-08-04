@@ -106,13 +106,16 @@ if __name__ == "__main__":
         spec.vendors = [spec.model_factory() for _ in range(spec.vendor_count)]
 
     @TinyJit
-    def train_step() -> Tensor:
+    def train_step() -> tuple[Tensor, Tensor]:
         samples = Tensor.randint(getenv("BS", 32), high=X_train.shape[0])
 
         x = X_train[samples]
         y = Y_train[samples]
 
         output, paths = forward(marketplace, x)
+        mean_loss = Tensor.stack(
+            *(logits.sparse_categorical_crossentropy(y) for logits in output)
+        ).mean()
         return Tensor.stack(
             *(
                 (
@@ -128,22 +131,25 @@ if __name__ == "__main__":
                 for logits, path in zip(output, paths)
             ),
             dim=0,
-        ).sum(axis=0)
+        ).sum(axis=0), mean_loss
 
     #
     # @TinyJit
     # def get_test_acc() -> Tensor:
     #     return (model(X_test).argmax(axis=1) == Y_test).mean() * 100
     #
+    EVAL_CYCLE = 100
     test_acc = float("nan")
     for i in (t := trange(getenv("STEPS", 1000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         start_time = time.perf_counter()
 
-        profit_matrix = Tensor.zeros(len(marketplace), VENDOR_COUNT)
-        for _ in range(100):
+        all_loss = 0.0
+        profit_matrix, loss = Tensor.zeros(len(marketplace), VENDOR_COUNT)
+        for _ in range(EVAL_CYCLE):
             profit_matrix += train_step()
             profit_matrix.realize()
+            all_loss += loss.item()
 
         make_offsprings(
             profit_matrix=profit_matrix,
@@ -158,7 +164,7 @@ if __name__ == "__main__":
         # if i % 10 == 9:
         #     test_acc = get_test_acc().item()
         t.set_description(
-            f"loss: {0:6.2f}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
+            f"loss: {all_loss / EVAL_CYCLE:6.2f}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
         )
 
     # print("profit matrix", profit_matrix.numpy())

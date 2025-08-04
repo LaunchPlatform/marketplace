@@ -4,6 +4,7 @@ import typing
 
 from tinygrad import nn
 from tinygrad import Tensor
+from tinygrad import TinyJit
 
 Model = typing.Callable[[Tensor], Tensor]
 ModelFactory = typing.Callable[[], Model]
@@ -105,6 +106,7 @@ def uniform_between(
     return base + delta * scale
 
 
+@TinyJit
 def make_offsprings(
     profit_matrix: Tensor,
     marketplace: list[Spec],
