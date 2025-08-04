@@ -128,9 +128,6 @@ if __name__ == "__main__":
             dim=0,
         ).sum(axis=0)
 
-        print(output.realize().shape, y.shape)
-        print(paths.tolist())
-
         profit_matrix = profit_matrix.add(profit_attributions)
         profit_matrix.realize()
 
@@ -142,7 +139,7 @@ if __name__ == "__main__":
     #     return (model(X_test).argmax(axis=1) == Y_test).mean() * 100
     #
     test_acc = float("nan")
-    for i in (t := trange(getenv("STEPS", 70))):
+    for i in (t := trange(getenv("STEPS", 100))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         loss = train_step()
         # if i % 10 == 9:
