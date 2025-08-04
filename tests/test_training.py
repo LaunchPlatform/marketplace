@@ -94,12 +94,26 @@ def test_produce(spec: Spec, x: Tensor, paths: Tensor):
     "lhs, rhs, jitter_scale, jitter_offset, expected",
     [
         (
-            Tensor.zeros(100, 100),
-            Tensor.ones(100, 100),
+            Tensor.zeros(100, 100, 100),
+            Tensor.ones(100, 100, 100),
             None,
             None,
             (0.0, 1.0),
-        )
+        ),
+        (
+            Tensor.zeros(100, 100, 100),
+            Tensor.zeros(100, 100, 100),
+            None,
+            None,
+            (0.0, 0.0),
+        ),
+        (
+            Tensor.ones(100, 100, 100),
+            Tensor.ones(100, 100, 100),
+            None,
+            None,
+            (1.0, 1.0),
+        ),
     ],
 )
 def test_uniform_between(
@@ -114,3 +128,5 @@ def test_uniform_between(
     )
     assert res.min().item() >= expected[0]
     assert res.max().item() <= expected[1]
+    assert res.mean().item() == pytest.approx((expected[0] + expected[1]) / 2, 0.01)
+    # TODO: add Kolmogorov-Smirnov test test if needed
