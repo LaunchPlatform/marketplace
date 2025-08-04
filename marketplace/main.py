@@ -1,4 +1,5 @@
 # model based off https://medium.com/data-science/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
+import time
 from typing import Callable
 from typing import List
 
@@ -26,6 +27,9 @@ class Model:
 if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
+    VENDOR_COUNT = 16
+    UPSTREAM_SAMPLING = 4
+
     marketplace = [
         Spec(
             vendors=[
@@ -35,7 +39,7 @@ if __name__ == "__main__":
                         Tensor.relu,
                     ]
                 )
-                for _ in range(10)
+                for _ in range(VENDOR_COUNT)
             ]
         ),
         Spec(
@@ -46,13 +50,16 @@ if __name__ == "__main__":
                         Tensor.relu,
                     ]
                 )
-                for _ in range(10)
+                for _ in range(VENDOR_COUNT)
             ],
-            upstream_sampling=3,
+            upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
-            vendors=[Model([nn.BatchNorm(32), Tensor.max_pool2d]) for _ in range(10)],
-            upstream_sampling=3,
+            vendors=[
+                Model([nn.BatchNorm(32), Tensor.max_pool2d])
+                for _ in range(VENDOR_COUNT)
+            ],
+            upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
             vendors=[
@@ -63,9 +70,9 @@ if __name__ == "__main__":
                         Tensor.relu,
                     ]
                 )
-                for _ in range(10)
+                for _ in range(VENDOR_COUNT)
             ],
-            upstream_sampling=3,
+            upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
             vendors=[
@@ -75,9 +82,9 @@ if __name__ == "__main__":
                         Tensor.relu,
                     ]
                 )
-                for _ in range(10)
+                for _ in range(VENDOR_COUNT)
             ],
-            upstream_sampling=3,
+            upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
             vendors=[
@@ -87,24 +94,25 @@ if __name__ == "__main__":
                         Tensor.max_pool2d,
                     ]
                 )
-                for _ in range(10)
+                for _ in range(VENDOR_COUNT)
             ],
-            upstream_sampling=3,
+            upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
             vendors=[
-                Model([lambda x: x.flatten(1), nn.Linear(576, 10)]) for _ in range(10)
+                Model([lambda x: x.flatten(1), nn.Linear(576, 10)])
+                for _ in range(VENDOR_COUNT)
             ],
-            upstream_sampling=3,
+            upstream_sampling=UPSTREAM_SAMPLING,
         ),
     ]
 
-    profit_matrix = Tensor.zeros(len(marketplace), 10)
+    profit_matrix = Tensor.zeros(len(marketplace), VENDOR_COUNT)
 
     @TinyJit
     def train_step() -> Tensor:
         global profit_matrix
-        samples = Tensor.randint(getenv("BS", 512), high=X_train.shape[0])
+        samples = Tensor.randint(getenv("BS", 128), high=X_train.shape[0])
 
         x = X_train[samples]
         y = Y_train[samples]
@@ -114,13 +122,13 @@ if __name__ == "__main__":
         profit_attributions = Tensor.stack(
             *(
                 (
-                    Tensor.zeros(len(marketplace), 10).scatter(
+                    Tensor.zeros(len(marketplace), VENDOR_COUNT).scatter(
                         dim=1,
                         index=path.unsqueeze(1),
                         src=logits.sparse_categorical_crossentropy(y)
                         .neg()
                         .exp()
-                        .repeat(10, 1),
+                        .repeat(VENDOR_COUNT, 1),
                     )
                 )
                 for logits, path in zip(output, paths)
@@ -141,10 +149,15 @@ if __name__ == "__main__":
     test_acc = float("nan")
     for i in (t := trange(getenv("STEPS", 100))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
+        start_time = time.perf_counter()
         loss = train_step()
+        end_time = time.perf_counter()
+        run_time = end_time - start_time
         # if i % 10 == 9:
         #     test_acc = get_test_acc().item()
-        t.set_description(f"loss: {0:6.2f} test_accuracy: {test_acc:5.2f}%")
+        t.set_description(
+            f"loss: {0:6.2f} test_accuracy: {test_acc:5.2f}% {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
+        )
 
     print("profit matrix", profit_matrix.numpy())
     # # verify eval acc
