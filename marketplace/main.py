@@ -30,11 +30,11 @@ if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
     VENDOR_COUNT = 32
-    UPSTREAM_SAMPLING = 4
+    UPSTREAM_SAMPLING = 8
     OFFSPRING_COUNT = 8
     KEEP_COUNT = 16
-    OFFSPRING_JITTER_SCALE = 0.01
-    OFFSPRING_JITTER_OFFSET = 0.01
+    OFFSPRING_JITTER_SCALE = 0.001
+    OFFSPRING_JITTER_OFFSET = 0.001
 
     marketplace = [
         Spec(
@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
     @TinyJit
     def train_step() -> tuple[Tensor, Tensor]:
-        samples = Tensor.randint(getenv("BS", 32), high=X_train.shape[0])
+        samples = Tensor.randint(getenv("BS", 8), high=X_train.shape[0])
 
         x = X_train[samples]
         y = Y_train[samples]
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     # def get_test_acc() -> Tensor:
     #     return (model(X_test).argmax(axis=1) == Y_test).mean() * 100
     #
-    EVAL_CYCLE = 4
+    EVAL_CYCLE = 16
     test_acc = float("nan")
     for i in (t := trange(getenv("STEPS", 1000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
