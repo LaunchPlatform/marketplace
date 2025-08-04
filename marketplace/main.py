@@ -134,12 +134,24 @@ if __name__ == "__main__":
         ).sum(axis=0)
 
         # profit_matrix = profit_matrix.add(profit_attributions)
-        profit_matrix.realize()
 
-        phase_out_vals, phase_out_indexes = profit_matrix.topk(
-            VENDOR_COUNT - PHASE_OUT_COUNT, dim=1, largest=False
-        )
-        print("@" * 10, phase_out_indexes.tolist())
+        for vendor_profits in profit_matrix:
+            reproduce_matrix = (
+                vendor_profits.reshape(-1, 1) * vendor_profits.reshape(1, -1)
+            ).triu(diagonal=1)
+            print(reproduce_matrix.numpy())
+
+        #
+        # profit_matrix.realize()
+        #
+        # reproduce_count = VENDOR_COUNT - PHASE_OUT_COUNT
+        # reproduce_weights, reproduce_indexes = profit_matrix.topk(
+        #     reproduce_count, dim=1,
+        # )
+        # print("$" * 10, reproduce_weights.tolist())
+        # # print("@" * 10, phase_out_indexes.tolist())
+        #
+        # print("### reproduce_weights", reproduce_weights[0].multinomial(reproduce_count, replacement=True).tolist())
 
         return output
 
@@ -149,7 +161,7 @@ if __name__ == "__main__":
     #     return (model(X_test).argmax(axis=1) == Y_test).mean() * 100
     #
     test_acc = float("nan")
-    for i in (t := trange(getenv("STEPS", 100))):
+    for i in (t := trange(getenv("STEPS", 1000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         start_time = time.perf_counter()
         loss = train_step()
