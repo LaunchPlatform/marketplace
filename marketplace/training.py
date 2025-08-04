@@ -16,6 +16,7 @@ class Spec:
     vendor_count: int
     vendors: list[Model] | None = None
     upstream_sampling: int = 0
+    evolve: bool = True
 
 
 def produce(
@@ -115,6 +116,8 @@ def make_offsprings(
     jitter_offset: Tensor | None = None,
 ):
     for vendor_profits, spec in zip(profit_matrix, marketplace):
+        if not spec.evolve:
+            continue
         reproduce_matrix = (
             vendor_profits.reshape(-1, 1) * vendor_profits.reshape(1, -1)
         ).triu(diagonal=1)

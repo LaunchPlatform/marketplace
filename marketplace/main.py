@@ -44,6 +44,7 @@ if __name__ == "__main__":
                 ]
             ),
             vendor_count=VENDOR_COUNT,
+            evolve=True,
         ),
         Spec(
             model_factory=lambda: Model(
