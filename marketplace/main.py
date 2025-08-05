@@ -57,12 +57,7 @@ if __name__ == "__main__":
             evolve=False,
         ),
         Spec(
-            model_factory=lambda: Model(
-                [
-                    # nn.BatchNorm(32),
-                    Tensor.max_pool2d
-                ]
-            ),
+            model_factory=lambda: Model([nn.BatchNorm(32), Tensor.max_pool2d]),
             vendor_count=1,
             upstream_sampling=UPSTREAM_SAMPLING,
             evolve=False,
@@ -74,9 +69,8 @@ if __name__ == "__main__":
                     Tensor.relu,
                 ]
             ),
-            vendor_count=1,
+            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
-            evolve=False,
         ),
         Spec(
             model_factory=lambda: Model(
@@ -85,14 +79,13 @@ if __name__ == "__main__":
                     Tensor.relu,
                 ]
             ),
-            vendor_count=1,
+            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
-            evolve=False,
         ),
         Spec(
             model_factory=lambda: Model(
                 [
-                    # nn.BatchNorm(64),
+                    nn.BatchNorm(64),
                     Tensor.max_pool2d,
                 ]
             ),
@@ -102,9 +95,8 @@ if __name__ == "__main__":
         ),
         Spec(
             model_factory=lambda: Model([lambda x: x.flatten(1), nn.Linear(576, 10)]),
-            vendor_count=1,
+            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
-            evolve=False,
         ),
     ]
 
@@ -123,15 +115,14 @@ if __name__ == "__main__":
         # spec.vendors = [spec.model_factory()] * spec.vendor_count
     vendor_count_max = max([len(spec.vendors) for spec in MARKETPLACE])
 
-    # @TinyJit
-    def train_step(marketplace: list[Spec]) -> tuple[Tensor, Tensor]:
-        # samples = Tensor.randint(getenv("BS", 8), high=X_train.shape[0])
-        samples = Tensor.arange(getenv("BS", 32))
+    @TinyJit
+    def train_step() -> tuple[Tensor, Tensor]:
+        samples = Tensor.randint(getenv("BS", 512), high=X_train.shape[0])
 
         x = X_train[samples]
         y = Y_train[samples]
 
-        product_logits, paths = forward(marketplace, x)
+        product_logits, paths = forward(MARKETPLACE, x)
         product_loss = Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in product_logits),
             dim=0,
@@ -143,7 +134,7 @@ if __name__ == "__main__":
             leading_path=min_path,
             jitter=Tensor(OFFSPRING_JITTER_OFFSET),
         )
-        return min_loss.realize(), min_path
+        return min_loss.realize(), min_path.realize()
 
     #
     # @TinyJit
@@ -159,15 +150,14 @@ if __name__ == "__main__":
         # all_loss = 0.0
         # profit_matrix = Tensor.zeros(len(marketplace), VENDOR_COUNT)
         # for _ in range(EVAL_CYCLE):
-        loss, path = train_step(MARKETPLACE)
-        print("@@", loss.item(), path.tolist())
+        loss, path = train_step()
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
         # if i % 10 == 9:
         #     test_acc = get_test_acc().item()
         t.set_description(
-            f"loss: {loss.item() / EVAL_CYCLE}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
+            f"loss: {loss.item()}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
         )
 
     # print("profit matrix", profit_matrix.numpy())
