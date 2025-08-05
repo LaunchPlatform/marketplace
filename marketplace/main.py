@@ -29,12 +29,12 @@ class Model:
 if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    VENDOR_COUNT = 32
-    UPSTREAM_SAMPLING = 8
+    VENDOR_COUNT = 16
+    UPSTREAM_SAMPLING = 16
     OFFSPRING_COUNT = 8
-    KEEP_COUNT = 16
+    KEEP_COUNT = 8
     OFFSPRING_JITTER_SCALE = 0.1
-    OFFSPRING_JITTER_OFFSET = 0.01
+    OFFSPRING_JITTER_OFFSET = 0.0001
 
     marketplace = [
         Spec(
@@ -104,11 +104,23 @@ if __name__ == "__main__":
     ]
 
     for spec in marketplace:
-        spec.vendors = [spec.model_factory() for _ in range(spec.vendor_count)]
+        sample = spec.model_factory()
+        params = nn.state.get_state_dict(sample)
+        vendors = []
+        for _ in range(spec.vendor_count):
+            model = spec.model_factory()
+            nn.state.load_state_dict(
+                model, {key: params[key].clone() for key in params}, verbose=False
+            )
+            vendors.append(model)
+
+        # spec.vendors = [sample for _ in range(spec.vendor_count)]
+        # spec.vendors = [spec.model_factory()] * spec.vendor_count
 
     @TinyJit
     def train_step() -> tuple[Tensor, Tensor]:
-        samples = Tensor.randint(getenv("BS", 8), high=X_train.shape[0])
+        # samples = Tensor.randint(getenv("BS", 8), high=X_train.shape[0])
+        samples = Tensor.arange(getenv("BS", 32))
 
         x = X_train[samples]
         y = Y_train[samples]
@@ -164,7 +176,7 @@ if __name__ == "__main__":
         # if i % 10 == 9:
         #     test_acc = get_test_acc().item()
         t.set_description(
-            f"loss: {all_loss / EVAL_CYCLE:6.2f}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
+            f"loss: {all_loss / EVAL_CYCLE}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
         )
 
     # print("profit matrix", profit_matrix.numpy())
