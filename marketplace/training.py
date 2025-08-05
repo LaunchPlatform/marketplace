@@ -106,7 +106,7 @@ def uniform_between(
     return base + delta * scale
 
 
-@TinyJit
+# @TinyJit
 def make_offsprings(
     profit_matrix: Tensor,
     marketplace: list[Spec],
@@ -119,7 +119,7 @@ def make_offsprings(
         if not spec.evolve:
             continue
 
-        _, mutate_indexes = vendor_profits.topk(offspring_count, largest=False)
+        _, mutate_indexes = vendor_profits.topk(offspring_count, largest=True)
 
         new_params = []
         for src_idx in mutate_indexes:
@@ -135,7 +135,7 @@ def make_offsprings(
                             high=jitter_offset,
                         )
                     ).realize()
-                    for key in lhs_params
+                    for key in src_params
                 }
             )
 

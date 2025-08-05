@@ -29,10 +29,10 @@ class Model:
 if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    VENDOR_COUNT = 32
-    UPSTREAM_SAMPLING = 8
-    OFFSPRING_COUNT = 8
-    KEEP_COUNT = 16
+    VENDOR_COUNT = 8
+    UPSTREAM_SAMPLING = 4
+    OFFSPRING_COUNT = 4
+    KEEP_COUNT = 4
     OFFSPRING_JITTER_SCALE = 0.1
     OFFSPRING_JITTER_OFFSET = 0.01
 
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     for spec in marketplace:
         spec.vendors = [spec.model_factory() for _ in range(spec.vendor_count)]
 
-    @TinyJit
+    # @TinyJit
     def train_step() -> tuple[Tensor, Tensor]:
         samples = Tensor.randint(getenv("BS", 8), high=X_train.shape[0])
 
@@ -163,8 +163,9 @@ if __name__ == "__main__":
         run_time = end_time - start_time
         # if i % 10 == 9:
         #     test_acc = get_test_acc().item()
+        print("@" * 10, all_loss / EVAL_CYCLE)
         t.set_description(
-            f"loss: {all_loss / EVAL_CYCLE:6.2f}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
+            f"loss: {all_loss / EVAL_CYCLE}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
         )
 
     # print("profit matrix", profit_matrix.numpy())
