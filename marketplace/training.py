@@ -119,7 +119,10 @@ def make_offsprings(
         if not spec.evolve:
             continue
 
-        _, mutate_indexes = vendor_profits.topk(offspring_count, largest=True)
+        best_profits, mutate_indexes = vendor_profits.topk(
+            offspring_count, largest=True
+        )
+        print(best_profits.tolist())
         new_params = []
         for src_idx in mutate_indexes:
             src = spec.vendors[src_idx.item()]
@@ -146,3 +149,27 @@ def make_offsprings(
 
         for idx in phase_out_indexes[offspring_count:]:
             spec.vendors[idx.item()] = spec.model_factory()
+
+
+def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
+    for spec, leading_index in zip(marketplace, leading_path):
+        if not spec.evolve:
+            continue
+        leading_index = leading_index.item()
+        leading_params = nn.state.get_state_dict(spec.vendors[leading_index])
+        for i, vendor in enumerate(spec.vendors):
+            if i == leading_index:
+                continue
+            nn.state.load_state_dict(
+                spec.vendors[i],
+                {
+                    key: (
+                        leading_params[key]
+                        + Tensor.uniform(
+                            *leading_params[key].shape, low=-jitter, high=jitter
+                        )
+                    )
+                    for key in leading_params
+                },
+                verbose=False,
+            )

@@ -132,23 +132,13 @@ if __name__ == "__main__":
         x = X_train[samples]
         y = Y_train[samples]
 
-        output, paths = forward(marketplace, x)
-        all_loss = Tensor.stack(
-            *(logits.sparse_categorical_crossentropy(y) for logits in output)
-        )
-        return Tensor.stack(
-            *(
-                (
-                    Tensor.zeros(len(marketplace), vendor_count_max).scatter(
-                        dim=1,
-                        index=path.unsqueeze(1),
-                        src=loss.neg().exp().repeat(vendor_count_max, 1),
-                    )
-                )
-                for loss, path in zip(all_loss, paths)
-            ),
+        product_logits, paths = forward(marketplace, x)
+        product_loss = Tensor.stack(
+            *(logits.sparse_categorical_crossentropy(y) for logits in product_logits),
             dim=0,
-        ).sum(axis=0), all_loss.min()
+        )
+        min_loss, min_loss_index = product_loss.topk(1, largest=False)
+        return min_loss, paths[min_loss_index]
 
     #
     # @TinyJit
@@ -161,29 +151,30 @@ if __name__ == "__main__":
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         start_time = time.perf_counter()
 
-        all_loss = 0.0
-        profit_matrix = Tensor.zeros(len(marketplace), VENDOR_COUNT)
-        for _ in range(EVAL_CYCLE):
-            profit_matrix_delta, loss = train_step()
-            profit_matrix += profit_matrix_delta
-            profit_matrix.realize()
-            all_loss += loss.item()
-
-        make_offsprings(
-            profit_matrix=profit_matrix,
-            marketplace=marketplace,
-            offspring_count=OFFSPRING_COUNT,
-            keep_count=KEEP_COUNT,
-            jitter_scale=Tensor(OFFSPRING_JITTER_SCALE),
-            jitter_offset=Tensor(OFFSPRING_JITTER_OFFSET),
-        )
+        # all_loss = 0.0
+        # profit_matrix = Tensor.zeros(len(marketplace), VENDOR_COUNT)
+        # for _ in range(EVAL_CYCLE):
+        loss, path = train_step()
+        print("@@", loss.item(), path.tolist())
+        # profit_matrix += profit_matrix_delta
+        # profit_matrix.realize()
+        # all_loss += loss.item()
+        #
+        # make_offsprings(
+        #     profit_matrix=profit_matrix,
+        #     marketplace=marketplace,
+        #     offspring_count=OFFSPRING_COUNT,
+        #     keep_count=KEEP_COUNT,
+        #     jitter_scale=Tensor(OFFSPRING_JITTER_SCALE),
+        #     jitter_offset=Tensor(OFFSPRING_JITTER_OFFSET),
+        # )
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
         # if i % 10 == 9:
         #     test_acc = get_test_acc().item()
         t.set_description(
-            f"loss: {all_loss / EVAL_CYCLE}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
+            f"loss: {loss / EVAL_CYCLE}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
         )
 
     # print("profit matrix", profit_matrix.numpy())
