@@ -30,14 +30,12 @@ class Model:
 if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    VENDOR_COUNT = 256
-    UPSTREAM_SAMPLING = 0
-    OFFSPRING_COUNT = 128
-    KEEP_COUNT = 128
+    VENDOR_COUNT = 32
+    UPSTREAM_SAMPLING = 16
     OFFSPRING_JITTER_SCALE = 0.1
     OFFSPRING_JITTER_OFFSET = 0.001
 
-    marketplace = [
+    MARKETPLACE = [
         Spec(
             model_factory=lambda: Model(
                 [
@@ -54,7 +52,7 @@ if __name__ == "__main__":
                     Tensor.relu,
                 ]
             ),
-            vendor_count=1,
+            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
             evolve=False,
         ),
@@ -110,7 +108,7 @@ if __name__ == "__main__":
         ),
     ]
 
-    for spec in marketplace:
+    for spec in MARKETPLACE:
         sample = spec.model_factory()
         params = nn.state.get_state_dict(sample)
         spec.vendors = []
@@ -123,10 +121,10 @@ if __name__ == "__main__":
 
         # spec.vendors = [sample for _ in range(spec.vendor_count)]
         # spec.vendors = [spec.model_factory()] * spec.vendor_count
-    vendor_count_max = max([len(spec.vendors) for spec in marketplace])
+    vendor_count_max = max([len(spec.vendors) for spec in MARKETPLACE])
 
     # @TinyJit
-    def train_step() -> tuple[Tensor, Tensor]:
+    def train_step(marketplace: list[Spec]) -> tuple[Tensor, Tensor]:
         # samples = Tensor.randint(getenv("BS", 8), high=X_train.shape[0])
         samples = Tensor.arange(getenv("BS", 32))
 
@@ -139,7 +137,13 @@ if __name__ == "__main__":
             dim=0,
         )
         min_loss, min_loss_index = product_loss.topk(1, largest=False)
-        return min_loss, paths[min_loss_index].flatten()
+        min_path = paths[min_loss_index].flatten()
+        mutate(
+            marketplace=MARKETPLACE,
+            leading_path=min_path,
+            jitter=Tensor(OFFSPRING_JITTER_OFFSET),
+        )
+        return min_loss.realize(), min_path
 
     #
     # @TinyJit
@@ -155,26 +159,8 @@ if __name__ == "__main__":
         # all_loss = 0.0
         # profit_matrix = Tensor.zeros(len(marketplace), VENDOR_COUNT)
         # for _ in range(EVAL_CYCLE):
-        loss, path = train_step()
+        loss, path = train_step(MARKETPLACE)
         print("@@", loss.item(), path.tolist())
-
-        mutate(
-            marketplace=marketplace,
-            leading_path=path,
-            jitter=Tensor(OFFSPRING_JITTER_OFFSET),
-        )
-        # profit_matrix += profit_matrix_delta
-        # profit_matrix.realize()
-        # all_loss += loss.item()
-        #
-        # make_offsprings(
-        #     profit_matrix=profit_matrix,
-        #     marketplace=marketplace,
-        #     offspring_count=OFFSPRING_COUNT,
-        #     keep_count=KEEP_COUNT,
-        #     jitter_scale=Tensor(OFFSPRING_JITTER_SCALE),
-        #     jitter_offset=Tensor(OFFSPRING_JITTER_OFFSET),
-        # )
 
         end_time = time.perf_counter()
         run_time = end_time - start_time

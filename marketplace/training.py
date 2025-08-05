@@ -169,7 +169,7 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
                         + Tensor.uniform(
                             *leading_params[key].shape, low=-jitter, high=jitter
                         )
-                    )
+                    ).realize()
                     for key in leading_params
                 },
                 verbose=False,
