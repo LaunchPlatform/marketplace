@@ -14,6 +14,7 @@ from tinygrad.nn.datasets import mnist
 
 from marketplace.training import forward
 from marketplace.training import make_offsprings
+from marketplace.training import mutate
 from marketplace.training import Spec
 from marketplace.training import uniform_between
 
@@ -156,6 +157,12 @@ if __name__ == "__main__":
         # for _ in range(EVAL_CYCLE):
         loss, path = train_step()
         print("@@", loss.item(), path.tolist())
+
+        mutate(
+            marketplace=marketplace,
+            leading_path=path,
+            jitter=Tensor(OFFSPRING_JITTER_OFFSET),
+        )
         # profit_matrix += profit_matrix_delta
         # profit_matrix.realize()
         # all_loss += loss.item()
