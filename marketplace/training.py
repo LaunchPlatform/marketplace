@@ -119,8 +119,7 @@ def make_offsprings(
         if not spec.evolve:
             continue
 
-        _, mutate_indexes = vendor_profits.topk(offspring_count, largest=False)
-
+        _, mutate_indexes = vendor_profits.topk(offspring_count, largest=True)
         new_params = []
         for src_idx in mutate_indexes:
             src = spec.vendors[src_idx.item()]

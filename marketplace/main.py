@@ -29,12 +29,12 @@ class Model:
 if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    VENDOR_COUNT = 128
+    VENDOR_COUNT = 256
     UPSTREAM_SAMPLING = 0
-    OFFSPRING_COUNT = 64
-    KEEP_COUNT = 64
+    OFFSPRING_COUNT = 128
+    KEEP_COUNT = 128
     OFFSPRING_JITTER_SCALE = 0.1
-    OFFSPRING_JITTER_OFFSET = 0.01
+    OFFSPRING_JITTER_OFFSET = 0.001
 
     marketplace = [
         Spec(
