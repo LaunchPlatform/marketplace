@@ -6,7 +6,6 @@ from tinygrad import Tensor
 
 from marketplace.training import Model
 from marketplace.training import produce
-from marketplace.training import Spec
 from marketplace.training import uniform_between
 
 
