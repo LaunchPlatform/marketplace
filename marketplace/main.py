@@ -29,12 +29,12 @@ class Model:
 if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    VENDOR_COUNT = 16
-    UPSTREAM_SAMPLING = 16
-    OFFSPRING_COUNT = 8
-    KEEP_COUNT = 8
+    VENDOR_COUNT = 128
+    UPSTREAM_SAMPLING = 0
+    OFFSPRING_COUNT = 64
+    KEEP_COUNT = 64
     OFFSPRING_JITTER_SCALE = 0.1
-    OFFSPRING_JITTER_OFFSET = 0.0001
+    OFFSPRING_JITTER_OFFSET = 0.01
 
     marketplace = [
         Spec(
@@ -53,8 +53,9 @@ if __name__ == "__main__":
                     Tensor.relu,
                 ]
             ),
-            vendor_count=VENDOR_COUNT,
+            vendor_count=1,
             upstream_sampling=UPSTREAM_SAMPLING,
+            evolve=False,
         ),
         Spec(
             model_factory=lambda: Model(
@@ -63,8 +64,9 @@ if __name__ == "__main__":
                     Tensor.max_pool2d
                 ]
             ),
-            vendor_count=VENDOR_COUNT,
+            vendor_count=1,
             upstream_sampling=UPSTREAM_SAMPLING,
+            evolve=False,
         ),
         Spec(
             model_factory=lambda: Model(
@@ -73,8 +75,9 @@ if __name__ == "__main__":
                     Tensor.relu,
                 ]
             ),
-            vendor_count=VENDOR_COUNT,
+            vendor_count=1,
             upstream_sampling=UPSTREAM_SAMPLING,
+            evolve=False,
         ),
         Spec(
             model_factory=lambda: Model(
@@ -83,8 +86,9 @@ if __name__ == "__main__":
                     Tensor.relu,
                 ]
             ),
-            vendor_count=VENDOR_COUNT,
+            vendor_count=1,
             upstream_sampling=UPSTREAM_SAMPLING,
+            evolve=False,
         ),
         Spec(
             model_factory=lambda: Model(
@@ -93,29 +97,32 @@ if __name__ == "__main__":
                     Tensor.max_pool2d,
                 ]
             ),
-            vendor_count=VENDOR_COUNT,
+            vendor_count=1,
             upstream_sampling=UPSTREAM_SAMPLING,
+            evolve=False,
         ),
         Spec(
             model_factory=lambda: Model([lambda x: x.flatten(1), nn.Linear(576, 10)]),
-            vendor_count=VENDOR_COUNT,
+            vendor_count=1,
             upstream_sampling=UPSTREAM_SAMPLING,
+            evolve=False,
         ),
     ]
 
     for spec in marketplace:
         sample = spec.model_factory()
         params = nn.state.get_state_dict(sample)
-        vendors = []
+        spec.vendors = []
         for _ in range(spec.vendor_count):
             model = spec.model_factory()
             nn.state.load_state_dict(
                 model, {key: params[key].clone() for key in params}, verbose=False
             )
-            vendors.append(model)
+            spec.vendors.append(model)
 
         # spec.vendors = [sample for _ in range(spec.vendor_count)]
         # spec.vendors = [spec.model_factory()] * spec.vendor_count
+    vendor_count_max = max([len(spec.vendors) for spec in marketplace])
 
     @TinyJit
     def train_step() -> tuple[Tensor, Tensor]:
@@ -132,10 +139,10 @@ if __name__ == "__main__":
         return Tensor.stack(
             *(
                 (
-                    Tensor.zeros(len(marketplace), VENDOR_COUNT).scatter(
+                    Tensor.zeros(len(marketplace), vendor_count_max).scatter(
                         dim=1,
                         index=path.unsqueeze(1),
-                        src=loss.neg().exp().repeat(VENDOR_COUNT, 1),
+                        src=loss.neg().exp().repeat(vendor_count_max, 1),
                     )
                 )
                 for loss, path in zip(all_loss, paths)
