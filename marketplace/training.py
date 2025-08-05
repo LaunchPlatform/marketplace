@@ -151,6 +151,7 @@ def make_offsprings(
             spec.vendors[idx.item()] = spec.model_factory()
 
 
+# @TinyJit
 def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
     for spec, leading_index in zip(marketplace, leading_path):
         if not spec.evolve:

@@ -125,7 +125,7 @@ if __name__ == "__main__":
         # spec.vendors = [spec.model_factory()] * spec.vendor_count
     vendor_count_max = max([len(spec.vendors) for spec in marketplace])
 
-    @TinyJit
+    # @TinyJit
     def train_step() -> tuple[Tensor, Tensor]:
         # samples = Tensor.randint(getenv("BS", 8), high=X_train.shape[0])
         samples = Tensor.arange(getenv("BS", 32))
@@ -139,7 +139,7 @@ if __name__ == "__main__":
             dim=0,
         )
         min_loss, min_loss_index = product_loss.topk(1, largest=False)
-        return min_loss, paths[min_loss_index]
+        return min_loss, paths[min_loss_index].flatten()
 
     #
     # @TinyJit
@@ -181,7 +181,7 @@ if __name__ == "__main__":
         # if i % 10 == 9:
         #     test_acc = get_test_acc().item()
         t.set_description(
-            f"loss: {loss / EVAL_CYCLE}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
+            f"loss: {loss.item() / EVAL_CYCLE}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
         )
 
     # print("profit matrix", profit_matrix.numpy())
