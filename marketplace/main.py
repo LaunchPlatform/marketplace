@@ -23,9 +23,8 @@ if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
     VENDOR_COUNT = 32
-    UPSTREAM_SAMPLING = 16
-    OFFSPRING_JITTER_SCALE = 0.1
-    OFFSPRING_JITTER_OFFSET = 0.001
+    UPSTREAM_SAMPLING = 32
+    INITIAL_LEARNING_RATE = 0.001
 
     MARKETPLACE = [
         Spec(
@@ -89,10 +88,11 @@ if __name__ == "__main__":
         ),
     ]
     max_vendor_count = max([spec.model.vendor_count for spec in MARKETPLACE])
+    learning_rate = Tensor(INITIAL_LEARNING_RATE)
 
     @TinyJit
     def train_step() -> tuple[Tensor, Tensor]:
-        samples = Tensor.randint(getenv("BS", 64), high=X_train.shape[0])
+        samples = Tensor.randint(getenv("BS", 32), high=X_train.shape[0])
 
         x = X_train[samples]
         y = Y_train[samples]
@@ -107,11 +107,10 @@ if __name__ == "__main__":
         mutate(
             marketplace=MARKETPLACE,
             leading_path=min_path,
-            jitter=Tensor(OFFSPRING_JITTER_OFFSET),
+            jitter=learning_rate,
         )
         return min_loss.realize(), min_path.realize()
 
-    #
     @TinyJit
     def get_test_acc(path: Tensor) -> Tensor:
         return (
@@ -119,7 +118,7 @@ if __name__ == "__main__":
         ).mean() * 100
 
     test_acc = float("nan")
-    for i in (t := trange(getenv("STEPS", 10000))):
+    for i in (t := trange(getenv("STEPS", 100000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         start_time = time.perf_counter()
         loss, path = train_step()
@@ -127,8 +126,9 @@ if __name__ == "__main__":
         run_time = end_time - start_time
         if i % 10 == 9:
             test_acc = get_test_acc(path).item()
+        learning_rate.replace(learning_rate * (1 - 0.0001))
         t.set_description(
-            f"loss: {loss.item():6.2f}, acc: {test_acc:5.2f}%, {GlobalCounters.global_ops * 1e-9 / run_time:9,.2f} GFLOPS"
+            f"loss: {loss.item():6.2f}, rl: {learning_rate.item():e}, acc: {test_acc:5.2f}%, {GlobalCounters.global_ops * 1e-9 / run_time:9,.2f} GFLOPS"
         )
 
     # verify eval acc
