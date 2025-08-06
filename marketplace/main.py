@@ -127,10 +127,9 @@ if __name__ == "__main__":
         if i % 10 == 9:
             test_acc = get_test_acc(path).item()
         t.set_description(
-            f"loss: {loss.item():6.2f}, acc: {test_acc:5.2f}%, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
+            f"loss: {loss.item():6.2f}, acc: {test_acc:5.2f}%, {GlobalCounters.global_ops * 1e-9 / run_time:9,.2f} GFLOPS"
         )
 
-    # print("profit matrix", profit_matrix.numpy())
     # # verify eval acc
     # if target := getenv("TARGET_EVAL_ACC_PCT", 0.0):
     #     if test_acc >= target and test_acc != 100.0:
