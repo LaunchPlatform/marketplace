@@ -6,17 +6,13 @@ from typing import List
 from tinygrad import GlobalCounters
 from tinygrad import nn
 from tinygrad import Tensor
-from tinygrad import TinyJit
-from tinygrad.helpers import colored
 from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
 
 from marketplace.training import forward
-from marketplace.training import make_offsprings
 from marketplace.training import mutate
 from marketplace.training import Spec
-from marketplace.training import uniform_between
 
 
 class Model:
@@ -25,44 +21,6 @@ class Model:
 
     def __call__(self, x: Tensor) -> Tensor:
         return x.sequential(self.layers)
-
-
-class MultiConv2d(nn.Conv2d):
-    def __init__(
-        self,
-        replica: int,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int | tuple[int, ...],
-        stride=1,
-        padding: int | tuple[int, ...] | str = 0,
-        dilation=1,
-        groups=1,
-        bias=True,
-    ):
-        super().__init__(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-            dilation=dilation,
-            groups=groups,
-            bias=bias,
-        )
-        self.weight = self.weight.repeat(replica, *self.weight.shape)
-        if self.bias is not None:
-            self.bias = self.bias.repeat(replica, *self.bias.shape)
-
-    def __call__(self, i: Tensor, x: Tensor) -> Tensor:
-        return x.conv2d(
-            self.weight[i],
-            self.bias[i],
-            self.groups,
-            self.stride,
-            self.dilation,
-            self.padding,
-        )
 
 
 if __name__ == "__main__":
