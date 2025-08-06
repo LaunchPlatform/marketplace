@@ -30,9 +30,9 @@ if __name__ == "__main__":
     INITIAL_LEARNING_RATE = 0.001
     FORWARD_PASS_SCHEDULE = [
         (0, 1),
-        (100, 2),
-        (500, 4),
-        (1_000, 8),
+        (500, 2),
+        (1_000, 4),
+        (2_500, 8),
         (5_000, 16),
         (10_000, 32),
         (20_000, 64),
@@ -142,6 +142,8 @@ if __name__ == "__main__":
 
         for threshold, forward_pass in reversed(FORWARD_PASS_SCHEDULE):
             if i >= threshold:
+                if forward_pass != current_forward_pass:
+                    mutate_step.reset()
                 current_forward_pass = forward_pass
                 break
 
