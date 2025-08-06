@@ -5,7 +5,7 @@ from tinygrad import Tensor
 
 
 def repeat(w: Tensor, count: int) -> Tensor:
-    return w.unsqueeze(0).repeat(count, *((1,) * len(w.shape)))
+    return w.unsqueeze(0).repeat(count, *((1,) * len(w.shape))).contiguous()
 
 
 class MultiModelBase:
