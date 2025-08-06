@@ -6,15 +6,13 @@ from tinygrad import nn
 from tinygrad import Tensor
 from tinygrad import TinyJit
 
-Model = typing.Callable[[Tensor], Tensor]
-ModelFactory = typing.Callable[[], Model]
+from .multi_nn import MultiModel
 
 
 @dataclasses.dataclass
 class Spec:
-    model_factory: ModelFactory
+    model: MultiModel
     vendor_count: int
-    vendors: list[Model] | None = None
     upstream_sampling: int = 0
     evolve: bool = True
 

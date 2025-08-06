@@ -10,17 +10,11 @@ from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
 
+from .multi_nn import MultiConv2d
+from .multi_nn import MultiModel
 from .training import forward
 from .training import mutate
 from .training import Spec
-
-
-class Model:
-    def __init__(self, layers: List[Callable[[Tensor], Tensor]]):
-        self.layers: List[Callable[[Tensor], Tensor]] = layers
-
-    def __call__(self, x: Tensor) -> Tensor:
-        return x.sequential(self.layers)
 
 
 if __name__ == "__main__":
@@ -33,18 +27,18 @@ if __name__ == "__main__":
 
     MARKETPLACE = [
         Spec(
-            model_factory=lambda: Model(
+            model=MultiModel(
                 [
-                    nn.Conv2d(1, 32, 5),
+                    MultiConv2d(VENDOR_COUNT, 1, 32, 5),
                     Tensor.relu,
                 ]
             ),
             vendor_count=VENDOR_COUNT,
         ),
         Spec(
-            model_factory=lambda: Model(
+            model=MultiModel(
                 [
-                    nn.Conv2d(32, 32, 5),
+                    MultiConv2d(VENDOR_COUNT, 32, 32, 5),
                     Tensor.relu,
                 ]
             ),
@@ -53,15 +47,15 @@ if __name__ == "__main__":
             evolve=False,
         ),
         Spec(
-            model_factory=lambda: Model([nn.BatchNorm(32), Tensor.max_pool2d]),
+            model=MultiModel([nn.BatchNorm(32), Tensor.max_pool2d]),
             vendor_count=1,
             upstream_sampling=UPSTREAM_SAMPLING,
             evolve=False,
         ),
         Spec(
-            model_factory=lambda: Model(
+            model=MultiModel(
                 [
-                    nn.Conv2d(32, 64, 3),
+                    MultiConv2d(VENDOR_COUNT, 32, 64, 3),
                     Tensor.relu,
                 ]
             ),
@@ -69,9 +63,9 @@ if __name__ == "__main__":
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
-            model_factory=lambda: Model(
+            model=MultiModel(
                 [
-                    nn.Conv2d(64, 64, 3),
+                    MultiConv2d(VENDOR_COUNT, 64, 64, 3),
                     Tensor.relu,
                 ]
             ),
@@ -79,7 +73,7 @@ if __name__ == "__main__":
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
-            model_factory=lambda: Model(
+            model=MultiModel(
                 [
                     nn.BatchNorm(64),
                     Tensor.max_pool2d,
@@ -90,7 +84,7 @@ if __name__ == "__main__":
             evolve=False,
         ),
         Spec(
-            model_factory=lambda: Model([lambda x: x.flatten(1), nn.Linear(576, 10)]),
+            model=MultiModel([lambda x: x.flatten(1), nn.Linear(576, 10)]),
             vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
