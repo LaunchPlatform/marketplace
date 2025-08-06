@@ -4,6 +4,10 @@ from tinygrad import nn
 from tinygrad import Tensor
 
 
+def repeat(w: Tensor, count: int) -> Tensor:
+    return w.unsqueeze(0).repeat(count, *((1,) * len(w.shape)))
+
+
 class MultiModelBase:
     vendor_count: int
 
@@ -35,9 +39,9 @@ class MultiConv2d(MultiModelBase, nn.Conv2d):
             bias=bias,
         )
         self.vendor_count = vendor_count
-        self.weight = self.weight.repeat(vendor_count, *self.weight.shape)
+        self.weight = repeat(self.weight, vendor_count)
         if self.bias is not None:
-            self.bias = self.bias.repeat(vendor_count, *self.bias.shape)
+            self.bias = repeat(self.bias, vendor_count)
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         return x.conv2d(
@@ -56,9 +60,9 @@ class MultiLinear(MultiModelBase, nn.Linear):
     ):
         super().__init__(in_features=in_features, out_features=out_features)
         self.vendor_count = vendor_count
-        self.weight = self.weight.repeat(vendor_count, *self.weight.shape)
+        self.weight = repeat(self.weight, vendor_count)
         if self.bias is not None:
-            self.bias = self.bias.repeat(vendor_count, *self.bias.shape)
+            self.bias = repeat(self.bias, vendor_count)
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         return x.linear(self.weight[i].transpose(), self.bias[i])

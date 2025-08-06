@@ -1,10 +1,8 @@
 import dataclasses
 import functools
-import typing
 
 from tinygrad import nn
 from tinygrad import Tensor
-from tinygrad import TinyJit
 
 from .multi_nn import MultiModel
 
@@ -92,16 +90,19 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
     for spec, leading_index in zip(marketplace, leading_path):
         if not spec.evolve:
             continue
-        leading_params = nn.state.get_state_dict(spec.vendors[leading_index])
+        multi_params = nn.state.get_state_dict(spec.model)
         for i in range(spec.model.vendor_count):
-            for key in leading_params:
+            for key in multi_params:
                 params = getattr(spec.model, key)
-                params.replace(
+                leading_params = params[i]
+                params[i].replace(
                     (leading_index == i).where(
                         # Do not change the leading vendor
-                        params,
-                        # Copy from the leading vendor and add the jitters
-                        params
-                        + Tensor.uniform(*params.shape, low=-jitter, high=jitter),
+                        leading_params,
+                        # Copy from the leading vendor and add a bit jitters
+                        leading_params
+                        + Tensor.uniform(
+                            *leading_params.shape, low=-jitter, high=jitter
+                        ),
                     )
                 )
