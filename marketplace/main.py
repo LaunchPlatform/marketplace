@@ -160,7 +160,7 @@ if __name__ == "__main__":
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        learning_rate.replace(learning_rate * (1 - 0.001))
+        learning_rate.replace(learning_rate * (1 - 0.0005))
         if i % 10 == 9:
             test_acc = get_test_acc(path).item()
             writer.add_scalar("training/loss", loss.item(), i)
