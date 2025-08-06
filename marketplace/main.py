@@ -10,9 +10,9 @@ from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
 
-from marketplace.training import forward
-from marketplace.training import mutate
-from marketplace.training import Spec
+from .training import forward
+from .training import mutate
+from .training import Spec
 
 
 class Model:

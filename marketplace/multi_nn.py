@@ -1,15 +1,17 @@
+import typing
+
 from tinygrad import nn
 from tinygrad import Tensor
 
 
-class MultiModel:
+class MultiModelBase:
     replica: int
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         raise NotImplementedError()
 
 
-class MultiConv2d(MultiModel, nn.Conv2d):
+class MultiConv2d(MultiModelBase, nn.Conv2d):
     def __init__(
         self,
         replica: int,
@@ -45,3 +47,17 @@ class MultiConv2d(MultiModel, nn.Conv2d):
             self.dilation,
             self.padding,
         )
+
+
+class MultiModel(MultiModelBase):
+    def __init__(self, layers: typing.List[typing.Callable[[Tensor], Tensor]]):
+        self.layers: typing.List[typing.Callable[[Tensor], Tensor]] = layers
+
+    def __call__(self, i: Tensor, x: Tensor) -> Tensor:
+        value = x
+        for model in self.layers:
+            if isinstance(model, MultiModelBase):
+                value = model(i, value)
+            else:
+                value = model(value)
+        return value
