@@ -80,7 +80,7 @@ def forward(
     def step(acc: tuple[Tensor, Tensor | None], spec: Spec) -> tuple[Tensor, Tensor]:
         data, paths = acc
         return produce(
-            vendors=spec.vendors,
+            model=spec.model,
             x=data,
             paths=paths,
             upstream_sampling=spec.upstream_sampling,
