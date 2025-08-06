@@ -1,6 +1,7 @@
 # model based off https://medium.com/data-science/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
 import time
 
+from tensorboardX import SummaryWriter
 from tinygrad import GlobalCounters
 from tinygrad import nn
 from tinygrad import Tensor
@@ -29,10 +30,13 @@ if __name__ == "__main__":
     INITIAL_LEARNING_RATE = 0.001
     FORWARD_COUNT_SCHEDULE = [
         (0, 1),
-        (1_000, 4),
-        (10_000, 8),
-        (20_000, 16),
-        (50_000, 32),
+        (100, 2),
+        (500, 4),
+        (1_000, 8),
+        (5_000, 16),
+        (10_000, 32),
+        (20_000, 64),
+        (40_000, 128),
     ]
 
     MARKETPLACE = [
@@ -98,6 +102,7 @@ if __name__ == "__main__":
     ]
     max_vendor_count = max([spec.model.vendor_count for spec in MARKETPLACE])
     learning_rate = Tensor(INITIAL_LEARNING_RATE)
+    writer = SummaryWriter()
 
     @TinyJit
     def forward_step() -> tuple[Tensor, Tensor]:
@@ -136,7 +141,7 @@ if __name__ == "__main__":
         start_time = time.perf_counter()
 
         for threshold, forward_count in reversed(FORWARD_COUNT_SCHEDULE):
-            if i > threshold:
+            if i >= threshold:
                 current_forward_count = forward_count
 
         all_loss = []
@@ -156,6 +161,8 @@ if __name__ == "__main__":
         run_time = end_time - start_time
         if i % 10 == 9:
             test_acc = get_test_acc(path).item()
+            writer.add_scalar("training/loss", loss.item(), i)
+            writer.add_scalar("training/accuracy", test_acc, i)
         learning_rate.replace(learning_rate * (1 - 0.0001))
         t.set_description(
             f"loss: {loss.item():6.2f}, fw: {current_forward_count}, rl: {learning_rate.item():e}, "

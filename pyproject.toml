@@ -15,5 +15,6 @@ tinygrad = { git = "https://github.com/tinygrad/tinygrad.git", rev="0ce0f5101028
 [dependency-groups]
 dev = [
     "pytest>=8.4.1",
+    "tensorboardx>=2.6.4",
 ]
 
