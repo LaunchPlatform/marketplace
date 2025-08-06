@@ -4,6 +4,7 @@ import time
 from tinygrad import GlobalCounters
 from tinygrad import nn
 from tinygrad import Tensor
+from tinygrad import TinyJit
 from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
@@ -87,7 +88,7 @@ if __name__ == "__main__":
     ]
     max_vendor_count = max([spec.model.vendor_count for spec in MARKETPLACE])
 
-    # @TinyJit
+    @TinyJit
     def train_step() -> tuple[Tensor, Tensor]:
         samples = Tensor.randint(getenv("BS", 64), high=X_train.shape[0])
 
