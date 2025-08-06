@@ -28,7 +28,7 @@ if __name__ == "__main__":
     BATCH_SIZE = getenv("BS", 32)
     BATCH_GROUP_SIZE = getenv("BGS", 16)
     INITIAL_LEARNING_RATE = 0.001
-    FORWARD_COUNT_SCHEDULE = [
+    FORWARD_PASS_SCHEDULE = [
         (0, 1),
         (100, 2),
         (500, 4),
@@ -135,18 +135,19 @@ if __name__ == "__main__":
         ).mean() * 100
 
     test_acc = float("nan")
-    current_forward_count = 1
+    current_forward_pass = 1
     for i in (t := trange(getenv("STEPS", 100_000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         start_time = time.perf_counter()
 
-        for threshold, forward_count in reversed(FORWARD_COUNT_SCHEDULE):
+        for threshold, forward_pass in reversed(FORWARD_PASS_SCHEDULE):
             if i >= threshold:
-                current_forward_count = forward_count
+                current_forward_pass = forward_pass
+                break
 
         all_loss = []
         all_paths = []
-        for _ in range(current_forward_count):
+        for _ in range(current_forward_pass):
             batch_loss, batch_path = forward_step()
             all_loss.append(batch_loss)
             all_paths.append(batch_path)
@@ -163,9 +164,10 @@ if __name__ == "__main__":
             test_acc = get_test_acc(path).item()
             writer.add_scalar("training/loss", loss.item(), i)
             writer.add_scalar("training/accuracy", test_acc, i)
+            writer.add_scalar("training/forward_pass", current_forward_pass, i)
         learning_rate.replace(learning_rate * (1 - 0.0001))
         t.set_description(
-            f"loss: {loss.item():6.2f}, fw: {current_forward_count}, rl: {learning_rate.item():e}, "
+            f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {learning_rate.item():e}, "
             f"acc: {test_acc:5.2f}%, {GlobalCounters.global_ops * 1e-9 / run_time:9,.2f} GFLOPS"
         )
 
