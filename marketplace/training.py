@@ -92,11 +92,10 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
             continue
         multi_params = nn.state.get_state_dict(spec.model)
         for i in range(spec.model.vendor_count):
-            for key in multi_params:
-                params = getattr(spec.model, key)
-                leading_params = params[i]
+            for key, params in multi_params.items():
+                leading_params = params[leading_index]
                 params[i].replace(
-                    (leading_index == i).where(
+                    (i == leading_index).where(
                         # Do not change the leading vendor
                         leading_params,
                         # Copy from the leading vendor and add a bit jitters
