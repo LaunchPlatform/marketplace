@@ -35,10 +35,6 @@ if __name__ == "__main__":
         (3_000, 8),
         (4_000, 16),
         (5_000, 32),
-        (6_000, 64),
-        (7_000, 128),
-        (8_000, 256),
-        (9_000, 512),
     ]
 
     MARKETPLACE = [
@@ -164,7 +160,7 @@ if __name__ == "__main__":
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        learning_rate.replace(learning_rate * (1 - 0.0001))
+        learning_rate.replace(learning_rate * (1 - 0.001))
         if i % 10 == 9:
             test_acc = get_test_acc(path).item()
             writer.add_scalar("training/loss", loss.item(), i)
