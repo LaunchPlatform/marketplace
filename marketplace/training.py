@@ -98,7 +98,9 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
                 params = getattr(spec.model, key)
                 params.replace(
                     (leading_index == i).where(
+                        # Do not change the leading vendor
                         params,
+                        # Copy from the leading vendor and add the jitters
                         params
                         + Tensor.uniform(*params.shape, low=-jitter, high=jitter),
                     )
