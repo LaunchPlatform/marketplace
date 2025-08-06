@@ -1,7 +1,5 @@
 # model based off https://medium.com/data-science/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
 import time
-from typing import Callable
-from typing import List
 
 from tinygrad import GlobalCounters
 from tinygrad import nn
