@@ -5,6 +5,7 @@ from tinygrad import GlobalCounters
 from tinygrad import nn
 from tinygrad import Tensor
 from tinygrad import TinyJit
+from tinygrad.helpers import colored
 from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
@@ -118,7 +119,7 @@ if __name__ == "__main__":
         ).mean() * 100
 
     test_acc = float("nan")
-    for i in (t := trange(getenv("STEPS", 1000))):
+    for i in (t := trange(getenv("STEPS", 10000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         start_time = time.perf_counter()
         loss, path = train_step()
@@ -130,9 +131,9 @@ if __name__ == "__main__":
             f"loss: {loss.item():6.2f}, acc: {test_acc:5.2f}%, {GlobalCounters.global_ops * 1e-9 / run_time:9,.2f} GFLOPS"
         )
 
-    # # verify eval acc
-    # if target := getenv("TARGET_EVAL_ACC_PCT", 0.0):
-    #     if test_acc >= target and test_acc != 100.0:
-    #         print(colored(f"{test_acc=} >= {target}", "green"))
-    #     else:
-    #         raise ValueError(colored(f"{test_acc=} < {target}", "red"))
+    # verify eval acc
+    if target := getenv("TARGET_EVAL_ACC_PCT", 0.0):
+        if test_acc >= target and test_acc != 100.0:
+            print(colored(f"{test_acc=} >= {target}", "green"))
+        else:
+            raise ValueError(colored(f"{test_acc=} < {target}", "red"))
