@@ -88,92 +88,18 @@ def forward(
     return functools.reduce(step, specs, (x, initial_paths))
 
 
-def uniform_between(
-    lhs: Tensor,
-    rhs: Tensor,
-    jitter_scale: Tensor | None = None,
-    jitter_offset: Tensor | None = None,
-):
-    if lhs.shape != rhs.shape:
-        raise ValueError("Shape of two tensors should be the same")
-    scale = Tensor.uniform(lhs.shape)
-    delta = rhs - lhs
-    base = lhs
-    if jitter_scale is not None:
-        base -= delta * jitter_scale
-        delta *= 1 + jitter_scale * 2
-    if jitter_offset is not None:
-        base -= jitter_offset
-        delta += jitter_offset * 2
-    # Interpolate between two tensor
-    return base + delta * scale
-
-
-@TinyJit
-def make_offsprings(
-    profit_matrix: Tensor,
-    marketplace: list[Spec],
-    offspring_count: int,
-    keep_count: int,
-    jitter_scale: Tensor | None = None,
-    jitter_offset: Tensor | None = None,
-):
-    for vendor_profits, spec in zip(profit_matrix, marketplace):
-        if not spec.evolve:
-            continue
-
-        best_profits, mutate_indexes = vendor_profits.topk(
-            offspring_count, largest=True
-        )
-        print(best_profits.tolist())
-        new_params = []
-        for src_idx in mutate_indexes:
-            src = spec.vendors[src_idx.item()]
-            src_params = nn.state.get_state_dict(src)
-            new_params.append(
-                {
-                    key: (
-                        src_params[key]
-                        + Tensor.uniform(
-                            *src_params[key].shape,
-                            low=-jitter_offset,
-                            high=jitter_offset,
-                        )
-                    ).realize()
-                    for key in src_params
-                }
-            )
-
-        phase_out_count = len(spec.vendors) - keep_count
-
-        _, phase_out_indexes = vendor_profits.topk(phase_out_count, largest=False)
-        for params, index in zip(new_params, phase_out_indexes):
-            nn.state.load_state_dict(spec.vendors[index.item()], params, verbose=False)
-
-        for idx in phase_out_indexes[offspring_count:]:
-            spec.vendors[idx.item()] = spec.model_factory()
-
-
-# @TinyJit
 def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
     for spec, leading_index in zip(marketplace, leading_path):
         if not spec.evolve:
             continue
-        leading_index = leading_index.item()
         leading_params = nn.state.get_state_dict(spec.vendors[leading_index])
-        for i, vendor in enumerate(spec.vendors):
-            if i == leading_index:
-                continue
-            nn.state.load_state_dict(
-                spec.vendors[i],
-                {
-                    key: (
-                        leading_params[key]
-                        + Tensor.uniform(
-                            *leading_params[key].shape, low=-jitter, high=jitter
-                        )
-                    ).realize()
-                    for key in leading_params
-                },
-                verbose=False,
-            )
+        for i in range(spec.model.vendor_count):
+            for key in leading_params:
+                params = getattr(spec.model, key)
+                params.replace(
+                    (leading_index == i).where(
+                        params,
+                        params
+                        + Tensor.uniform(*params.shape, low=-jitter, high=jitter),
+                    )
+                )
