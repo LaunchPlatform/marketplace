@@ -93,32 +93,22 @@ if __name__ == "__main__":
     learning_rate = Tensor(INITIAL_LEARNING_RATE)
 
     @TinyJit
-    def train_step() -> tuple[Tensor, Tensor]:
-        loss = []
-        paths = []
-        for _ in range(BATCH_GROUP_SIZE):
-            samples = Tensor.randint(BATCH_SIZE, high=X_train.shape[0])
+    def forward_step() -> tuple[Tensor, Tensor]:
+        samples = Tensor.randint(BATCH_SIZE, high=X_train.shape[0])
+        x = X_train[samples]
+        y = Y_train[samples]
+        batch_logits, batch_paths = forward(MARKETPLACE, x)
+        return Tensor.stack(
+            *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
+            dim=0,
+        ).realize(), batch_paths.realize()
 
-            x = X_train[samples]
-            y = Y_train[samples]
-
-            batch_logits, batch_paths = forward(MARKETPLACE, x)
-            loss.append(
-                Tensor.stack(
-                    *(
-                        logits.sparse_categorical_crossentropy(y)
-                        for logits in batch_logits
-                    ),
-                    dim=0,
-                ).realize()
-            )
-            paths.append(batch_paths.realize())
-
-        combined_loss = Tensor.cat(*loss)
-        combined_path = Tensor.cat(*paths)
-
+    @TinyJit
+    def mutate_step(
+        combined_loss: Tensor, combined_paths: Tensor
+    ) -> tuple[Tensor, Tensor]:
         min_loss, min_loss_index = combined_loss.topk(1, largest=False)
-        min_path = combined_path[min_loss_index].flatten()
+        min_path = combined_paths[min_loss_index].flatten()
         mutate(
             marketplace=MARKETPLACE,
             leading_path=min_path,
@@ -136,7 +126,20 @@ if __name__ == "__main__":
     for i in (t := trange(getenv("STEPS", 100000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         start_time = time.perf_counter()
-        loss, path = train_step()
+
+        all_loss = []
+        all_paths = []
+        for _ in BATCH_GROUP_SIZE:
+            batch_loss, batch_path = forward_step()
+            all_loss.append(batch_loss)
+            all_paths.append(batch_path)
+
+        combined_loss = Tensor.cat(*all_loss).realize()
+        combined_paths = Tensor.cat(*all_paths).realize()
+        loss, path = mutate_step(
+            combined_loss=combined_loss, combined_paths=combined_paths
+        )
+
         end_time = time.perf_counter()
         run_time = end_time - start_time
         if i % 10 == 9:
