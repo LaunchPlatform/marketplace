@@ -86,6 +86,14 @@ def forward(
     return functools.reduce(step, specs, (x, initial_paths))
 
 
+def forward_with_path(specs: list[Spec], x: Tensor, paths: Tensor) -> Tensor:
+    def step(acc: Tensor, spec_idx: tuple[Spec, Tensor]) -> Tensor:
+        spec, idx = spec_idx
+        return spec.model(idx, acc)
+
+    return functools.reduce(step, zip(specs, paths), x)
+
+
 def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
     for spec, leading_index in zip(marketplace, leading_path):
         if not spec.evolve:

@@ -13,6 +13,7 @@ from .multi_nn import MultiConv2d
 from .multi_nn import MultiLinear
 from .multi_nn import MultiModel
 from .training import forward
+from .training import forward_with_path
 from .training import mutate
 from .training import Spec
 
@@ -110,27 +111,23 @@ if __name__ == "__main__":
         return min_loss.realize(), min_path.realize()
 
     #
-    # @TinyJit
-    # def get_test_acc() -> Tensor:
-    #     return (model(X_test).argmax(axis=1) == Y_test).mean() * 100
-    #
-    EVAL_CYCLE = 16
+    @TinyJit
+    def get_test_acc(path: Tensor) -> Tensor:
+        return (
+            forward_with_path(MARKETPLACE, X_test, path).argmax(axis=1) == Y_test
+        ).mean() * 100
+
     test_acc = float("nan")
     for i in (t := trange(getenv("STEPS", 1000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         start_time = time.perf_counter()
-
-        # all_loss = 0.0
-        # profit_matrix = Tensor.zeros(len(marketplace), VENDOR_COUNT)
-        # for _ in range(EVAL_CYCLE):
         loss, path = train_step()
-
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        # if i % 10 == 9:
-        #     test_acc = get_test_acc().item()
+        if i % 10 == 9:
+            test_acc = get_test_acc(path).item()
         t.set_description(
-            f"loss: {loss.item()}, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
+            f"loss: {loss.item()}, test_accuracy: {test_acc:5.2f}%, {GlobalCounters.global_ops * 1e-9 / run_time:9.2f} GFLOPS"
         )
 
     # print("profit matrix", profit_matrix.numpy())
