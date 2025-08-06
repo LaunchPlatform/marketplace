@@ -27,6 +27,44 @@ class Model:
         return x.sequential(self.layers)
 
 
+class MultiConv2d(nn.Conv2d):
+    def __init__(
+        self,
+        replica: int,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int | tuple[int, ...],
+        stride=1,
+        padding: int | tuple[int, ...] | str = 0,
+        dilation=1,
+        groups=1,
+        bias=True,
+    ):
+        super().__init__(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=groups,
+            bias=bias,
+        )
+        self.weight = self.weight.repeat(replica, *self.weight.shape)
+        if self.bias is not None:
+            self.bias = self.bias.repeat(replica, *self.bias.shape)
+
+    def __call__(self, i: Tensor, x: Tensor) -> Tensor:
+        return x.conv2d(
+            self.weight[i],
+            self.bias[i],
+            self.groups,
+            self.stride,
+            self.dilation,
+            self.padding,
+        )
+
+
 if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
@@ -115,9 +153,10 @@ if __name__ == "__main__":
         # spec.vendors = [spec.model_factory()] * spec.vendor_count
     vendor_count_max = max([len(spec.vendors) for spec in MARKETPLACE])
 
-    @TinyJit
+    # @TinyJit
     def train_step() -> tuple[Tensor, Tensor]:
-        samples = Tensor.randint(getenv("BS", 512), high=X_train.shape[0])
+        samples = Tensor.randint(getenv("BS", 64), high=X_train.shape[0])
+        # samples = Tensor.arange(64)
 
         x = X_train[samples]
         y = Y_train[samples]
