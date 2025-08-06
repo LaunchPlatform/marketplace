@@ -22,8 +22,8 @@ from .training import Spec
 if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    VENDOR_COUNT = 16
-    UPSTREAM_SAMPLING = 4
+    VENDOR_COUNT = 32
+    UPSTREAM_SAMPLING = 16
     BATCH_SIZE = getenv("BS", 32)
     BATCH_GROUP_SIZE = getenv("BGS", 16)
     INITIAL_LEARNING_RATE = 0.001
@@ -94,25 +94,27 @@ if __name__ == "__main__":
 
     @TinyJit
     def train_step() -> tuple[Tensor, Tensor]:
-        samples = Tensor.randint(BATCH_SIZE, high=X_train.shape[0])
-
-        x = X_train[samples]
-        y = Y_train[samples]
-
-        logits = []
+        loss = []
         paths = []
         for _ in range(BATCH_GROUP_SIZE):
-            batch_logits, batch_paths = forward(MARKETPLACE, x)
-            logits.append(batch_logits)
-            paths.append(batch_paths)
+            samples = Tensor.randint(BATCH_SIZE, high=X_train.shape[0])
 
-        combined_loss = Tensor.stack(
-            *(
-                logits.sparse_categorical_crossentropy(y)
-                for logits in Tensor.cat(*logits)
-            ),
-            dim=0,
-        )
+            x = X_train[samples]
+            y = Y_train[samples]
+
+            batch_logits, batch_paths = forward(MARKETPLACE, x)
+            loss.append(
+                Tensor.stack(
+                    *(
+                        logits.sparse_categorical_crossentropy(y)
+                        for logits in batch_logits
+                    ),
+                    dim=0,
+                ).realize()
+            )
+            paths.append(batch_paths.realize())
+
+        combined_loss = Tensor.cat(*loss)
         combined_path = Tensor.cat(*paths)
 
         min_loss, min_loss_index = combined_loss.topk(1, largest=False)
