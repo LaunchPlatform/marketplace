@@ -9,6 +9,7 @@ from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
 
 from .multi_nn import MultiConv2d
+from .multi_nn import MultiLinear
 from .multi_nn import MultiModel
 from .training import forward
 from .training import mutate
@@ -31,7 +32,6 @@ if __name__ == "__main__":
                     Tensor.relu,
                 ]
             ),
-            vendor_count=VENDOR_COUNT,
         ),
         Spec(
             model=MultiModel(
@@ -40,13 +40,13 @@ if __name__ == "__main__":
                     Tensor.relu,
                 ]
             ),
-            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
             evolve=False,
         ),
         Spec(
-            model=MultiModel([nn.BatchNorm(32), Tensor.max_pool2d]),
-            vendor_count=1,
+            model=MultiModel(
+                [nn.BatchNorm(32), Tensor.max_pool2d],
+            ),
             upstream_sampling=UPSTREAM_SAMPLING,
             evolve=False,
         ),
@@ -57,7 +57,6 @@ if __name__ == "__main__":
                     Tensor.relu,
                 ]
             ),
-            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
@@ -67,7 +66,6 @@ if __name__ == "__main__":
                     Tensor.relu,
                 ]
             ),
-            vendor_count=VENDOR_COUNT,
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
         Spec(
@@ -77,36 +75,21 @@ if __name__ == "__main__":
                     Tensor.max_pool2d,
                 ]
             ),
-            vendor_count=1,
             upstream_sampling=UPSTREAM_SAMPLING,
             evolve=False,
         ),
         Spec(
-            model=MultiModel([lambda x: x.flatten(1), nn.Linear(576, 10)]),
-            vendor_count=VENDOR_COUNT,
+            model=MultiModel(
+                [lambda x: x.flatten(1), MultiLinear(VENDOR_COUNT, 576, 10)]
+            ),
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
     ]
-
-    for spec in MARKETPLACE:
-        sample = spec.model_factory()
-        params = nn.state.get_state_dict(sample)
-        spec.vendors = []
-        for _ in range(spec.vendor_count):
-            model = spec.model_factory()
-            nn.state.load_state_dict(
-                model, {key: params[key].clone() for key in params}, verbose=False
-            )
-            spec.vendors.append(model)
-
-        # spec.vendors = [sample for _ in range(spec.vendor_count)]
-        # spec.vendors = [spec.model_factory()] * spec.vendor_count
-    vendor_count_max = max([len(spec.vendors) for spec in MARKETPLACE])
+    max_vendor_count = max([spec.model.vendor_count for spec in MARKETPLACE])
 
     # @TinyJit
     def train_step() -> tuple[Tensor, Tensor]:
         samples = Tensor.randint(getenv("BS", 64), high=X_train.shape[0])
-        # samples = Tensor.arange(64)
 
         x = X_train[samples]
         y = Y_train[samples]

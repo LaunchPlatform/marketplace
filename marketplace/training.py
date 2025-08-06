@@ -12,7 +12,6 @@ from .multi_nn import MultiModel
 @dataclasses.dataclass
 class Spec:
     model: MultiModel
-    vendor_count: int
     upstream_sampling: int = 0
     evolve: bool = True
 

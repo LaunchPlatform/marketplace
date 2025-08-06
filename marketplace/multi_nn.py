@@ -67,13 +67,26 @@ class MultiLinear(MultiModelBase, nn.Linear):
 class MultiModel(MultiModelBase):
     def __init__(
         self,
-        vendor_count: int,
         layers: typing.List[MultiModelBase | typing.Callable[[Tensor], Tensor]],
+        vendor_count: int | None = None,
     ):
         self.vendor_count = vendor_count
         self.layers: typing.List[MultiModelBase | typing.Callable[[Tensor], Tensor]] = (
             layers
         )
+        for i, model in enumerate(self.layers):
+            if not isinstance(model, MultiModelBase):
+                continue
+            if self.vendor_count is None:
+                self.vendor_count = model.vendor_count
+            else:
+                if model.vendor_count != self.vendor_count:
+                    raise ValueError(
+                        f"Layer {i} vendor count {model.vendor_count} does not match with "
+                        f"the multi model's {self.vendor_count}"
+                    )
+        if self.vendor_count is None:
+            self.vendor_count = 1
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         value = x
