@@ -18,15 +18,17 @@ class Spec:
 
 
 def produce(
-    vendors: list[Model],
+    model: MultiModel,
     x: Tensor,
     paths: Tensor | None = None,
     upstream_sampling: int = 0,
 ) -> tuple[Tensor, Tensor]:
     if paths is None:
         # this is the first spec for taking in the raw input, let's feed data to all of them
-        output_data = Tensor.stack(*(vendor(x) for vendor in vendors), dim=0)
-        paths = Tensor.arange(len(vendors)).unsqueeze(1)
+        output_data = Tensor.stack(
+            *(model(Tensor(i), x) for i in range(model.vendor_count)), dim=0
+        )
+        paths = Tensor.arange(model.vendor_count).unsqueeze(1)
         return output_data, paths
     if x.size(0) != paths.size(0):
         raise ValueError(
@@ -40,7 +42,7 @@ def produce(
     input_indexes = Tensor.stack(
         *(
             Tensor.randperm(input_count)[:upstream_sampling]
-            for _ in range(len(vendors))
+            for _ in range(model.vendor_count)
         ),
         dim=0,
     )
@@ -50,14 +52,18 @@ def produce(
     merged_batches = input_data.reshape(input_data.shape[0], -1, *input_data.shape[3:])
 
     output_data = Tensor.stack(
-        *(vendor(merged) for vendor, merged in zip(vendors, merged_batches)), dim=0
+        *(
+            model(i, merged)
+            for i, merged in zip(range(model.vendor_count), merged_batches)
+        ),
+        dim=0,
     )
     # breaking down merged batches back to individual batches
     output_data = output_data.reshape(-1, input_data.shape[2], *output_data.shape[2:])
 
     prev_paths = paths[input_indexes].flatten(0, 1)
     new_paths = (
-        Tensor.arange(len(vendors))
+        Tensor.arange(model.vendor_count)
         .unsqueeze(1)
         .repeat(1, upstream_sampling)
         .flatten()

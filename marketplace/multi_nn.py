@@ -5,7 +5,7 @@ from tinygrad import Tensor
 
 
 class MultiModelBase:
-    replica: int
+    vendor_count: int
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         raise NotImplementedError()
@@ -14,7 +14,7 @@ class MultiModelBase:
 class MultiConv2d(MultiModelBase, nn.Conv2d):
     def __init__(
         self,
-        replica: int,
+        vendor_count: int,
         in_channels: int,
         out_channels: int,
         kernel_size: int | tuple[int, ...],
@@ -34,10 +34,10 @@ class MultiConv2d(MultiModelBase, nn.Conv2d):
             groups=groups,
             bias=bias,
         )
-        self.replica = replica
-        self.weight = self.weight.repeat(replica, *self.weight.shape)
+        self.vendor_count = vendor_count
+        self.weight = self.weight.repeat(vendor_count, *self.weight.shape)
         if self.bias is not None:
-            self.bias = self.bias.repeat(replica, *self.bias.shape)
+            self.bias = self.bias.repeat(vendor_count, *self.bias.shape)
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         return x.conv2d(
@@ -51,12 +51,14 @@ class MultiConv2d(MultiModelBase, nn.Conv2d):
 
 
 class MultiLinear(MultiModelBase, nn.Linear):
-    def __init__(self, replica: int, in_features: int, out_features: int, bias=True):
+    def __init__(
+        self, vendor_count: int, in_features: int, out_features: int, bias=True
+    ):
         super().__init__(in_features=in_features, out_features=out_features)
-        self.replica = replica
-        self.weight = self.weight.repeat(replica, *self.weight.shape)
+        self.vendor_count = vendor_count
+        self.weight = self.weight.repeat(vendor_count, *self.weight.shape)
         if self.bias is not None:
-            self.bias = self.bias.repeat(replica, *self.bias.shape)
+            self.bias = self.bias.repeat(vendor_count, *self.bias.shape)
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         return x.linear(self.weight[i].transpose(), self.bias[i])
@@ -64,8 +66,11 @@ class MultiLinear(MultiModelBase, nn.Linear):
 
 class MultiModel(MultiModelBase):
     def __init__(
-        self, layers: typing.List[MultiModelBase | typing.Callable[[Tensor], Tensor]]
+        self,
+        vendor_count: int,
+        layers: typing.List[MultiModelBase | typing.Callable[[Tensor], Tensor]],
     ):
+        self.vendor_count = vendor_count
         self.layers: typing.List[MultiModelBase | typing.Callable[[Tensor], Tensor]] = (
             layers
         )
