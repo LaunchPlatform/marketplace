@@ -4,9 +4,9 @@ import logging
 import pathlib
 import time
 
+import click
 from tensorboardX import SummaryWriter
 from tinygrad import GlobalCounters
-from tinygrad import nn
 from tinygrad import Tensor
 from tinygrad import TinyJit
 from tinygrad.helpers import colored
@@ -27,7 +27,9 @@ from marketplace.training import Spec
 logger = logging.getLogger(__name__)
 
 
-def main():
+@click.command("beautiful_mnist")
+@click.argument("comment", type=str, help="Comment for Tensorboard logs")
+def main(comment: str | None):
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
     BATCH_SIZE = getenv("BS", 64)
@@ -39,6 +41,13 @@ def main():
         (3_000, 4),
         (4_500, 8),
     ]
+    logger.info(
+        "Running beautiful MNIST with batch_size=%s, init_lr=%s, lr_decay=%s, comment=%s",
+        BATCH_SIZE,
+        INITIAL_LEARNING_RATE,
+        LEARNING_RATE_DECAY_RATE,
+        comment,
+    )
 
     MARKETPLACE = [
         Spec(
@@ -101,7 +110,7 @@ def main():
         ),
     ]
     learning_rate = Tensor(INITIAL_LEARNING_RATE)
-    writer = SummaryWriter()
+    writer = SummaryWriter(comment=comment)
 
     @TinyJit
     def forward_step() -> tuple[Tensor, Tensor]:
