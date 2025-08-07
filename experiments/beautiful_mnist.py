@@ -33,7 +33,7 @@ def main():
     BATCH_SIZE = getenv("BS", 32)
     INITIAL_LEARNING_RATE = 1e-3
     LEARNING_RATE_DECAY_RATE = 1e-3
-    MIN_DELTA = 1e-6
+    MIN_DELTA = 1e-3
     PATIENT = 1
     MAX_FORWARD_PASS = 1024
 
