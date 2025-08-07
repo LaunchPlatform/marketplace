@@ -1,4 +1,6 @@
 # model based off https://medium.com/data-science/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
+import itertools
+import pathlib
 import time
 
 from tensorboardX import SummaryWriter
@@ -10,6 +12,8 @@ from tinygrad.helpers import colored
 from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
+from tinygrad.nn.state import get_state_dict
+from tinygrad.nn.state import safe_save
 
 from .multi_nn import MultiConv2d
 from .multi_nn import MultiLinear
@@ -160,13 +164,28 @@ if __name__ == "__main__":
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        learning_rate.replace(learning_rate * (1 - 0.0005))
+        learning_rate.replace(learning_rate * (1 - 0.0001))
         if i % 10 == 9:
             test_acc = get_test_acc(path).item()
             writer.add_scalar("training/loss", loss.item(), i)
             writer.add_scalar("training/accuracy", test_acc, i)
             writer.add_scalar("training/forward_pass", current_forward_pass, i)
             writer.add_scalar("training/learning_rate", learning_rate.item(), i)
+        if i % 100 == 99:
+            parameters = dict(
+                itertools.chain.from_iterable(
+                    [
+                        (f"layer.{i}.{key}", weights[index])
+                        for key, weights in get_state_dict(spec.model).items()
+                    ]
+                    for i, (index, spec) in enumerate(zip(path, MARKETPLACE))
+                )
+            )
+            checkpoint_filepath = pathlib.Path(f"model-{i}.safetensors")
+            checkpoint_tmp_filepath = checkpoint_filepath.with_suffix(".tmp")
+            safe_save(parameters | dict(step=i), str(checkpoint_tmp_filepath))
+            checkpoint_tmp_filepath.rename(checkpoint_filepath)
+
         t.set_description(
             f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {learning_rate.item():e}, "
             f"acc: {test_acc:5.2f}%, {GlobalCounters.global_ops * 1e-9 / run_time:9,.2f} GFLOPS"
