@@ -16,19 +16,18 @@ from tinygrad.nn.datasets import mnist
 from tinygrad.nn.state import get_state_dict
 from tinygrad.nn.state import safe_save
 
-from .multi_nn import MultiConv2d
-from .multi_nn import MultiLinear
-from .multi_nn import MultiModel
-from .training import forward
-from .training import forward_with_path
-from .training import mutate
-from .training import Spec
+from marketplace.multi_nn import MultiConv2d
+from marketplace.multi_nn import MultiLinear
+from marketplace.multi_nn import MultiModel
+from marketplace.training import forward
+from marketplace.training import forward_with_path
+from marketplace.training import mutate
+from marketplace.training import Spec
 
 logger = logging.getLogger(__name__)
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+def main():
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
     VENDOR_COUNT = 32
@@ -221,3 +220,8 @@ if __name__ == "__main__":
             print(colored(f"{test_acc=} >= {target}", "green"))
         else:
             raise ValueError(colored(f"{test_acc=} < {target}", "red"))
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    main()
