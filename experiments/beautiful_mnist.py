@@ -107,7 +107,6 @@ def main():
             upstream_sampling=UPSTREAM_SAMPLING,
         ),
     ]
-    max_vendor_count = max([spec.model.vendor_count for spec in MARKETPLACE])
     learning_rate = Tensor(INITIAL_LEARNING_RATE)
     writer = SummaryWriter()
 
