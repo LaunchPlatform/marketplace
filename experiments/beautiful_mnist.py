@@ -36,6 +36,7 @@ def main():
     FORWARD_PASS_SCHEDULE = [
         (0, 1),
         (1_500, 2),
+        (5_000, 4),
     ]
 
     MARKETPLACE = [
