@@ -174,6 +174,8 @@ if __name__ == "__main__":
                     current_forward_pass *= 2
                     if current_forward_pass >= MAX_FORWARD_PASS:
                         current_forward_pass = MAX_FORWARD_PASS
+                    else:
+                        mutate_step.reset()
                     logger.info(
                         "Accuracy stalled for %s epochs, increase forward pass to %s and decrease LR to %s",
                         counter,
@@ -181,7 +183,7 @@ if __name__ == "__main__":
                         learning_rate.item(),
                     )
                     counter = 0
-        if i % 100 == 99:
+        if i % 1000 == 99:
             parameters = dict(
                 itertools.chain.from_iterable(
                     [
