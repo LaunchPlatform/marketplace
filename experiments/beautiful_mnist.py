@@ -32,12 +32,12 @@ def main():
 
     VENDOR_COUNT = 32
     UPSTREAM_SAMPLING = 16
-    BATCH_SIZE = getenv("BS", 32)
+    BATCH_SIZE = getenv("BS", 64)
     INITIAL_LEARNING_RATE = 1e-3
     LEARNING_RATE_DECAY_RATE = 1e-3
     FORWARD_PASS_SCHEDULE = [
         (0, 1),
-        (1_500, 2),
+        # (1_500, 2),
         # (4_000, 4),
         # (6_000, 8),
         # (8_000, 16),
