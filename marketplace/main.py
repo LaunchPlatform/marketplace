@@ -36,7 +36,7 @@ if __name__ == "__main__":
     BATCH_SIZE = getenv("BS", 32)
     BATCH_GROUP_SIZE = getenv("BGS", 16)
     INITIAL_LEARNING_RATE = 0.001
-    MIN_DELTA = 1e-2
+    MIN_DELTA = 1e-4
     PATIENCE = 3
     MAX_FORWARD_PASS = 1024
 
@@ -170,7 +170,7 @@ if __name__ == "__main__":
             else:
                 counter += 1
                 if counter >= PATIENCE:
-                    learning_rate.replace(learning_rate * 0.5)
+                    learning_rate.replace(learning_rate * 0.9)
                     current_forward_pass *= 2
                     if current_forward_pass >= MAX_FORWARD_PASS:
                         current_forward_pass = MAX_FORWARD_PASS
