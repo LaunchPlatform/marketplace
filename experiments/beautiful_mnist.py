@@ -33,7 +33,6 @@ def main():
     VENDOR_COUNT = 32
     UPSTREAM_SAMPLING = 16
     BATCH_SIZE = getenv("BS", 32)
-    BATCH_GROUP_SIZE = getenv("BGS", 16)
     INITIAL_LEARNING_RATE = 1e-3
     LEARNING_RATE_DECAY_RATE = 1e-3
     FORWARD_PASS_SCHEDULE = [
@@ -46,9 +45,6 @@ def main():
         (20_000, 64),
         (30_000, 128),
     ]
-    MIN_DELTA = 1e-2
-    PATIENCE = 1000
-    MAX_FORWARD_PASS = 1024
 
     MARKETPLACE = [
         Spec(
@@ -151,6 +147,14 @@ def main():
     current_forward_pass = 1
     for i in (t := trange(getenv("STEPS", 100_000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
+
+        for threshold, forward_pass in reversed(FORWARD_PASS_SCHEDULE):
+            if i >= threshold:
+                if forward_pass != current_forward_pass:
+                    mutate_step.reset()
+                current_forward_pass = forward_pass
+                break
+
         start_time = time.perf_counter()
 
         all_loss = []
@@ -175,23 +179,6 @@ def main():
             writer.add_scalar("training/accuracy", test_acc, i)
             writer.add_scalar("training/forward_pass", current_forward_pass, i)
             writer.add_scalar("training/learning_rate", learning_rate.item(), i)
-            if test_acc >= best_acc + MIN_DELTA:
-                best_acc = test_acc
-                counter = 0
-            else:
-                counter += 1
-                if counter >= PATIENCE:
-                    current_forward_pass *= 2
-                    if current_forward_pass >= MAX_FORWARD_PASS:
-                        current_forward_pass = MAX_FORWARD_PASS
-                    else:
-                        mutate_step.reset()
-                    logger.info(
-                        "Accuracy stalled for %s epochs, increase forward pass to %s",
-                        counter,
-                        current_forward_pass,
-                    )
-                    counter = 0
         if i % 1000 == 99:
             parameters = dict(
                 itertools.chain.from_iterable(
