@@ -1,5 +1,6 @@
 # model based off https://medium.com/data-science/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
 import itertools
+import logging
 import pathlib
 import time
 
@@ -23,8 +24,11 @@ from .training import forward_with_path
 from .training import mutate
 from .training import Spec
 
+logger = logging.getLogger(__name__)
+
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
     VENDOR_COUNT = 32
@@ -32,14 +36,9 @@ if __name__ == "__main__":
     BATCH_SIZE = getenv("BS", 32)
     BATCH_GROUP_SIZE = getenv("BGS", 16)
     INITIAL_LEARNING_RATE = 0.001
-    FORWARD_PASS_SCHEDULE = [
-        (0, 1),
-        (1_000, 2),
-        (2_000, 4),
-        (3_000, 8),
-        (4_000, 16),
-        (5_000, 32),
-    ]
+    MIN_DELTA = 1e-2
+    PATIENCE = 3
+    MAX_FORWARD_PASS = 1024
 
     MARKETPLACE = [
         Spec(
@@ -137,17 +136,12 @@ if __name__ == "__main__":
         ).mean() * 100
 
     test_acc = float("nan")
+    best_acc = 0.0
+    counter = 0
     current_forward_pass = 1
     for i in (t := trange(getenv("STEPS", 100_000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         start_time = time.perf_counter()
-
-        for threshold, forward_pass in reversed(FORWARD_PASS_SCHEDULE):
-            if i >= threshold:
-                if forward_pass != current_forward_pass:
-                    mutate_step.reset()
-                current_forward_pass = forward_pass
-                break
 
         all_loss = []
         all_paths = []
@@ -164,13 +158,29 @@ if __name__ == "__main__":
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        learning_rate.replace(learning_rate * (1 - 0.0001))
         if i % 10 == 9:
             test_acc = get_test_acc(path).item()
             writer.add_scalar("training/loss", loss.item(), i)
             writer.add_scalar("training/accuracy", test_acc, i)
             writer.add_scalar("training/forward_pass", current_forward_pass, i)
             writer.add_scalar("training/learning_rate", learning_rate.item(), i)
+            if test_acc >= best_acc + MIN_DELTA:
+                best_acc = test_acc
+                counter = 0
+            else:
+                counter += 1
+                if counter >= PATIENCE:
+                    learning_rate.replace(learning_rate * 0.5)
+                    current_forward_pass *= 2
+                    if current_forward_pass >= MAX_FORWARD_PASS:
+                        current_forward_pass = MAX_FORWARD_PASS
+                    logger.info(
+                        "Accuracy stalled for %s epochs, increase forward pass to %s and decrease LR to %s",
+                        counter,
+                        current_forward_pass,
+                        learning_rate.item(),
+                    )
+                    counter = 0
         if i % 100 == 99:
             parameters = dict(
                 itertools.chain.from_iterable(
