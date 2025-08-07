@@ -141,8 +141,6 @@ def main():
         ).mean() * 100
 
     test_acc = float("nan")
-    best_acc = 0.0
-    counter = 0
     current_forward_pass = 1
     for i in (t := trange(getenv("STEPS", 100_000))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
