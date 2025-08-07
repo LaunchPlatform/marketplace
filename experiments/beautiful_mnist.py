@@ -30,13 +30,14 @@ logger = logging.getLogger(__name__)
 def main():
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    BATCH_SIZE = getenv("BS", 32)
+    BATCH_SIZE = getenv("BS", 64)
     INITIAL_LEARNING_RATE = 1e-3
     LEARNING_RATE_DECAY_RATE = 1e-3
     FORWARD_PASS_SCHEDULE = [
         (0, 1),
         (1_500, 2),
-        (5_000, 4),
+        (3_000, 4),
+        (4_500, 8),
     ]
 
     MARKETPLACE = [
