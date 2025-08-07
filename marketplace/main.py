@@ -37,7 +37,7 @@ if __name__ == "__main__":
     BATCH_GROUP_SIZE = getenv("BGS", 16)
     INITIAL_LEARNING_RATE = 0.001
     MIN_DELTA = 1e-5
-    PATIENCE = 100
+    PATIENCE = 1000
     MAX_FORWARD_PASS = 1024
 
     MARKETPLACE = [
@@ -158,6 +158,7 @@ if __name__ == "__main__":
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
+        learning_rate.replace(learning_rate * (1 - 0.0005))
         if i % 10 == 9:
             test_acc = get_test_acc(path).item()
             writer.add_scalar("training/loss", loss.item(), i)
@@ -170,17 +171,15 @@ if __name__ == "__main__":
             else:
                 counter += 1
                 if counter >= PATIENCE:
-                    learning_rate.replace(learning_rate * 0.9)
                     current_forward_pass *= 2
                     if current_forward_pass >= MAX_FORWARD_PASS:
                         current_forward_pass = MAX_FORWARD_PASS
                     else:
                         mutate_step.reset()
                     logger.info(
-                        "Accuracy stalled for %s epochs, increase forward pass to %s and decrease LR to %s",
+                        "Accuracy stalled for %s epochs, increase forward pass to %s",
                         counter,
                         current_forward_pass,
-                        learning_rate.item(),
                     )
                     counter = 0
         if i % 1000 == 99:
