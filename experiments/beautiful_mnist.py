@@ -33,8 +33,8 @@ def main():
     BATCH_SIZE = getenv("BS", 32)
     INITIAL_LEARNING_RATE = 1e-3
     LEARNING_RATE_DECAY_RATE = 1e-3
-    MIN_DELTA = 1e-4
-    PATIENT = 3
+    MIN_DELTA = 1e-6
+    PATIENT = 1
     MAX_FORWARD_PASS = 1024
 
     MARKETPLACE = [
@@ -160,20 +160,23 @@ def main():
             writer.add_scalar("training/accuracy", test_acc, i)
             writer.add_scalar("training/forward_pass", current_forward_pass, i)
             writer.add_scalar("training/learning_rate", learning_rate.item(), i)
-            loss_mean = sum(*loss_history) / len(loss_history)
+        if i % 1000 == 99:
+            loss_mean = sum(loss_history) / len(loss_history)
             if loss_mean < best_loss - MIN_DELTA:
                 best_loss = loss_mean
                 stall_counter = 0
             else:
                 stall_counter += 1
                 if stall_counter > PATIENT:
+                    stall_counter = 0
                     current_forward_pass += 1
+                    current_forward_pass = min(current_forward_pass, MAX_FORWARD_PASS)
                     mutate_step.reset()
                     logger.info(
                         "Loss stall, increase forward pass to %s", current_forward_pass
                     )
             loss_history = []
-        if i % 1000 == 99:
+
             parameters = dict(
                 itertools.chain.from_iterable(
                     [
