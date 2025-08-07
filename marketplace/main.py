@@ -36,8 +36,8 @@ if __name__ == "__main__":
     BATCH_SIZE = getenv("BS", 32)
     BATCH_GROUP_SIZE = getenv("BGS", 16)
     INITIAL_LEARNING_RATE = 0.001
-    MIN_DELTA = 1e-4
-    PATIENCE = 3
+    MIN_DELTA = 1e-5
+    PATIENCE = 100
     MAX_FORWARD_PASS = 1024
 
     MARKETPLACE = [
