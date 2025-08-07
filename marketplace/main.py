@@ -35,8 +35,19 @@ if __name__ == "__main__":
     UPSTREAM_SAMPLING = 16
     BATCH_SIZE = getenv("BS", 32)
     BATCH_GROUP_SIZE = getenv("BGS", 16)
-    INITIAL_LEARNING_RATE = 0.001
-    MIN_DELTA = 1e-5
+    INITIAL_LEARNING_RATE = 1e-3
+    LEARNING_RATE_DECAY_RATE = 1e-3
+    FORWARD_PASS_SCHEDULE = [
+        (0, 1),
+        (2_000, 2),
+        (4_000, 4),
+        (6_000, 8),
+        (8_000, 16),
+        (10_000, 32),
+        (20_000, 64),
+        (30_000, 128),
+    ]
+    MIN_DELTA = 1e-2
     PATIENCE = 1000
     MAX_FORWARD_PASS = 1024
 
@@ -158,7 +169,7 @@ if __name__ == "__main__":
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        learning_rate.replace(learning_rate * (1 - 0.0005))
+        learning_rate.replace(learning_rate * (1 - LEARNING_RATE_DECAY_RATE))
         if i % 10 == 9:
             test_acc = get_test_acc(path).item()
             writer.add_scalar("training/loss", loss.item(), i)
