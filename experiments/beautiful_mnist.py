@@ -74,20 +74,20 @@ def main():
         Spec(
             model=MultiModel(
                 [
-                    MultiConv2d(12, 32, 64, 3),
-                    Tensor.relu,
-                ]
-            ),
-            upstream_sampling=6,
-        ),
-        Spec(
-            model=MultiModel(
-                [
-                    MultiConv2d(16, 64, 64, 3),
+                    MultiConv2d(16, 32, 64, 3),
                     Tensor.relu,
                 ]
             ),
             upstream_sampling=8,
+        ),
+        Spec(
+            model=MultiModel(
+                [
+                    MultiConv2d(32, 64, 64, 3),
+                    Tensor.relu,
+                ]
+            ),
+            upstream_sampling=16,
         ),
         Spec(
             model=MultiModel(
@@ -99,8 +99,8 @@ def main():
             evolve=False,
         ),
         Spec(
-            model=MultiModel([lambda x: x.flatten(1), MultiLinear(20, 576, 10)]),
-            upstream_sampling=10,
+            model=MultiModel([lambda x: x.flatten(1), MultiLinear(64, 576, 10)]),
+            upstream_sampling=32,
         ),
     ]
     learning_rate = Tensor(INITIAL_LEARNING_RATE)
