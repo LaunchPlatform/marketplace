@@ -69,7 +69,6 @@ def main():
             model=MultiModel(
                 [nn.BatchNorm(32), Tensor.max_pool2d],
             ),
-            upstream_sampling=UPSTREAM_SAMPLING,
             evolve=False,
         ),
         Spec(
@@ -97,7 +96,6 @@ def main():
                     Tensor.max_pool2d,
                 ]
             ),
-            upstream_sampling=UPSTREAM_SAMPLING,
             evolve=False,
         ),
         Spec(
