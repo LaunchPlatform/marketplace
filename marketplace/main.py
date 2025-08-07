@@ -183,7 +183,9 @@ if __name__ == "__main__":
             )
             checkpoint_filepath = pathlib.Path(f"model-{i}.safetensors")
             checkpoint_tmp_filepath = checkpoint_filepath.with_suffix(".tmp")
-            safe_save(parameters | dict(step=i), str(checkpoint_tmp_filepath))
+            safe_save(
+                parameters | dict(global_step=Tensor(i)), str(checkpoint_tmp_filepath)
+            )
             checkpoint_tmp_filepath.rename(checkpoint_filepath)
 
         t.set_description(
