@@ -103,7 +103,7 @@ def train(
     checkpoint_per_steps: int = 1000,
 ):
     logger.info(
-        "Running beautiful MNIST with step_count, batch_size=%s, init_lr=%s, lr_decay=%s, metrics_per_steps=%s, "
+        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, metrics_per_steps=%s, "
         "checkpoint_per_steps=%s",
         step_count,
         batch_size,
@@ -221,7 +221,7 @@ def write_checkpoint(
 
 
 @click.command("beautiful_mnist")
-@click.option("--step-count", type=int, default=10_100, help="How many steps to run")
+@click.option("--step-count", type=int, default=10_000, help="How many steps to run")
 @click.option("--batch-size", type=int, default=32, help="Size of batch")
 @click.option(
     "--initial-lr", type=float, default=1e-3, help="Initial learning rate value"
