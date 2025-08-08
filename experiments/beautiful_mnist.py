@@ -11,7 +11,6 @@ from tinygrad import GlobalCounters
 from tinygrad import nn
 from tinygrad import Tensor
 from tinygrad import TinyJit
-from tinygrad.helpers import colored
 from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
@@ -117,7 +116,7 @@ def train(
 
     mlflow.log_param("step_count", step_count)
     mlflow.log_param("batch_size", batch_size)
-    mlflow.log_param("lr", lr)
+    mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
