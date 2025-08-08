@@ -34,8 +34,8 @@ def main(comment: str | None):
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
     BATCH_SIZE = getenv("BS", 32)
-    INITIAL_LEARNING_RATE = 1e-3
-    LEARNING_RATE_DECAY_RATE = 1e-4
+    INITIAL_LEARNING_RATE = 1e-5
+    LEARNING_RATE_DECAY_RATE = 1e-3
     FORWARD_PASS_SCHEDULE = [
         (0, 1),
         (1_000, 2),
@@ -115,6 +115,14 @@ def main(comment: str | None):
     ]
     learning_rate = Tensor(INITIAL_LEARNING_RATE)
     writer = SummaryWriter(comment=comment)
+    writer.add_hparams(
+        hparam_dict=dict(
+            batch_size=BATCH_SIZE,
+            initial_learning_rate=INITIAL_LEARNING_RATE,
+            learning_rate_decay_rate=LEARNING_RATE_DECAY_RATE,
+        ),
+        metric_dict={},
+    )
 
     @TinyJit
     def forward_step() -> tuple[Tensor, Tensor]:
