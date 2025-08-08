@@ -123,17 +123,19 @@ def train(
     batch_size: int,
     initial_lr: float,
     lr_decay_rate: float,
+    initial_forward_pass: int = 1,
     metrics_per_steps: int = 10,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
 ):
     logger.info(
-        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, metrics_per_steps=%s, "
-        "checkpoint_filepath=%s, checkpoint_per_steps=%s",
+        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
+        "initial_forward_pass=%s, metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
+        initial_forward_pass,
         metrics_per_steps,
         checkpoint_filepath,
         checkpoint_per_steps,
@@ -143,6 +145,7 @@ def train(
 
     mlflow.log_param("step_count", step_count)
     mlflow.log_param("batch_size", batch_size)
+    mlflow.log_param("initial_forward_pass", initial_forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
@@ -181,7 +184,7 @@ def train(
         ).mean() * 100
 
     test_acc = float("nan")
-    current_forward_pass = 1
+    current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
 
