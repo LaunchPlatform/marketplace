@@ -178,12 +178,15 @@ def train(
         end_time = time.perf_counter()
         run_time = end_time - start_time
         lr.replace(lr * (1 - lr_decay_rate))
+        gflops = GlobalCounters.global_ops * 1e-9 / run_time
+
         if i % metrics_per_steps == (metrics_per_steps - 1):
             test_acc = get_test_acc(path).item()
             mlflow.log_metric("training/loss", loss.item(), step=i)
             mlflow.log_metric("training/accuracy", test_acc, step=i)
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
+            mlflow.log_metric("training/gflops", gflops, step=i)
         if checkpoint_filepath is not None and i % checkpoint_per_steps == (
             checkpoint_per_steps - 1
         ):
@@ -196,7 +199,7 @@ def train(
 
         t.set_description(
             f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
-            f"acc: {test_acc:5.2f}%, {GlobalCounters.global_ops * 1e-9 / run_time:9,.2f} GFLOPS"
+            f"acc: {test_acc:5.2f}%, {gflops:9,.2f} GFLOPS"
         )
 
 
