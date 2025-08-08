@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 @click.command("beautiful_mnist")
-@click.argument("comment", type=str, help="Comment for Tensorboard logs")
+@click.option("-c", "--comment", type=str, help="Comment for Tensorboard logs")
 def main(comment: str | None):
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
