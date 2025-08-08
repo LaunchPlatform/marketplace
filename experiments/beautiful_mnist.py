@@ -7,6 +7,7 @@ import time
 import click
 from tensorboardX import SummaryWriter
 from tinygrad import GlobalCounters
+from tinygrad import nn
 from tinygrad import Tensor
 from tinygrad import TinyJit
 from tinygrad.helpers import colored
@@ -32,14 +33,14 @@ logger = logging.getLogger(__name__)
 def main(comment: str | None):
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    BATCH_SIZE = getenv("BS", 64)
+    BATCH_SIZE = getenv("BS", 128)
     INITIAL_LEARNING_RATE = 1e-3
     LEARNING_RATE_DECAY_RATE = 1e-3
     FORWARD_PASS_SCHEDULE = [
         (0, 1),
-        (1_500, 2),
-        (3_000, 4),
-        (4_500, 8),
+        # (1_500, 2),
+        # (3_000, 4),
+        # (4_500, 8),
     ]
     logger.info(
         "Running beautiful MNIST with batch_size=%s, init_lr=%s, lr_decay=%s, comment=%s",
@@ -53,7 +54,7 @@ def main(comment: str | None):
         Spec(
             model=MultiModel(
                 [
-                    MultiConv2d(4, 1, 32, 5),
+                    MultiConv2d(32, 1, 32, 5),
                     Tensor.relu,
                 ]
             ),
@@ -61,7 +62,7 @@ def main(comment: str | None):
         Spec(
             model=MultiModel(
                 [
-                    MultiConv2d(8, 32, 32, 5),
+                    MultiConv2d(32, 32, 32, 5),
                     Tensor.relu,
                 ]
             ),
@@ -70,21 +71,18 @@ def main(comment: str | None):
         ),
         Spec(
             model=MultiModel(
-                [
-                    # nn.BatchNorm(32),
-                    Tensor.max_pool2d
-                ],
+                [nn.BatchNorm(32), Tensor.max_pool2d],
             ),
             evolve=False,
         ),
         Spec(
             model=MultiModel(
                 [
-                    MultiConv2d(16, 32, 64, 3),
+                    MultiConv2d(32, 32, 64, 3),
                     Tensor.relu,
                 ]
             ),
-            upstream_sampling=8,
+            upstream_sampling=16,
         ),
         Spec(
             model=MultiModel(
@@ -98,15 +96,15 @@ def main(comment: str | None):
         Spec(
             model=MultiModel(
                 [
-                    # nn.BatchNorm(64),
+                    nn.BatchNorm(64),
                     Tensor.max_pool2d,
                 ]
             ),
             evolve=False,
         ),
         Spec(
-            model=MultiModel([lambda x: x.flatten(1), MultiLinear(64, 576, 10)]),
-            upstream_sampling=32,
+            model=MultiModel([lambda x: x.flatten(1), MultiLinear(32, 576, 10)]),
+            upstream_sampling=16,
         ),
     ]
     learning_rate = Tensor(INITIAL_LEARNING_RATE)
