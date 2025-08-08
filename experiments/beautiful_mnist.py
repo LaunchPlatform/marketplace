@@ -99,16 +99,18 @@ def train(
     initial_lr: float,
     lr_decay_rate: float,
     metrics_per_steps: int = 10,
+    checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, metrics_per_steps=%s, "
-        "checkpoint_per_steps=%s",
+        "checkpoint_filepath=%s, checkpoint_per_steps=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
         metrics_per_steps,
+        checkpoint_filepath,
         checkpoint_per_steps,
     )
     marketplace = make_marketplace()
@@ -182,8 +184,15 @@ def train(
             mlflow.log_metric("training/accuracy", test_acc, step=i)
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
-        if i % checkpoint_per_steps == (checkpoint_per_steps - 1):
-            write_checkpoint(i, marketplace, path)
+        if checkpoint_filepath is not None and i % checkpoint_per_steps == (
+            checkpoint_per_steps - 1
+        ):
+            write_checkpoint(
+                marketplace=marketplace,
+                path=path,
+                global_step=i,
+                output_filepath=pathlib.Path(checkpoint_filepath),
+            )
 
         t.set_description(
             f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
