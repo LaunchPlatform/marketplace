@@ -37,9 +37,9 @@ def main(comment: str | None):
     INITIAL_LEARNING_RATE = 1e-3
     LEARNING_RATE_DECAY_RATE = 1e-3
     FORWARD_PASS_SCHEDULE = [
-        (0, 1),
-        # (1_500, 2),
-        # (3_000, 4),
+        (0, 4),
+        (2_000, 8),
+        (3_000, 16),
         # (4_500, 8),
     ]
     logger.info(
