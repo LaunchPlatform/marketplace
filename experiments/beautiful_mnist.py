@@ -82,21 +82,21 @@ def make_marketplace(structure: list[tuple[int, int]] | None = None):
         Spec(
             model=MultiModel(
                 [
-                    MultiConv2d(structure[2][0], 32, 64, 3),
+                    MultiConv2d(structure[3][0], 32, 64, 3),
                     Tensor.relu,
                 ]
             ),
-            upstream_sampling=structure[2][1],
+            upstream_sampling=structure[3][1],
         ),
         # layer4
         Spec(
             model=MultiModel(
                 [
-                    MultiConv2d(structure[3][0], 64, 64, 3),
+                    MultiConv2d(structure[4][0], 64, 64, 3),
                     Tensor.relu,
                 ]
             ),
-            upstream_sampling=structure[3][1],
+            upstream_sampling=structure[4][1],
         ),
         # layer5
         Spec(
@@ -111,9 +111,9 @@ def make_marketplace(structure: list[tuple[int, int]] | None = None):
         # layer6
         Spec(
             model=MultiModel(
-                [lambda x: x.flatten(1), MultiLinear(structure[4][0], 576, 10)]
+                [lambda x: x.flatten(1), MultiLinear(structure[6][0], 576, 10)]
             ),
-            upstream_sampling=structure[4][1],
+            upstream_sampling=structure[6][1],
         ),
     ]
 
