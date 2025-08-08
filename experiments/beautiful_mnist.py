@@ -51,7 +51,6 @@ def make_marketplace():
                 ]
             ),
             upstream_sampling=16,
-            evolve=False,
         ),
         Spec(
             model=MultiModel(
