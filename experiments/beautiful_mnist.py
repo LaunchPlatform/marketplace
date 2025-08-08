@@ -1,11 +1,12 @@
 # model based off https://medium.com/data-science/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
+import functools
 import itertools
 import logging
 import pathlib
 import time
 
 import click
-from tensorboardX import SummaryWriter
+import mlflow
 from tinygrad import GlobalCounters
 from tinygrad import nn
 from tinygrad import Tensor
@@ -28,35 +29,13 @@ from marketplace.training import Spec
 logger = logging.getLogger(__name__)
 
 
-@click.command("beautiful_mnist")
-@click.option("-c", "--comment", type=str, help="Comment for Tensorboard logs")
-def main(comment: str | None):
-    X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
+@functools.cache
+def load_data():
+    return mnist(fashion=getenv("FASHION"))
 
-    BATCH_SIZE = getenv("BS", 32)
-    INITIAL_LEARNING_RATE = 1e-5
-    LEARNING_RATE_DECAY_RATE = 1e-3
-    FORWARD_PASS_SCHEDULE = [
-        (0, 1),
-        (1_000, 2),
-        (2_000, 4),
-        (3_000, 8),
-        (4_000, 16),
-        (5_000, 32),
-        (6_000, 64),
-        (7_000, 128),
-        (8_000, 512),
-        # (4_500, 8),
-    ]
-    logger.info(
-        "Running beautiful MNIST with batch_size=%s, init_lr=%s, lr_decay=%s, comment=%s",
-        BATCH_SIZE,
-        INITIAL_LEARNING_RATE,
-        LEARNING_RATE_DECAY_RATE,
-        comment,
-    )
 
-    MARKETPLACE = [
+def make_marketplace():
+    return [
         Spec(
             model=MultiModel(
                 [
@@ -113,23 +92,44 @@ def main(comment: str | None):
             upstream_sampling=16,
         ),
     ]
-    learning_rate = Tensor(INITIAL_LEARNING_RATE)
-    writer = SummaryWriter(comment=comment)
-    writer.add_hparams(
-        hparam_dict=dict(
-            batch_size=BATCH_SIZE,
-            initial_learning_rate=INITIAL_LEARNING_RATE,
-            learning_rate_decay_rate=LEARNING_RATE_DECAY_RATE,
-        ),
-        metric_dict={},
+
+
+def train(
+    step_count: int,
+    batch_size: int,
+    initial_lr: float,
+    lr_decay_rate: float,
+    metrics_per_steps: int = 10,
+    checkpoint_per_steps: int = 1000,
+):
+    logger.info(
+        "Running beautiful MNIST with step_count, batch_size=%s, init_lr=%s, lr_decay=%s, metrics_per_steps=%s, "
+        "checkpoint_per_steps=%s",
+        step_count,
+        batch_size,
+        initial_lr,
+        lr_decay_rate,
+        metrics_per_steps,
+        checkpoint_per_steps,
     )
+    marketplace = make_marketplace()
+    lr = Tensor(initial_lr)
+
+    mlflow.log_param("step_count", step_count)
+    mlflow.log_param("batch_size", batch_size)
+    mlflow.log_param("lr", lr)
+    mlflow.log_param("lr_decay_rate", lr_decay_rate)
+    mlflow.log_param("metrics_per_steps", metrics_per_steps)
+    mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
+
+    X_train, Y_train, X_test, Y_test = load_data()
 
     @TinyJit
     def forward_step() -> tuple[Tensor, Tensor]:
-        samples = Tensor.randint(BATCH_SIZE, high=X_train.shape[0])
+        samples = Tensor.randint(batch_size, high=X_train.shape[0])
         x = X_train[samples]
         y = Y_train[samples]
-        batch_logits, batch_paths = forward(MARKETPLACE, x)
+        batch_logits, batch_paths = forward(marketplace, x)
         return Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
             dim=0,
@@ -142,29 +142,22 @@ def main(comment: str | None):
         min_loss, min_loss_index = combined_loss.topk(1, largest=False)
         min_path = combined_paths[min_loss_index].flatten()
         mutate(
-            marketplace=MARKETPLACE,
+            marketplace=marketplace,
             leading_path=min_path,
-            jitter=learning_rate,
+            jitter=lr,
         )
         return min_loss.realize(), min_path.realize()
 
     @TinyJit
     def get_test_acc(path: Tensor) -> Tensor:
         return (
-            forward_with_path(MARKETPLACE, X_test, path).argmax(axis=1) == Y_test
+            forward_with_path(marketplace, X_test, path).argmax(axis=1) == Y_test
         ).mean() * 100
 
     test_acc = float("nan")
     current_forward_pass = 1
-    for i in (t := trange(getenv("STEPS", 100_000))):
+    for i in (t := trange(step_count)):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
-
-        for threshold, forward_pass in reversed(FORWARD_PASS_SCHEDULE):
-            if i >= threshold:
-                if forward_pass != current_forward_pass:
-                    mutate_step.reset()
-                current_forward_pass = forward_pass
-                break
 
         start_time = time.perf_counter()
 
@@ -183,43 +176,74 @@ def main(comment: str | None):
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        learning_rate.replace(learning_rate * (1 - LEARNING_RATE_DECAY_RATE))
-        if i % 10 == 9:
+        lr.replace(lr * (1 - lr_decay_rate))
+        if i % metrics_per_steps == (metrics_per_steps - 1):
             test_acc = get_test_acc(path).item()
-            writer.add_scalar("training/loss", loss.item(), i)
-            writer.add_scalar("training/accuracy", test_acc, i)
-            writer.add_scalar("training/forward_pass", current_forward_pass, i)
-            writer.add_scalar("training/learning_rate", learning_rate.item(), i)
-        if i % 1000 == 99:
-            parameters = dict(
-                itertools.chain.from_iterable(
-                    [
-                        (f"layer.{i}.{key}", weights[index])
-                        for key, weights in get_state_dict(spec.model).items()
-                    ]
-                    for i, (index, spec) in enumerate(zip(path, MARKETPLACE))
-                )
-            )
-            checkpoint_filepath = pathlib.Path(f"model-{i}.safetensors")
-            checkpoint_tmp_filepath = checkpoint_filepath.with_suffix(".tmp")
-            safe_save(
-                parameters | dict(global_step=Tensor(i)), str(checkpoint_tmp_filepath)
-            )
-            checkpoint_tmp_filepath.rename(checkpoint_filepath)
+            mlflow.log_metric("training/loss", loss.item(), step=i)
+            mlflow.log_metric("training/accuracy", test_acc, step=i)
+            mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
+            mlflow.log_metric("training/lr", lr.item(), step=i)
+        if i % checkpoint_per_steps == (checkpoint_per_steps - 1):
+            write_checkpoint(i, marketplace, path)
 
         t.set_description(
-            f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {learning_rate.item():e}, "
+            f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
             f"acc: {test_acc:5.2f}%, {GlobalCounters.global_ops * 1e-9 / run_time:9,.2f} GFLOPS"
         )
 
-    # verify eval acc
-    if target := getenv("TARGET_EVAL_ACC_PCT", 0.0):
-        if test_acc >= target and test_acc != 100.0:
-            print(colored(f"{test_acc=} >= {target}", "green"))
-        else:
-            raise ValueError(colored(f"{test_acc=} < {target}", "red"))
+
+def write_checkpoint(
+    marketplace: list[Spec],
+    path: Tensor,
+    global_step: int,
+    output_filepath: pathlib.Path,
+):
+    logger.info(
+        "Writing checkpoint with global_step %s to %s", global_step, output_filepath
+    )
+    parameters = dict(
+        itertools.chain.from_iterable(
+            [
+                (f"layer.{i}.{key}", weights[index])
+                for key, weights in get_state_dict(spec.model).items()
+            ]
+            for i, (index, spec) in enumerate(zip(path, marketplace))
+        )
+    )
+    checkpoint_tmp_filepath = output_filepath.with_suffix(".tmp")
+    safe_save(
+        parameters | dict(global_step=Tensor(global_step)), str(checkpoint_tmp_filepath)
+    )
+    checkpoint_tmp_filepath.rename(output_filepath)
+    logger.info(
+        "Wrote checkpoint with global_step %s to %s", global_step, output_filepath
+    )
+
+
+@click.command("beautiful_mnist")
+@click.option("--step-count", type=int, default=10_100, help="How many steps to run")
+@click.option("--batch-size", type=int, default=32, help="Size of batch")
+@click.option(
+    "--initial-lr", type=float, default=1e-3, help="Initial learning rate value"
+)
+@click.option("--lr-decay", type=float, default=1e-3, help="Learning rate decay rate")
+@click.option("-c", "--comment", type=str, help="Comment for Tensorboard logs")
+def main(
+    step_count: int,
+    batch_size: int,
+    initial_lr: float,
+    lr_decay: float,
+    comment: str | None,
+):
+    train(
+        step_count=step_count,
+        batch_size=batch_size,
+        initial_lr=initial_lr,
+        lr_decay_rate=lr_decay,
+    )
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    main()
+    with mlflow.start_run():
+        main()
