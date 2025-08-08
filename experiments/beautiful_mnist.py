@@ -37,7 +37,9 @@ def main(comment: str | None):
     INITIAL_LEARNING_RATE = 1e-3
     LEARNING_RATE_DECAY_RATE = 1e-3
     FORWARD_PASS_SCHEDULE = [
-        (0, 4),
+        (0, 1),
+        (100, 2),
+        (500, 4),
         (1_000, 8),
         (2_000, 16),
         (3_000, 32),
