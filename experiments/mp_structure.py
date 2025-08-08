@@ -145,6 +145,8 @@ def main():
                 batch_size=32,
                 initial_lr=1e-3,
                 lr_decay_rate=4.5e-4,
+                initial_forward_pass=forward_pass,
+                mp_structure=structure,
             )
 
 

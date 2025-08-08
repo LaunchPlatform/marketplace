@@ -124,28 +124,31 @@ def train(
     initial_lr: float,
     lr_decay_rate: float,
     initial_forward_pass: int = 1,
+    mp_structure: list[tuple[int, int]] | None = None,
     metrics_per_steps: int = 10,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "initial_forward_pass=%s, metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s",
+        "initial_forward_pass=%s, mp_structure=%r, metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
         initial_forward_pass,
+        mp_structure,
         metrics_per_steps,
         checkpoint_filepath,
         checkpoint_per_steps,
     )
-    marketplace = make_marketplace()
+    marketplace = make_marketplace(mp_structure)
     lr = Tensor(initial_lr)
 
     mlflow.log_param("step_count", step_count)
     mlflow.log_param("batch_size", batch_size)
     mlflow.log_param("initial_forward_pass", initial_forward_pass)
+    mlflow.log_param("mp_structure", mp_structure)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
