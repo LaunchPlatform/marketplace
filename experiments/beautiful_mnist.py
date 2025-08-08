@@ -50,7 +50,7 @@ def make_marketplace():
                     Tensor.relu,
                 ]
             ),
-            upstream_sampling=4,
+            upstream_sampling=16,
             evolve=False,
         ),
         Spec(
