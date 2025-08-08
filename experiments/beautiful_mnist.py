@@ -33,8 +33,26 @@ def load_data():
     return mnist(fashion=getenv("FASHION"))
 
 
-def make_marketplace():
+def make_marketplace(structure: list[tuple[int, int]] | None = None):
+    if structure is None:
+        structure = [
+            # layer 0
+            (32, 0),
+            # layer 1
+            (32, 16),
+            # layer 2 (N/A)
+            (0, 0),
+            # layer 3
+            (32, 16),
+            # layer 4
+            (32, 16),
+            # layer 5 (N/A)
+            (0, 0),
+            # layer 6
+            (32, 16),
+        ]
     return [
+        # layer0
         Spec(
             model=MultiModel(
                 [
@@ -43,6 +61,7 @@ def make_marketplace():
                 ]
             ),
         ),
+        # layer1
         Spec(
             model=MultiModel(
                 [
@@ -52,12 +71,14 @@ def make_marketplace():
             ),
             upstream_sampling=16,
         ),
+        # layer2
         Spec(
             model=MultiModel(
                 [nn.BatchNorm(32), Tensor.max_pool2d],
             ),
             evolve=False,
         ),
+        # layer3
         Spec(
             model=MultiModel(
                 [
@@ -67,6 +88,7 @@ def make_marketplace():
             ),
             upstream_sampling=16,
         ),
+        # layer4
         Spec(
             model=MultiModel(
                 [
@@ -76,6 +98,7 @@ def make_marketplace():
             ),
             upstream_sampling=16,
         ),
+        # layer5
         Spec(
             model=MultiModel(
                 [
@@ -85,6 +108,7 @@ def make_marketplace():
             ),
             evolve=False,
         ),
+        # layer6
         Spec(
             model=MultiModel([lambda x: x.flatten(1), MultiLinear(32, 576, 10)]),
             upstream_sampling=16,
