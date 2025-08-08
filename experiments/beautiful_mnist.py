@@ -35,7 +35,7 @@ def main(comment: str | None):
 
     BATCH_SIZE = getenv("BS", 32)
     INITIAL_LEARNING_RATE = 1e-3
-    LEARNING_RATE_DECAY_RATE = 1e-3
+    LEARNING_RATE_DECAY_RATE = 1e-4
     FORWARD_PASS_SCHEDULE = [
         (0, 1),
         (100, 2),
