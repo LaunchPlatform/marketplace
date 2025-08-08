@@ -17,7 +17,7 @@ def main():
         (1e-3, 4.575e-4),
     ]:
         with mlflow.start_run(
-            run_name=f"lr-{lr:.3e}-decay-{decay:.3e}-round-4",
+            run_name=f"lr-{lr:.3e}-decay-{decay:.3e}-round-5",
             experiment_id=exp_id,
             description="Find out how learning rate and decay rate affects the training process",
             log_system_metrics=True,
