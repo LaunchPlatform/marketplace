@@ -108,14 +108,14 @@ PYRAMID32_FULL_UPSTREAM_STRUCTURE = [
 def main():
     exp_id = ensure_experiment("Marketplace Structure")
     for name, forward_pass, structure in [
-        ("homogeneous-half", 1, HOMOGENEOUS_HALF_UPSTREAM_STRUCTURE),
-        ("homogeneous-half", 2, HOMOGENEOUS_HALF_UPSTREAM_STRUCTURE),
-        ("homogeneous-half", 4, HOMOGENEOUS_HALF_UPSTREAM_STRUCTURE),
-        ("homogeneous-half", 8, HOMOGENEOUS_HALF_UPSTREAM_STRUCTURE),
-        ("homogeneous-full", 1, HOMOGENEOUS_FULL_UPSTREAM_STRUCTURE),
-        ("homogeneous-full", 2, HOMOGENEOUS_FULL_UPSTREAM_STRUCTURE),
-        ("homogeneous-full", 4, HOMOGENEOUS_FULL_UPSTREAM_STRUCTURE),
-        ("homogeneous-full", 8, HOMOGENEOUS_FULL_UPSTREAM_STRUCTURE),
+        # ("homogeneous-half", 1, HOMOGENEOUS_HALF_UPSTREAM_STRUCTURE),
+        # ("homogeneous-half", 2, HOMOGENEOUS_HALF_UPSTREAM_STRUCTURE),
+        # ("homogeneous-half", 4, HOMOGENEOUS_HALF_UPSTREAM_STRUCTURE),
+        # ("homogeneous-half", 8, HOMOGENEOUS_HALF_UPSTREAM_STRUCTURE),
+        # ("homogeneous-full", 1, HOMOGENEOUS_FULL_UPSTREAM_STRUCTURE),
+        # ("homogeneous-full", 2, HOMOGENEOUS_FULL_UPSTREAM_STRUCTURE),
+        # ("homogeneous-full", 4, HOMOGENEOUS_FULL_UPSTREAM_STRUCTURE),
+        # ("homogeneous-full", 8, HOMOGENEOUS_FULL_UPSTREAM_STRUCTURE),
         ("pyramid64-half", 1, PYRAMID64_HALF_UPSTREAM_STRUCTURE),
         ("pyramid64-half", 2, PYRAMID64_HALF_UPSTREAM_STRUCTURE),
         ("pyramid64-half", 4, PYRAMID64_HALF_UPSTREAM_STRUCTURE),
