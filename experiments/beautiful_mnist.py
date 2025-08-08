@@ -33,13 +33,17 @@ logger = logging.getLogger(__name__)
 def main(comment: str | None):
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    BATCH_SIZE = getenv("BS", 128)
+    BATCH_SIZE = getenv("BS", 32)
     INITIAL_LEARNING_RATE = 1e-3
     LEARNING_RATE_DECAY_RATE = 1e-3
     FORWARD_PASS_SCHEDULE = [
         (0, 4),
-        (2_000, 8),
-        (3_000, 16),
+        (1_000, 8),
+        (2_000, 16),
+        (3_000, 32),
+        (4_000, 64),
+        (5_000, 128),
+        (6_000, 512),
         # (4_500, 8),
     ]
     logger.info(
