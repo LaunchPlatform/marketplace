@@ -7,32 +7,34 @@ from .utils import ensure_experiment
 
 logger = logging.getLogger(__name__)
 
+homogeneous_structure = [
+    # layer 0
+    (32, 0),
+    # layer 1
+    (32, 16),
+    # layer 2 (N/A)
+    (0, 0),
+    # layer 3
+    (32, 16),
+    # layer 4
+    (32, 16),
+    # layer 5 (N/A)
+    (0, 0),
+    # layer 6
+    (32, 16),
+]
+
 
 def main():
     exp_id = ensure_experiment("Marketplace Structure")
-    for name, structure in [
-        (
-            "homogeneous",
-            [
-                # layer 0
-                (32, 0),
-                # layer 1
-                (32, 16),
-                # layer 2 (N/A)
-                (0, 0),
-                # layer 3
-                (32, 16),
-                # layer 4
-                (32, 16),
-                # layer 5 (N/A)
-                (0, 0),
-                # layer 6
-                (32, 16),
-            ],
-        ),
+    for name, forward_pass, structure in [
+        ("homogeneous", 1, homogeneous_structure),
+        ("homogeneous", 2, homogeneous_structure),
+        ("homogeneous", 4, homogeneous_structure),
+        ("homogeneous", 8, homogeneous_structure),
     ]:
         with mlflow.start_run(
-            run_name=name,
+            run_name=f"{name}-fw{forward_pass}",
             experiment_id=exp_id,
             description="Find out how marketplace structure impacts the performance of training",
             log_system_metrics=True,
