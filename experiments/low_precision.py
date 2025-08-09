@@ -40,7 +40,10 @@ def main():
             log_system_metrics=True,
             tags=dict(round="5"),
         ):
-            with Context(FLOAT16=int(fp16)):
+            ctx_values = {}
+            if fp16:
+                ctx_values["FLOAT16"] = 1
+            with Context(**ctx_values):
                 mlflow.log_param("fp16", fp16)
                 train(
                     step_count=10_000,
