@@ -59,7 +59,7 @@ PYRAMID64_FULL_UPSTREAM_STRUCTURE = [
     # layer 0
     (4, 0),
     # layer 1
-    (8, 8),
+    (8, 4),
     # layer 2 (N/A)
     (0, 0),
     # layer 3
@@ -91,7 +91,7 @@ PYRAMID32_FULL_UPSTREAM_STRUCTURE = [
     # layer 0
     (2, 0),
     # layer 1
-    (4, 4),
+    (4, 2),
     # layer 2 (N/A)
     (0, 0),
     # layer 3
