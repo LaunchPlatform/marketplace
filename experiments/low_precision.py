@@ -30,7 +30,7 @@ PYRAMID64_HALF_UPSTREAM_STRUCTURE = [
 def main():
     exp_id = ensure_experiment("Low Precision")
     for fp16 in [
-        False,
+        # False,
         True,
     ]:
         with mlflow.start_run(
@@ -41,8 +41,9 @@ def main():
             tags=dict(round="5"),
         ):
             ctx_values = {}
-            if fp16:
-                ctx_values["FLOAT16"] = 1
+            # XXX: it seems like FLOAT16 can only be passed in by env var with tinygrad?
+            # if fp16:
+            #     ctx_values["FLOAT16"] = 1
             with Context(**ctx_values):
                 mlflow.log_param("fp16", fp16)
                 train(
