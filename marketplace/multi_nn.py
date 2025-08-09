@@ -81,6 +81,8 @@ class MultiModel(MultiModelBase):
         for i, model in enumerate(self.layers):
             if not isinstance(model, MultiModelBase):
                 continue
+            if isinstance(model, SingletonModel):
+                continue
             if self.vendor_count is None:
                 self.vendor_count = model.vendor_count
             else:
