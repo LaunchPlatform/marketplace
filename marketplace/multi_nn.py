@@ -107,7 +107,7 @@ class MultiModel(MultiModelBase):
 class SingletonModel(MultiModelBase):
     def __init__(self, model: typing.Callable[[Tensor], Tensor]):
         self.vendor_count = 1
-        self.model = model
+        self.singleton = model
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
-        return self.model(x)
+        return self.singleton(x)

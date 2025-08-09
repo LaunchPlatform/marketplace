@@ -140,6 +140,20 @@ def make_marketplace_without_cross_mixing(vendor_count: int):
                     MultiLinear(vendor_count, 576, 10),
                 ]
             ),
+            excluded_param_keys=frozenset(
+                [
+                    "layers.4.singleton.weight",
+                    "layers.4.singleton.bias",
+                    "layers.4.singleton.num_batches_tracked",
+                    "layers.4.singleton.running_mean",
+                    "layers.4.singleton.running_var",
+                    "layers.10.singleton.weight",
+                    "layers.10.singleton.bias",
+                    "layers.10.singleton.num_batches_tracked",
+                    "layers.10.singleton.running_mean",
+                    "layers.10.singleton.running_var",
+                ]
+            ),
         ),
     ]
 
@@ -271,7 +285,7 @@ def write_checkpoint(
         itertools.chain.from_iterable(
             [
                 (f"layer.{i}.{key}", weights[index])
-                for key, weights in get_state_dict(spec.model).items()
+                for key, weights in get_state_dict(spec.singleton).items()
             ]
             for i, (index, spec) in enumerate(zip(path, marketplace))
         )

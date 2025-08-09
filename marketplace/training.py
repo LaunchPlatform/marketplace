@@ -12,6 +12,7 @@ class Spec:
     model: MultiModel
     upstream_sampling: int = 0
     evolve: bool = True
+    excluded_param_keys: frozenset[str] | None = None
 
 
 def produce(
@@ -101,6 +102,11 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
         multi_params = nn.state.get_state_dict(spec.model)
         for i in range(spec.model.vendor_count):
             for key, params in multi_params.items():
+                if (
+                    spec.excluded_param_keys is not None
+                    and key in spec.excluded_param_keys
+                ):
+                    continue
                 leading_params = params[leading_index]
                 params[i] = (
                     leading_params
