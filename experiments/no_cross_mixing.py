@@ -29,12 +29,13 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
 
 def main():
     exp_id = ensure_experiment("No Cross Mixing")
-    for cross_mixing in [
-        False,
-        True,
+    for cross_mixing, vendor_count in [
+        (False, 32),
+        (False, 64),
+        (True, 0),
     ]:
         with mlflow.start_run(
-            run_name=f"cross-mixing-{cross_mixing}",
+            run_name=f"cross-mixing-{cross_mixing}-{vendor_count}-round2",
             experiment_id=exp_id,
             description="Find out if cross mixing indeed helpful or not",
             log_system_metrics=True,
@@ -42,7 +43,7 @@ def main():
             if cross_mixing:
                 marketplace = make_marketplace(PYRAMID32_HALF_UPSTREAM_STRUCTURE)
             else:
-                marketplace = make_marketplace_without_cross_mixing(32)
+                marketplace = make_marketplace_without_cross_mixing(vendor_count)
             train(
                 step_count=3_000,
                 batch_size=32,
