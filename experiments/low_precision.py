@@ -9,6 +9,24 @@ from .utils import ensure_experiment
 logger = logging.getLogger(__name__)
 
 
+PYRAMID64_HALF_UPSTREAM_STRUCTURE = [
+    # layer 0
+    (4, 0),
+    # layer 1
+    (8, 4),
+    # layer 2 (N/A)
+    (0, 0),
+    # layer 3
+    (16, 8),
+    # layer 4
+    (32, 16),
+    # layer 5 (N/A)
+    (0, 0),
+    # layer 6
+    (64, 32),
+]
+
+
 def main():
     exp_id = ensure_experiment("Low Precision")
     for fp16 in [
@@ -29,6 +47,7 @@ def main():
                     batch_size=32,
                     initial_lr=1e-3,
                     lr_decay_rate=4.5e-4,
+                    mp_structure=PYRAMID64_HALF_UPSTREAM_STRUCTURE,
                 )
 
 
