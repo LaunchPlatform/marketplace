@@ -1,0 +1,37 @@
+import logging
+
+import mlflow
+from tinygrad import Context
+
+from .beautiful_mnist import train
+from .utils import ensure_experiment
+
+logger = logging.getLogger(__name__)
+
+
+def main():
+    exp_id = ensure_experiment("Low Precision")
+    for fp16 in [
+        False,
+        True,
+    ]:
+        with mlflow.start_run(
+            run_name=f"fp-16-{fp16}",
+            experiment_id=exp_id,
+            description="Find out if low precision training make any difference",
+            log_system_metrics=True,
+            tags=dict(round="5"),
+        ):
+            with Context(FLOAT16=int(fp16)):
+                mlflow.log_param("fp16", fp16)
+                train(
+                    step_count=10_000,
+                    batch_size=32,
+                    initial_lr=1e-3,
+                    lr_decay_rate=4.5e-4,
+                )
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    main()
