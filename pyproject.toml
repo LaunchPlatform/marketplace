@@ -10,6 +10,7 @@ dependencies = [
     "numpy>=2.3.2",
     "psutil>=7.0.0",
     "tinygrad>=0.10.3",
+    "tinyloader>=0.1.3",
 ]
 
 [tool.uv.sources]

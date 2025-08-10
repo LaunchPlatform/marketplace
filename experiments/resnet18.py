@@ -1,10 +1,18 @@
+import glob
+import json
+import pathlib
 import time
+import typing
 
+import numpy as np
+from PIL import Image
 from tinygrad import nn
 from tinygrad import Tensor
 from tinygrad import TinyJit
 from tinygrad.helpers import GlobalCounters
 from tinygrad.helpers import trange
+from tinyloader.loader import load_with_workers
+from tinyloader.loader import Loader
 
 from marketplace.multi_nn import MultiConv2d
 from marketplace.multi_nn import MultiLinear
@@ -12,6 +20,60 @@ from marketplace.multi_nn import MultiModel
 from marketplace.multi_nn import MultiModelBase
 from marketplace.training import forward
 from marketplace.training import Spec
+
+
+def get_train_files(basedir: pathlib.Path) -> list[str]:
+    if not (files := glob.glob(p := str(basedir / "train/*/*"))):
+        raise FileNotFoundError(f"No training files in {p}")
+    return files
+
+
+def get_val_files(basedir: pathlib.Path) -> list[str]:
+    if not (files := glob.glob(p := str(basedir / "val/*/*"))):
+        raise FileNotFoundError(f"No training files in {p}")
+    return files
+
+
+def get_imagenet_categories(basedir: pathlib.Path) -> dict[str, int]:
+    ci = json.load(open(basedir / "imagenet_class_index.json"))
+    return {v[0]: int(k) for k, v in ci.items()}
+
+
+def center_crop(img: Image) -> Image:
+    rescale = min(img.size) / 256
+    crop_left = (img.width - 224 * rescale) / 2.0
+    crop_top = (img.height - 224 * rescale) / 2.0
+    img = img.resize(
+        (224, 224),
+        Image.BILINEAR,
+        box=(crop_left, crop_top, crop_left + 224 * rescale, crop_top + 224 * rescale),
+    )
+    return img
+
+
+class ImageLoader(Loader):
+    def __init__(self, img_categories: dict[str, int], num_classes: int):
+        super().__init__()
+        self.img_categories = img_categories
+        self.num_classes = num_classes
+
+    def make_request(self, item: pathlib.Path) -> typing.Any:
+        return item
+
+    def load(self, request: pathlib.Path) -> tuple[np.typing.NDArray, ...]:
+        x = Image.open(request)
+        x = center_crop(x)
+        x = np.asarray(x)
+        y = self.img_categories[request.parts[-2]]
+        return x, np.array(y)
+
+    def post_process(
+        self, response: tuple[np.typing.NDArray, ...]
+    ) -> tuple[Tensor, ...]:
+        x, y = response
+        y = Tensor(y).one_hot(self.num_classes).contiguous().realize()
+        x = Tensor(x).contiguous().realize()
+        return x, y
 
 
 class BasicBlock(MultiModelBase):
@@ -183,51 +245,65 @@ def make_marketplace(num_classes: int = 100):
     ]
 
 
-def train(marketplace: list[Spec], step_count: int = 10, batch_size: int = 16):
-    # X_train, Y_train, X_test, Y_test = mnist()
-    # X_train = X_train.reshape(-1, 28, 28).astype(np.uint8)
-    # X_test = X_test.reshape(-1, 28, 28).astype(np.uint8)
-    # classes = 10
+def train(
+    dataset_dir: pathlib.Path,
+    marketplace: list[Spec],
+    step_count: int = 10,
+    batch_size: int = 16,
+    num_workers: int = 8,
+):
+    train_files = get_train_files(dataset_dir)
+    val_files = get_val_files(dataset_dir)
+    img_categories = get_imagenet_categories(dataset_dir)
+    loader = ImageLoader(img_categories=img_categories, num_classes=10)
 
     @TinyJit
-    def forward_step() -> tuple[Tensor, Tensor]:
-        x = Tensor.randn(batch_size, 3, 224, 224)
-        y = Tensor.randn(batch_size, 10)
+    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         batch_logits, batch_paths = forward(marketplace, x)
         return Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
             dim=0,
         ).realize(), batch_paths.realize()
 
-    for i in (t := trange(step_count)):
-        GlobalCounters.reset()
+    with load_with_workers(
+        loader,
+        list(map(pathlib.Path, train_files)),
+        num_workers,
+        shared_memory_enabled=True,
+    ) as generator:
+        for x, y in generator:
+            print(x, y)
+        exit(-1)
 
-        start_time = time.perf_counter()
+        for i in (t := trange(step_count)):
+            GlobalCounters.reset()
 
-        batch_logits, batch_paths = forward_step()
-        batch_logits.realize()
-        batch_paths.realize()
+            start_time = time.perf_counter()
 
-        # print(batch_logits, batch_paths)
-        # print(batch_logits.realize(), batch_paths.realize())
-        end_time = time.perf_counter()
-        run_time = end_time - start_time
-        gflops = GlobalCounters.global_ops * 1e-9 / run_time
+            batch_logits, batch_paths = forward_step()
+            batch_logits.realize()
+            batch_paths.realize()
 
-        loss = Tensor(0)
-        current_forward_pass = 0
-        lr = Tensor(0)
-        test_acc = 0
-        test_acc = 0
+            # print(batch_logits, batch_paths)
+            # print(batch_logits.realize(), batch_paths.realize())
+            end_time = time.perf_counter()
+            run_time = end_time - start_time
+            gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
-        t.set_description(
-            f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
-            f"acc: {test_acc:5.2f}%, {gflops:9,.2f} GFLOPS"
-        )
+            loss = Tensor(0)
+            current_forward_pass = 0
+            lr = Tensor(0)
+            test_acc = 0
+            test_acc = 0
+
+            t.set_description(
+                f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
+                f"acc: {test_acc:5.2f}%, {gflops:9,.2f} GFLOPS"
+            )
 
 
 def main():
-    train(make_marketplace(10))
+    train(dataset_dir=pathlib.Path("mnist"), marketplace=make_marketplace(10))
 
 
 if __name__ == "__main__":
