@@ -56,9 +56,9 @@ class MultiConv2d(MultiModelBase, nn.Conv2d):
 
 class MultiLinear(MultiModelBase, nn.Linear):
     def __init__(
-        self, vendor_count: int, in_features: int, out_features: int, bias=True
+        self, vendor_count: int, in_features: int, out_features: int, bias: bool = True
     ):
-        super().__init__(in_features=in_features, out_features=out_features)
+        super().__init__(in_features=in_features, out_features=out_features, bias=bias)
         self.vendor_count = vendor_count
         self.weight = repeat(self.weight, vendor_count)
         if self.bias is not None:

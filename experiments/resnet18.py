@@ -2,6 +2,7 @@ from tinygrad import nn
 from tinygrad import Tensor
 
 from marketplace.multi_nn import MultiConv2d
+from marketplace.multi_nn import MultiLinear
 from marketplace.multi_nn import MultiModel
 from marketplace.multi_nn import MultiModelBase
 from marketplace.training import Spec
@@ -78,45 +79,96 @@ def make_marketplace(num_classes: int = 10):
                     nn.BatchNorm2d(64, track_running_stats=False, affine=False),
                     Tensor.relu,
                     lambda x: x.max_pool2d(
-                        kernel_size=3, stride=1, padding=1, bias=False
+                        kernel_size=3, stride=2, padding=1, bias=False
                     ),
                 ]
-            )
-        )
-        # self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        # self.bn1 = nn.BatchNorm2d(64)
-        # self.relu = nn.ReLU(inplace=True)
-        # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        #
-        # self.layer1 = self._make_layer(BasicBlock, 64, 2, stride=1)
-        # self.layer2 = self._make_layer(BasicBlock, 128, 2, stride=2)
-        # self.layer3 = self._make_layer(BasicBlock, 256, 2, stride=2)
-        # self.layer4 = self._make_layer(BasicBlock, 512, 2, stride=2)
-        #
-        # self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        # self.fc = nn.Linear(512, num_classes)
-        #
-        # def _make_layer(self, block, out_channels, num_blocks, stride):
-        #     strides = [stride] + [1] * (num_blocks - 1)
-        #     layers = []
-        #     for stride in strides:
-        #         layers.append(block(self.in_channels, out_channels, stride))
-        #         self.in_channels = out_channels
-        #     return nn.Sequential(*layers)
-        #
-        # def forward(self, x):
-        #     out = self.conv1(x)
-        #     out = self.bn1(out)
-        #     out = self.relu(out)
-        #     out = self.maxpool(out)
-        #
-        #     out = self.layer1(out)
-        #     out = self.layer2(out)
-        #     out = self.layer3(out)
-        #     out = self.layer4(out)
-        #
-        #     out = self.avgpool(out)
-        #     out = out.view(out.size(0), -1)
-        #     out = self.fc(out)
-        #     return out
+            ),
+        ),
+        # layer1
+        Spec(
+            model=MultiModel(
+                [
+                    BasicBlock(
+                        8,
+                        in_channels=64,
+                        out_channels=64,
+                        stride=1,
+                    ),
+                    BasicBlock(
+                        8,
+                        in_channels=64,
+                        out_channels=64,
+                        stride=1,
+                    ),
+                ]
+            ),
+            upstream_sampling=4,
+        ),
+        # layer2
+        Spec(
+            model=MultiModel(
+                [
+                    BasicBlock(
+                        16,
+                        in_channels=64,
+                        out_channels=128,
+                        stride=2,
+                    ),
+                    BasicBlock(
+                        16,
+                        in_channels=128,
+                        out_channels=128,
+                        stride=2,
+                    ),
+                ]
+            ),
+            upstream_sampling=8,
+        ),
+        # layer3
+        Spec(
+            model=MultiModel(
+                [
+                    BasicBlock(
+                        32,
+                        in_channels=128,
+                        out_channels=256,
+                        stride=2,
+                    ),
+                    BasicBlock(
+                        32,
+                        in_channels=256,
+                        out_channels=256,
+                        stride=2,
+                    ),
+                ]
+            ),
+            upstream_sampling=16,
+        ),
+        # layer4
+        Spec(
+            model=MultiModel(
+                [
+                    BasicBlock(
+                        64,
+                        in_channels=256,
+                        out_channels=512,
+                        stride=2,
+                    ),
+                    BasicBlock(
+                        64,
+                        in_channels=512,
+                        out_channels=512,
+                        stride=2,
+                    ),
+                    lambda x: x.avg_pool2d(kernel_size=7),
+                    lambda x: x.flatten(1),
+                ]
+            ),
+            upstream_sampling=32,
+        ),
+        # layer5
+        Spec(
+            model=MultiModel([MultiLinear(128, 512, num_classes)]),
+            upstream_sampling=64,
+        ),
     ]
