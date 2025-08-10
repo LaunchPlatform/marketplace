@@ -46,7 +46,7 @@ class MultiConv2d(MultiModelBase, nn.Conv2d):
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         return x.conv2d(
             self.weight[i],
-            self.bias[i],
+            self.bias[i] if self.bias is not None else None,
             self.groups,
             self.stride,
             self.dilation,

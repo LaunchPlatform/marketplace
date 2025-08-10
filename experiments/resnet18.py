@@ -5,6 +5,7 @@ from marketplace.multi_nn import MultiConv2d
 from marketplace.multi_nn import MultiLinear
 from marketplace.multi_nn import MultiModel
 from marketplace.multi_nn import MultiModelBase
+from marketplace.training import forward
 from marketplace.training import Spec
 
 
@@ -13,6 +14,7 @@ class BasicBlock(MultiModelBase):
         self, vendor_count: int, in_channels: int, out_channels: int, stride: int = 1
     ):
         super().__init__()
+        self.vendor_count = vendor_count
         self.conv1 = MultiConv2d(
             vendor_count,
             in_channels,
@@ -79,7 +81,9 @@ def make_marketplace(num_classes: int = 10):
                     nn.BatchNorm2d(64, track_running_stats=False, affine=False),
                     Tensor.relu,
                     lambda x: x.max_pool2d(
-                        kernel_size=3, stride=2, padding=1, bias=False
+                        kernel_size=3,
+                        stride=2,
+                        padding=1,
                     ),
                 ]
             ),
@@ -172,3 +176,17 @@ def make_marketplace(num_classes: int = 10):
             upstream_sampling=64,
         ),
     ]
+
+
+def train(marketplace: list[Spec]):
+    x = Tensor.randn(1, 3, 224, 224)
+    batch_logits, batch_paths = forward(marketplace, x)
+    print(batch_logits, batch_paths)
+
+
+def main():
+    train(make_marketplace(1000))
+
+
+if __name__ == "__main__":
+    main()
