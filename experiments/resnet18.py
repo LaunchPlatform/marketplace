@@ -1,5 +1,9 @@
+import time
+
 from tinygrad import nn
 from tinygrad import Tensor
+from tinygrad.helpers import GlobalCounters
+from tinygrad.helpers import trange
 
 from marketplace.multi_nn import MultiConv2d
 from marketplace.multi_nn import MultiLinear
@@ -64,7 +68,7 @@ class BasicBlock(MultiModelBase):
         return out
 
 
-def make_marketplace(num_classes: int = 10):
+def make_marketplace(num_classes: int = 100):
     return [
         Spec(
             model=MultiModel(
@@ -178,15 +182,39 @@ def make_marketplace(num_classes: int = 10):
     ]
 
 
-def train(marketplace: list[Spec]):
-    x = Tensor.randn(1, 3, 224, 224)
-    batch_logits, batch_paths = forward(marketplace, x)
-    print(batch_logits, batch_paths)
-    print(batch_logits.realize(), batch_paths.realize())
+def train(marketplace: list[Spec], step_count: int = 10):
+    # X_train, Y_train, X_test, Y_test = mnist()
+    # X_train = X_train.reshape(-1, 28, 28).astype(np.uint8)
+    # X_test = X_test.reshape(-1, 28, 28).astype(np.uint8)
+    # classes = 10
+
+    for i in (t := trange(step_count)):
+        GlobalCounters.reset()
+
+        start_time = time.perf_counter()
+        x = Tensor.randn(64, 3, 224, 224)
+
+        batch_logits, batch_paths = forward(marketplace, x)
+        print(batch_logits, batch_paths)
+        print(batch_logits.realize(), batch_paths.realize())
+        end_time = time.perf_counter()
+        run_time = end_time - start_time
+        gflops = GlobalCounters.global_ops * 1e-9 / run_time
+
+        loss = Tensor(0)
+        current_forward_pass = 0
+        lr = Tensor(0)
+        test_acc = 0
+        test_acc = 0
+
+        t.set_description(
+            f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
+            f"acc: {test_acc:5.2f}%, {gflops:9,.2f} GFLOPS"
+        )
 
 
 def main():
-    train(make_marketplace(1000))
+    train(make_marketplace(10))
 
 
 if __name__ == "__main__":
