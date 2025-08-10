@@ -2,6 +2,7 @@ import time
 
 from tinygrad import nn
 from tinygrad import Tensor
+from tinygrad import TinyJit
 from tinygrad.helpers import GlobalCounters
 from tinygrad.helpers import trange
 
@@ -74,7 +75,7 @@ def make_marketplace(num_classes: int = 100):
             model=MultiModel(
                 [
                     MultiConv2d(
-                        4,
+                        12,
                         in_channels=3,
                         out_channels=64,
                         kernel_size=7,
@@ -97,73 +98,73 @@ def make_marketplace(num_classes: int = 100):
             model=MultiModel(
                 [
                     BasicBlock(
-                        8,
+                        16,
                         in_channels=64,
                         out_channels=64,
                         stride=1,
                     ),
                     BasicBlock(
-                        8,
+                        16,
                         in_channels=64,
                         out_channels=64,
-                        stride=1,
-                    ),
-                ]
-            ),
-            upstream_sampling=4,
-        ),
-        # layer2
-        Spec(
-            model=MultiModel(
-                [
-                    BasicBlock(
-                        16,
-                        in_channels=64,
-                        out_channels=128,
-                        stride=2,
-                    ),
-                    BasicBlock(
-                        16,
-                        in_channels=128,
-                        out_channels=128,
                         stride=1,
                     ),
                 ]
             ),
             upstream_sampling=8,
         ),
+        # layer2
+        Spec(
+            model=MultiModel(
+                [
+                    BasicBlock(
+                        20,
+                        in_channels=64,
+                        out_channels=128,
+                        stride=2,
+                    ),
+                    BasicBlock(
+                        20,
+                        in_channels=128,
+                        out_channels=128,
+                        stride=1,
+                    ),
+                ]
+            ),
+            upstream_sampling=10,
+        ),
         # layer3
         Spec(
             model=MultiModel(
                 [
                     BasicBlock(
-                        32,
+                        24,
                         in_channels=128,
                         out_channels=256,
                         stride=2,
                     ),
                     BasicBlock(
-                        32,
+                        24,
                         in_channels=256,
                         out_channels=256,
                         stride=1,
                     ),
                 ]
             ),
-            upstream_sampling=16,
+            upstream_sampling=12,
         ),
         # layer4
         Spec(
             model=MultiModel(
                 [
                     BasicBlock(
-                        64,
+                        28,
                         in_channels=256,
                         out_channels=512,
                         stride=2,
                     ),
                     BasicBlock(
-                        64,
+                        28,
                         in_channels=512,
                         out_channels=512,
                         stride=1,
@@ -172,31 +173,43 @@ def make_marketplace(num_classes: int = 100):
                     lambda x: x.flatten(1),
                 ]
             ),
-            upstream_sampling=32,
+            upstream_sampling=14,
         ),
         # layer5
         Spec(
-            model=MultiModel([MultiLinear(128, 512, num_classes)]),
-            upstream_sampling=64,
+            model=MultiModel([MultiLinear(32, 512, num_classes)]),
+            upstream_sampling=16,
         ),
     ]
 
 
-def train(marketplace: list[Spec], step_count: int = 10):
+def train(marketplace: list[Spec], step_count: int = 10, batch_size: int = 16):
     # X_train, Y_train, X_test, Y_test = mnist()
     # X_train = X_train.reshape(-1, 28, 28).astype(np.uint8)
     # X_test = X_test.reshape(-1, 28, 28).astype(np.uint8)
     # classes = 10
 
+    @TinyJit
+    def forward_step() -> tuple[Tensor, Tensor]:
+        x = Tensor.randn(batch_size, 3, 224, 224)
+        y = Tensor.randn(batch_size, 10)
+        batch_logits, batch_paths = forward(marketplace, x)
+        return Tensor.stack(
+            *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
+            dim=0,
+        ).realize(), batch_paths.realize()
+
     for i in (t := trange(step_count)):
         GlobalCounters.reset()
 
         start_time = time.perf_counter()
-        x = Tensor.randn(64, 3, 224, 224)
 
-        batch_logits, batch_paths = forward(marketplace, x)
-        print(batch_logits, batch_paths)
-        print(batch_logits.realize(), batch_paths.realize())
+        batch_logits, batch_paths = forward_step()
+        batch_logits.realize()
+        batch_paths.realize()
+
+        # print(batch_logits, batch_paths)
+        # print(batch_logits.realize(), batch_paths.realize())
         end_time = time.perf_counter()
         run_time = end_time - start_time
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
