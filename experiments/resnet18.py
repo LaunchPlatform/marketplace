@@ -122,59 +122,59 @@ def make_marketplace(num_classes: int = 10):
                         16,
                         in_channels=128,
                         out_channels=128,
-                        stride=2,
+                        stride=1,
                     ),
                 ]
             ),
             upstream_sampling=8,
         ),
-        # # layer3
-        # Spec(
-        #     model=MultiModel(
-        #         [
-        #             BasicBlock(
-        #                 32,
-        #                 in_channels=128,
-        #                 out_channels=256,
-        #                 stride=2,
-        #             ),
-        #             BasicBlock(
-        #                 32,
-        #                 in_channels=256,
-        #                 out_channels=256,
-        #                 stride=2,
-        #             ),
-        #         ]
-        #     ),
-        #     upstream_sampling=16,
-        # ),
+        # layer3
+        Spec(
+            model=MultiModel(
+                [
+                    BasicBlock(
+                        32,
+                        in_channels=128,
+                        out_channels=256,
+                        stride=2,
+                    ),
+                    BasicBlock(
+                        32,
+                        in_channels=256,
+                        out_channels=256,
+                        stride=1,
+                    ),
+                ]
+            ),
+            upstream_sampling=16,
+        ),
         # layer4
-        # Spec(
-        #     model=MultiModel(
-        #         [
-        #             BasicBlock(
-        #                 64,
-        #                 in_channels=256,
-        #                 out_channels=512,
-        #                 stride=2,
-        #             ),
-        #             BasicBlock(
-        #                 64,
-        #                 in_channels=512,
-        #                 out_channels=512,
-        #                 stride=2,
-        #             ),
-        #             lambda x: x.avg_pool2d(kernel_size=7),
-        #             lambda x: x.flatten(1),
-        #         ]
-        #     ),
-        #     upstream_sampling=32,
-        # ),
+        Spec(
+            model=MultiModel(
+                [
+                    BasicBlock(
+                        64,
+                        in_channels=256,
+                        out_channels=512,
+                        stride=2,
+                    ),
+                    BasicBlock(
+                        64,
+                        in_channels=512,
+                        out_channels=512,
+                        stride=1,
+                    ),
+                    lambda x: x.avg_pool2d(kernel_size=7),
+                    lambda x: x.flatten(1),
+                ]
+            ),
+            upstream_sampling=32,
+        ),
         # layer5
-        # Spec(
-        #     model=MultiModel([MultiLinear(128, 512, num_classes)]),
-        #     upstream_sampling=64,
-        # ),
+        Spec(
+            model=MultiModel([MultiLinear(128, 512, num_classes)]),
+            upstream_sampling=64,
+        ),
     ]
 
 
