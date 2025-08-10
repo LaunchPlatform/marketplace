@@ -65,7 +65,9 @@ class MultiLinear(MultiModelBase, nn.Linear):
             self.bias = repeat(self.bias, vendor_count)
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
-        return x.linear(self.weight[i].transpose(), self.bias[i])
+        return x.linear(
+            self.weight[i].transpose(), self.bias[i] if self.bias is not None else None
+        )
 
 
 class MultiModel(MultiModelBase):

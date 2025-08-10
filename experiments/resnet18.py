@@ -73,9 +73,9 @@ def make_marketplace(num_classes: int = 10):
                         4,
                         in_channels=3,
                         out_channels=64,
-                        kernel_size=3,
-                        stride=1,
-                        padding=1,
+                        kernel_size=7,
+                        stride=2,
+                        padding=3,
                         bias=False,
                     ),
                     nn.BatchNorm2d(64, track_running_stats=False, affine=False),
@@ -128,53 +128,53 @@ def make_marketplace(num_classes: int = 10):
             ),
             upstream_sampling=8,
         ),
-        # layer3
-        Spec(
-            model=MultiModel(
-                [
-                    BasicBlock(
-                        32,
-                        in_channels=128,
-                        out_channels=256,
-                        stride=2,
-                    ),
-                    BasicBlock(
-                        32,
-                        in_channels=256,
-                        out_channels=256,
-                        stride=2,
-                    ),
-                ]
-            ),
-            upstream_sampling=16,
-        ),
+        # # layer3
+        # Spec(
+        #     model=MultiModel(
+        #         [
+        #             BasicBlock(
+        #                 32,
+        #                 in_channels=128,
+        #                 out_channels=256,
+        #                 stride=2,
+        #             ),
+        #             BasicBlock(
+        #                 32,
+        #                 in_channels=256,
+        #                 out_channels=256,
+        #                 stride=2,
+        #             ),
+        #         ]
+        #     ),
+        #     upstream_sampling=16,
+        # ),
         # layer4
-        Spec(
-            model=MultiModel(
-                [
-                    BasicBlock(
-                        64,
-                        in_channels=256,
-                        out_channels=512,
-                        stride=2,
-                    ),
-                    BasicBlock(
-                        64,
-                        in_channels=512,
-                        out_channels=512,
-                        stride=2,
-                    ),
-                    lambda x: x.avg_pool2d(kernel_size=7),
-                    lambda x: x.flatten(1),
-                ]
-            ),
-            upstream_sampling=32,
-        ),
+        # Spec(
+        #     model=MultiModel(
+        #         [
+        #             BasicBlock(
+        #                 64,
+        #                 in_channels=256,
+        #                 out_channels=512,
+        #                 stride=2,
+        #             ),
+        #             BasicBlock(
+        #                 64,
+        #                 in_channels=512,
+        #                 out_channels=512,
+        #                 stride=2,
+        #             ),
+        #             lambda x: x.avg_pool2d(kernel_size=7),
+        #             lambda x: x.flatten(1),
+        #         ]
+        #     ),
+        #     upstream_sampling=32,
+        # ),
         # layer5
-        Spec(
-            model=MultiModel([MultiLinear(128, 512, num_classes)]),
-            upstream_sampling=64,
-        ),
+        # Spec(
+        #     model=MultiModel([MultiLinear(128, 512, num_classes)]),
+        #     upstream_sampling=64,
+        # ),
     ]
 
 
@@ -182,6 +182,7 @@ def train(marketplace: list[Spec]):
     x = Tensor.randn(1, 3, 224, 224)
     batch_logits, batch_paths = forward(marketplace, x)
     print(batch_logits, batch_paths)
+    print(batch_logits.realize(), batch_paths.realize())
 
 
 def main():
