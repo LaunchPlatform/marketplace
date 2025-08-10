@@ -11,6 +11,7 @@ from tinygrad import Tensor
 from tinygrad import TinyJit
 from tinygrad.helpers import GlobalCounters
 from tinygrad.helpers import trange
+from tinyloader.loader import load
 from tinyloader.loader import load_with_workers
 from tinyloader.loader import Loader
 
@@ -63,7 +64,7 @@ class ImageLoader(Loader):
     def load(self, request: pathlib.Path) -> tuple[np.typing.NDArray, ...]:
         x = Image.open(request)
         x = center_crop(x)
-        x = np.asarray(x)
+        x = np.asarray(x).permute(2, 0, 1)
         y = self.img_categories[request.parts[-2]]
         return x, np.array(y)
 
@@ -72,7 +73,7 @@ class ImageLoader(Loader):
     ) -> tuple[Tensor, ...]:
         x, y = response
         y = Tensor(y).one_hot(self.num_classes).contiguous().realize()
-        x = Tensor(x).contiguous().realize()
+        x = Tensor(x.copy()).contiguous().realize()
         return x, y
 
 
@@ -268,9 +269,10 @@ def train(
     with load_with_workers(
         loader,
         list(map(pathlib.Path, train_files)),
-        num_workers,
-        shared_memory_enabled=True,
+        num_worker=num_workers,
+        # shared_memory_enabled=True,
     ) as generator:
+        batch = []
         for x, y in generator:
             print(x, y)
         exit(-1)
