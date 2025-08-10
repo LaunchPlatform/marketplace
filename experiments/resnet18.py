@@ -20,6 +20,7 @@ from marketplace.multi_nn import MultiLinear
 from marketplace.multi_nn import MultiModel
 from marketplace.multi_nn import MultiModelBase
 from marketplace.training import forward
+from marketplace.training import mutate
 from marketplace.training import Spec
 
 
@@ -137,7 +138,7 @@ def make_marketplace(num_classes: int = 100):
             model=MultiModel(
                 [
                     MultiConv2d(
-                        12,
+                        4,
                         in_channels=3,
                         out_channels=64,
                         kernel_size=7,
@@ -160,73 +161,73 @@ def make_marketplace(num_classes: int = 100):
             model=MultiModel(
                 [
                     BasicBlock(
-                        16,
+                        4,
                         in_channels=64,
                         out_channels=64,
                         stride=1,
                     ),
                     BasicBlock(
-                        16,
+                        4,
                         in_channels=64,
                         out_channels=64,
                         stride=1,
                     ),
                 ]
             ),
-            upstream_sampling=8,
+            upstream_sampling=4,
         ),
         # layer2
         Spec(
             model=MultiModel(
                 [
                     BasicBlock(
-                        20,
+                        4,
                         in_channels=64,
                         out_channels=128,
                         stride=2,
                     ),
                     BasicBlock(
-                        20,
+                        4,
                         in_channels=128,
                         out_channels=128,
                         stride=1,
                     ),
                 ]
             ),
-            upstream_sampling=10,
+            upstream_sampling=4,
         ),
         # layer3
         Spec(
             model=MultiModel(
                 [
                     BasicBlock(
-                        24,
+                        4,
                         in_channels=128,
                         out_channels=256,
                         stride=2,
                     ),
                     BasicBlock(
-                        24,
+                        4,
                         in_channels=256,
                         out_channels=256,
                         stride=1,
                     ),
                 ]
             ),
-            upstream_sampling=12,
+            upstream_sampling=4,
         ),
         # layer4
         Spec(
             model=MultiModel(
                 [
                     BasicBlock(
-                        28,
+                        4,
                         in_channels=256,
                         out_channels=512,
                         stride=2,
                     ),
                     BasicBlock(
-                        28,
+                        4,
                         in_channels=512,
                         out_channels=512,
                         stride=1,
@@ -235,12 +236,12 @@ def make_marketplace(num_classes: int = 100):
                     lambda x: x.flatten(1),
                 ]
             ),
-            upstream_sampling=14,
+            upstream_sampling=4,
         ),
         # layer5
         Spec(
-            model=MultiModel([MultiLinear(32, 512, num_classes)]),
-            upstream_sampling=16,
+            model=MultiModel([MultiLinear(4, 512, num_classes)]),
+            upstream_sampling=4,
         ),
     ]
 
@@ -248,7 +249,7 @@ def make_marketplace(num_classes: int = 100):
 def train(
     dataset_dir: pathlib.Path,
     marketplace: list[Spec],
-    step_count: int = 10,
+    step_count: int = 100,
     batch_size: int = 16,
     num_workers: int = 8,
 ):
@@ -265,13 +266,26 @@ def train(
             dim=0,
         ).realize(), batch_paths.realize()
 
+    @TinyJit
+    def mutate_step(
+        combined_loss: Tensor, combined_paths: Tensor
+    ) -> tuple[Tensor, Tensor]:
+        min_loss, min_loss_index = combined_loss.topk(1, largest=False)
+        min_path = combined_paths[min_loss_index].flatten()
+        mutate(
+            marketplace=marketplace,
+            leading_path=min_path,
+            jitter=lr,
+        )
+        return min_loss.realize(), min_path.realize()
+
     with load_with_workers(
         loader,
         list(map(pathlib.Path, train_files)),
         num_worker=num_workers,
         shared_memory_enabled=True,
     ) as generator:
-        for i in (t := trange(step_count * 99999)):
+        for i in (t := trange(step_count)):
             GlobalCounters.reset()
 
             start_time = time.perf_counter()
@@ -289,14 +303,14 @@ def train(
             load_data_time = time.perf_counter()
 
             batch_logits, batch_paths = forward_step(x, y)
-            batch_logits.realize()
-            batch_paths.realize()
+            loss, path = mutate_step(
+                combined_loss=batch_logits, combined_paths=batch_paths
+            )
 
             end_time = time.perf_counter()
             run_time = end_time - start_time
             gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
-            loss = Tensor(0)
             current_forward_pass = 0
             lr = Tensor(0)
             test_acc = 0
