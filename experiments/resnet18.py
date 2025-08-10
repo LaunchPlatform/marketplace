@@ -64,7 +64,7 @@ class ImageLoader(Loader):
     def load(self, request: pathlib.Path) -> tuple[np.typing.NDArray, ...]:
         x = Image.open(request)
         x = center_crop(x)
-        x = np.asarray(x).permute(2, 0, 1)
+        x = np.transpose(np.asarray(x), (2, 0, 1))
         y = self.img_categories[request.parts[-2]]
         return x, np.array(y)
 
@@ -272,22 +272,27 @@ def train(
         num_worker=num_workers,
         # shared_memory_enabled=True,
     ) as generator:
-        batch = []
-        for x, y in generator:
-            print(x, y)
-        exit(-1)
-
         for i in (t := trange(step_count)):
             GlobalCounters.reset()
 
             start_time = time.perf_counter()
 
-            batch_logits, batch_paths = forward_step()
+            x_batch = []
+            y_batch = []
+            for _ in range(batch_size):
+                x, y = next(generator)
+                x_batch.append(x)
+                y_batch.append(y)
+
+            x = Tensor.stack(x_batch, dim=0).realize()
+            y = Tensor.stack(y_batch, dim=0).realize()
+
+            load_data_time = time.perf_counter()
+
+            batch_logits, batch_paths = forward_step(x, y)
             batch_logits.realize()
             batch_paths.realize()
 
-            # print(batch_logits, batch_paths)
-            # print(batch_logits.realize(), batch_paths.realize())
             end_time = time.perf_counter()
             run_time = end_time - start_time
             gflops = GlobalCounters.global_ops * 1e-9 / run_time
@@ -295,7 +300,6 @@ def train(
             loss = Tensor(0)
             current_forward_pass = 0
             lr = Tensor(0)
-            test_acc = 0
             test_acc = 0
 
             t.set_description(
