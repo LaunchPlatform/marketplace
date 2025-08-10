@@ -53,10 +53,9 @@ def center_crop(img: Image) -> Image:
 
 
 class ImageLoader(Loader):
-    def __init__(self, img_categories: dict[str, int], num_classes: int):
+    def __init__(self, img_categories: dict[str, int]):
         super().__init__()
         self.img_categories = img_categories
-        self.num_classes = num_classes
 
     def make_request(self, item: pathlib.Path) -> typing.Any:
         return item
@@ -72,8 +71,8 @@ class ImageLoader(Loader):
         self, response: tuple[np.typing.NDArray, ...]
     ) -> tuple[Tensor, ...]:
         x, y = response
-        y = Tensor(y).one_hot(self.num_classes).contiguous().realize()
         x = Tensor(x.copy()).contiguous().realize()
+        y = Tensor(y).realize()
         return x, y
 
 
@@ -256,7 +255,7 @@ def train(
     train_files = get_train_files(dataset_dir)
     val_files = get_val_files(dataset_dir)
     img_categories = get_imagenet_categories(dataset_dir)
-    loader = ImageLoader(img_categories=img_categories, num_classes=10)
+    loader = ImageLoader(img_categories=img_categories)
 
     @TinyJit
     def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
@@ -270,9 +269,9 @@ def train(
         loader,
         list(map(pathlib.Path, train_files)),
         num_worker=num_workers,
-        # shared_memory_enabled=True,
+        shared_memory_enabled=True,
     ) as generator:
-        for i in (t := trange(step_count)):
+        for i in (t := trange(step_count * 99999)):
             GlobalCounters.reset()
 
             start_time = time.perf_counter()

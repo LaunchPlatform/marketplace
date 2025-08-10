@@ -320,6 +320,7 @@ def main(
         batch_size=batch_size,
         initial_lr=initial_lr,
         lr_decay_rate=lr_decay,
+        marketplace=make_marketplace(),
     )
 
 
