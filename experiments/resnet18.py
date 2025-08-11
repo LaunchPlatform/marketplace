@@ -174,7 +174,7 @@ def make_marketplace(num_classes: int = 100):
                     ),
                 ]
             ),
-            upstream_sampling=4,
+            upstream_sampling=2,
         ),
         # layer2
         Spec(
@@ -194,20 +194,20 @@ def make_marketplace(num_classes: int = 100):
                     ),
                 ]
             ),
-            upstream_sampling=4,
+            upstream_sampling=2,
         ),
         # layer3
         Spec(
             model=MultiModel(
                 [
                     BasicBlock(
-                        4,
+                        8,
                         in_channels=128,
                         out_channels=256,
                         stride=2,
                     ),
                     BasicBlock(
-                        4,
+                        8,
                         in_channels=256,
                         out_channels=256,
                         stride=1,
@@ -221,13 +221,13 @@ def make_marketplace(num_classes: int = 100):
             model=MultiModel(
                 [
                     BasicBlock(
-                        4,
+                        12,
                         in_channels=256,
                         out_channels=512,
                         stride=2,
                     ),
                     BasicBlock(
-                        4,
+                        12,
                         in_channels=512,
                         out_channels=512,
                         stride=1,
@@ -236,12 +236,12 @@ def make_marketplace(num_classes: int = 100):
                     lambda x: x.flatten(1),
                 ]
             ),
-            upstream_sampling=4,
+            upstream_sampling=6,
         ),
         # layer5
         Spec(
-            model=MultiModel([MultiLinear(4, 512, num_classes)]),
-            upstream_sampling=4,
+            model=MultiModel([MultiLinear(16, 512, num_classes)]),
+            upstream_sampling=8,
         ),
     ]
 
@@ -249,8 +249,8 @@ def make_marketplace(num_classes: int = 100):
 def train(
     dataset_dir: pathlib.Path,
     marketplace: list[Spec],
-    step_count: int = 100,
-    batch_size: int = 8,
+    step_count: int = 1_000,
+    batch_size: int = 16,
     num_workers: int = 8,
     initial_lr: float = 1e-4,
 ):
