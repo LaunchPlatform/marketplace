@@ -255,7 +255,7 @@ def train(
     step_count: int = 1_000,
     batch_size: int = 16,
     num_workers: int = 8,
-    initial_lr: float = 1e-4,
+    initial_lr: float = 4.5e-4,
 ):
     train_files = get_train_files(dataset_dir)
     val_files = get_val_files(dataset_dir)
@@ -298,9 +298,14 @@ def train(
     #     shared_memory_enabled=True,
     # ) as generator:
     test_acc = float("nan")
-    current_forward_pass = 0
+    current_forward_pass = 4
+
     shuffled_train_files = list(map(pathlib.Path, train_files))
     random.shuffle(shuffled_train_files)
+
+    shuffled_test_files = list(map(pathlib.Path, val_files))
+    random.shuffle(shuffled_test_files)
+
     generator = load(loader, shuffled_train_files)
     for i in (t := trange(step_count)):
         GlobalCounters.reset()
@@ -335,7 +340,7 @@ def train(
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
         if i % 10 == (10 - 1):
-            test_generator = load(loader, list(map(pathlib.Path, val_files)))
+            test_generator = load(loader, shuffled_test_files)
 
             x_batch = []
             y_batch = []
