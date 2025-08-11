@@ -20,6 +20,7 @@ from marketplace.multi_nn import MultiLinear
 from marketplace.multi_nn import MultiModel
 from marketplace.multi_nn import MultiModelBase
 from marketplace.training import forward
+from marketplace.training import forward_with_path
 from marketplace.training import mutate
 from marketplace.training import Spec
 
@@ -282,12 +283,19 @@ def train(
         )
         return min_loss.realize(), min_path.realize()
 
+    @TinyJit
+    def get_test_acc(path: Tensor, x: Tensor, y: Tensor) -> Tensor:
+        return (
+            forward_with_path(marketplace, x, path).argmax(axis=1) == y
+        ).mean() * 100
+
     # with load_with_workers(
     #     loader,
     #     list(map(pathlib.Path, train_files)),
     #     num_worker=num_workers,
     #     shared_memory_enabled=True,
     # ) as generator:
+    test_acc = float("nan")
     generator = load(loader, list(map(pathlib.Path, train_files)))
     for i in (t := trange(step_count)):
         GlobalCounters.reset()
@@ -313,8 +321,22 @@ def train(
         run_time = end_time - start_time
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
+        if i % 10 == (10 - 1):
+            test_generator = load(loader, list(map(pathlib.Path, val_files)))
+
+            x_batch = []
+            y_batch = []
+            for _ in range(batch_size):
+                x, y = next(test_generator)
+                x_batch.append(x)
+                y_batch.append(y)
+
+            x = Tensor.stack(x_batch, dim=0).realize()
+            y = Tensor.stack(y_batch, dim=0).realize()
+
+            test_acc = get_test_acc(path, x, y).item()
+
         current_forward_pass = 0
-        test_acc = 0
 
         t.set_description(
             f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
