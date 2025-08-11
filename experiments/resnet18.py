@@ -4,6 +4,7 @@ import pathlib
 import time
 import typing
 
+import mlflow
 import numpy as np
 from PIL import Image
 from tinygrad import nn
@@ -296,6 +297,7 @@ def train(
     #     shared_memory_enabled=True,
     # ) as generator:
     test_acc = float("nan")
+    current_forward_pass = 0
     generator = load(loader, list(map(pathlib.Path, train_files)))
     for i in (t := trange(step_count)):
         GlobalCounters.reset()
@@ -335,8 +337,11 @@ def train(
             y = Tensor.stack(y_batch, dim=0).realize()
 
             test_acc = get_test_acc(path, x, y).item()
-
-        current_forward_pass = 0
+            mlflow.log_metric("training/loss", loss.item(), step=i)
+            mlflow.log_metric("training/accuracy", test_acc, step=i)
+            mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
+            mlflow.log_metric("training/lr", lr.item(), step=i)
+            mlflow.log_metric("training/gflops", gflops, step=i)
 
         t.set_description(
             f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
@@ -345,7 +350,8 @@ def train(
 
 
 def main():
-    train(dataset_dir=pathlib.Path("mnist"), marketplace=make_marketplace(10))
+    with mlflow.start_run():
+        train(dataset_dir=pathlib.Path("mnist"), marketplace=make_marketplace(10))
 
 
 if __name__ == "__main__":
