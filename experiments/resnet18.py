@@ -252,7 +252,7 @@ def make_marketplace(num_classes: int = 100):
 def train(
     dataset_dir: pathlib.Path,
     marketplace: list[Spec],
-    step_count: int = 1_000,
+    step_count: int = 100_000,
     batch_size: int = 16,
     num_workers: int = 8,
     initial_lr: float = 1e-3,
@@ -307,6 +307,7 @@ def train(
     shuffled_test_files = list(map(pathlib.Path, val_files))
     random.shuffle(shuffled_test_files)
 
+    consumed_count = 0
     generator = load(loader, shuffled_train_files)
     for i in (t := trange(step_count)):
         GlobalCounters.reset()
@@ -322,12 +323,17 @@ def train(
                 x, y = next(generator)
                 x_batch.append(x)
                 y_batch.append(y)
+                consumed_count += 1
             x = Tensor.stack(x_batch, dim=0).realize()
             y = Tensor.stack(y_batch, dim=0).realize()
 
             batch_loss, batch_path = forward_step(x, y)
             all_loss.append(batch_loss)
             all_paths.append(batch_path)
+        if len(shuffled_train_files) - consumed_count < batch_size:
+            random.shuffle(shuffled_test_files)
+            generator = load(loader, shuffled_train_files)
+            consumed_count = 0
 
         combined_loss = Tensor.cat(*all_loss).realize()
         combined_paths = Tensor.cat(*all_paths).realize()
