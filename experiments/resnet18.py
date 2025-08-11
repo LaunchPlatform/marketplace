@@ -255,7 +255,8 @@ def train(
     step_count: int = 1_000,
     batch_size: int = 16,
     num_workers: int = 8,
-    initial_lr: float = 4.5e-4,
+    initial_lr: float = 1e-3,
+    lr_decay_rate: float = 4.5e-4,
 ):
     train_files = get_train_files(dataset_dir)
     val_files = get_val_files(dataset_dir)
@@ -337,6 +338,7 @@ def train(
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
+        lr.replace(lr * (1 - lr_decay_rate))
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
         if i % 10 == (10 - 1):
