@@ -1,6 +1,7 @@
 import glob
 import json
 import pathlib
+import random
 import time
 import typing
 
@@ -298,7 +299,8 @@ def train(
     # ) as generator:
     test_acc = float("nan")
     current_forward_pass = 0
-    generator = load(loader, list(map(pathlib.Path, train_files)))
+    train_file_paths = random.shuffle(list(map(pathlib.Path, train_files)))
+    generator = load(loader, train_file_paths)
     for i in (t := trange(step_count)):
         GlobalCounters.reset()
 
