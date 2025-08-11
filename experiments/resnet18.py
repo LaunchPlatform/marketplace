@@ -299,27 +299,36 @@ def train(
     # ) as generator:
     test_acc = float("nan")
     current_forward_pass = 0
-    train_file_paths = random.shuffle(list(map(pathlib.Path, train_files)))
-    generator = load(loader, train_file_paths)
+    shuffled_train_files = list(map(pathlib.Path, train_files))
+    random.shuffle(shuffled_train_files)
+    generator = load(loader, shuffled_train_files)
     for i in (t := trange(step_count)):
         GlobalCounters.reset()
 
         start_time = time.perf_counter()
 
-        x_batch = []
-        y_batch = []
-        for _ in range(batch_size):
-            x, y = next(generator)
-            x_batch.append(x)
-            y_batch.append(y)
+        all_loss = []
+        all_paths = []
+        for _ in range(current_forward_pass):
+            x_batch = []
+            y_batch = []
+            for _ in range(batch_size):
+                x, y = next(generator)
+                x_batch.append(x)
+                y_batch.append(y)
+            x = Tensor.stack(x_batch, dim=0).realize()
+            y = Tensor.stack(y_batch, dim=0).realize()
 
-        x = Tensor.stack(x_batch, dim=0).realize()
-        y = Tensor.stack(y_batch, dim=0).realize()
+            batch_loss, batch_path = forward_step(x, y)
+            all_loss.append(batch_loss)
+            all_paths.append(batch_path)
 
-        load_data_time = time.perf_counter()
+        combined_loss = Tensor.cat(*all_loss).realize()
+        combined_paths = Tensor.cat(*all_paths).realize()
 
-        batch_logits, batch_paths = forward_step(x, y)
-        loss, path = mutate_step(combined_loss=batch_logits, combined_paths=batch_paths)
+        loss, path = mutate_step(
+            combined_loss=combined_loss, combined_paths=combined_paths
+        )
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
