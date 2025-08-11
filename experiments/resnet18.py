@@ -250,13 +250,16 @@ def train(
     dataset_dir: pathlib.Path,
     marketplace: list[Spec],
     step_count: int = 100,
-    batch_size: int = 16,
+    batch_size: int = 8,
     num_workers: int = 8,
+    initial_lr: float = 1e-4,
 ):
     train_files = get_train_files(dataset_dir)
     val_files = get_val_files(dataset_dir)
     img_categories = get_imagenet_categories(dataset_dir)
     loader = ImageLoader(img_categories=img_categories)
+
+    lr = Tensor(initial_lr)
 
     @TinyJit
     def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
@@ -279,46 +282,44 @@ def train(
         )
         return min_loss.realize(), min_path.realize()
 
-    with load_with_workers(
-        loader,
-        list(map(pathlib.Path, train_files)),
-        num_worker=num_workers,
-        shared_memory_enabled=True,
-    ) as generator:
-        for i in (t := trange(step_count)):
-            GlobalCounters.reset()
+    # with load_with_workers(
+    #     loader,
+    #     list(map(pathlib.Path, train_files)),
+    #     num_worker=num_workers,
+    #     shared_memory_enabled=True,
+    # ) as generator:
+    generator = load(loader, list(map(pathlib.Path, train_files)))
+    for i in (t := trange(step_count)):
+        GlobalCounters.reset()
 
-            start_time = time.perf_counter()
+        start_time = time.perf_counter()
 
-            x_batch = []
-            y_batch = []
-            for _ in range(batch_size):
-                x, y = next(generator)
-                x_batch.append(x)
-                y_batch.append(y)
+        x_batch = []
+        y_batch = []
+        for _ in range(batch_size):
+            x, y = next(generator)
+            x_batch.append(x)
+            y_batch.append(y)
 
-            x = Tensor.stack(x_batch, dim=0).realize()
-            y = Tensor.stack(y_batch, dim=0).realize()
+        x = Tensor.stack(x_batch, dim=0).realize()
+        y = Tensor.stack(y_batch, dim=0).realize()
 
-            load_data_time = time.perf_counter()
+        load_data_time = time.perf_counter()
 
-            batch_logits, batch_paths = forward_step(x, y)
-            loss, path = mutate_step(
-                combined_loss=batch_logits, combined_paths=batch_paths
-            )
+        batch_logits, batch_paths = forward_step(x, y)
+        loss, path = mutate_step(combined_loss=batch_logits, combined_paths=batch_paths)
 
-            end_time = time.perf_counter()
-            run_time = end_time - start_time
-            gflops = GlobalCounters.global_ops * 1e-9 / run_time
+        end_time = time.perf_counter()
+        run_time = end_time - start_time
+        gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
-            current_forward_pass = 0
-            lr = Tensor(0)
-            test_acc = 0
+        current_forward_pass = 0
+        test_acc = 0
 
-            t.set_description(
-                f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
-                f"acc: {test_acc:5.2f}%, {gflops:9,.2f} GFLOPS"
-            )
+        t.set_description(
+            f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
+            f"acc: {test_acc:5.2f}%, {gflops:9,.2f} GFLOPS"
+        )
 
 
 def main():
