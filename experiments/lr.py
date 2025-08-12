@@ -27,33 +27,23 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
 
 
 def main():
-    exp_id = ensure_experiment("Learning Rate Blog Post")
-    for lr, decay in [
-        (1e-2, 1e-3),
-        (1e-2, 1e-4),
-        (1e-2, 1e-5),
-        (1e-3, 1e-3),
-        (1e-3, 1e-4),
-        (1e-3, 1e-5),
-        (1e-4, 1e-3),
-        (1e-4, 1e-4),
-        (1e-4, 1e-5),
-    ]:
-        with mlflow.start_run(
-            run_name=f"lr-{lr:e}-decay-{decay:e}",
-            experiment_id=exp_id,
-            description="Find out how learning rate and decay rate affects the training process",
-            log_system_metrics=True,
-            tags=dict(round="5"),
-        ):
-            marketplace = make_marketplace(PYRAMID32_HALF_UPSTREAM_STRUCTURE)
-            train(
-                step_count=3_000,
-                batch_size=32,
-                initial_lr=lr,
-                lr_decay_rate=decay,
-                marketplace=marketplace,
-            )
+    exp_id = ensure_experiment("Learning Rate V2")
+    for batch_size in [32, 64, 128, 256, 512]:
+        for lr in [1e-2, 1e-3, 1e-4]:
+            for decay in [1e-3, 1e-4, 1e-5]:
+                with mlflow.start_run(
+                    run_name=f"bs-{batch_size}-lr-{lr:.1e}-decay-{decay:.1e}",
+                    experiment_id=exp_id,
+                    log_system_metrics=True,
+                ):
+                    marketplace = make_marketplace(PYRAMID32_HALF_UPSTREAM_STRUCTURE)
+                    train(
+                        step_count=3_000,
+                        batch_size=batch_size,
+                        initial_lr=lr,
+                        lr_decay_rate=decay,
+                        marketplace=marketplace,
+                    )
 
 
 if __name__ == "__main__":
