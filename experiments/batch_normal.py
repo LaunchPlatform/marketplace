@@ -28,25 +28,32 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
 
 def main():
     exp_id = ensure_experiment("Batch Normal")
-    for batch_size, batch_normal in [
-        (32, False),
-        (32, True),
-        (64, False),
-        (64, True),
-        (128, False),
-        (128, True),
-        (256, False),
-        (256, True),
-        (512, False),
-        (512, True),
+    for batch_size, batch_normal, evolve in [
+        # (32, False, False),
+        # (32, True, False),
+        (32, True, True),
+        # (64, False, False),
+        # (64, True, False),
+        (64, True, True),
+        # (128, False, False),
+        # (128, True, False),
+        (128, True, True),
+        # (256, False, False),
+        # (256, True, False),
+        (256, True, True),
+        # (512, False, False),
+        # (512, True, False),
+        (512, True, True),
     ]:
         with mlflow.start_run(
-            run_name=f"normal-batch-{batch_size}-nb-{batch_normal}",
+            run_name=f"normal-batch-{batch_size}-nb-{batch_normal}-evolve-{evolve}",
             experiment_id=exp_id,
             log_system_metrics=True,
         ):
             marketplace = make_marketplace(
-                PYRAMID32_HALF_UPSTREAM_STRUCTURE, batch_normal=batch_normal
+                PYRAMID32_HALF_UPSTREAM_STRUCTURE,
+                batch_normal=batch_normal,
+                evolve_batch_normal=evolve,
             )
             train(
                 step_count=10_000,
