@@ -29,7 +29,7 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
 def main():
     exp_id = ensure_experiment("Long Run")
     with mlflow.start_run(
-        run_name=f"long-run",
+        run_name=f"long-run-v2",
         experiment_id=exp_id,
         description="Find out how learning rate and decay rate affects the training process",
         log_system_metrics=True,
