@@ -40,7 +40,7 @@ def main():
             step_count=100_000,
             batch_size=32,
             initial_lr=1e-3,
-            lr_decay_rate=1e-4,
+            lr_decay_rate=1e-3,
             marketplace=marketplace,
         )
 
