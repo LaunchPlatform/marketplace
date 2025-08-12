@@ -177,13 +177,12 @@ def train(
     initial_forward_pass: int = 1,
     metrics_per_steps: int = 10,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
-    sticky_leaders: bool = False,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "initial_forward_pass=%s, metrics_per_steps=%s, forward_pass_schedule=%s, sticky_leaders=%s, "
+        "initial_forward_pass=%s, metrics_per_steps=%s, forward_pass_schedule=%s, "
         "checkpoint_filepath=%s, checkpoint_per_steps=%s",
         step_count,
         batch_size,
@@ -192,7 +191,6 @@ def train(
         initial_forward_pass,
         metrics_per_steps,
         forward_pass_schedule,
-        sticky_leaders,
         checkpoint_filepath,
         checkpoint_per_steps,
     )
@@ -205,7 +203,6 @@ def train(
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
-    mlflow.log_param("sticky_leaders", sticky_leaders)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
 
