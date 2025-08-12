@@ -27,23 +27,22 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
 
 
 def main():
-    exp_id = ensure_experiment("Learning Rate V2")
-    for batch_size in [32, 64, 128, 256, 512]:
-        for lr in [1e-2, 1e-3, 1e-4]:
-            for decay in [1e-3, 1e-4, 1e-5]:
-                with mlflow.start_run(
-                    run_name=f"bs-{batch_size}-lr-{lr:.1e}-decay-{decay:.1e}",
-                    experiment_id=exp_id,
-                    log_system_metrics=True,
-                ):
-                    marketplace = make_marketplace(PYRAMID32_HALF_UPSTREAM_STRUCTURE)
-                    train(
-                        step_count=3_000,
-                        batch_size=batch_size,
-                        initial_lr=lr,
-                        lr_decay_rate=decay,
-                        marketplace=marketplace,
-                    )
+    exp_id = ensure_experiment("Learning Rate V3")
+    for lr in [0.8e-4, 0.9e-4, 1e-3, 1.1e-3, 1.2e-3]:
+        for decay in [1e-3, 8e-4, 6e-4, 4e-4, 2e-4, 1e-4, 8e-5, 6e-5, 4e-5, 2e-5, 1e-5]:
+            with mlflow.start_run(
+                run_name=f"lr-{lr:.2e}-decay-{decay:.2e}",
+                experiment_id=exp_id,
+                log_system_metrics=True,
+            ):
+                marketplace = make_marketplace(PYRAMID32_HALF_UPSTREAM_STRUCTURE)
+                train(
+                    step_count=1_000,
+                    batch_size=64,
+                    initial_lr=lr,
+                    lr_decay_rate=decay,
+                    marketplace=marketplace,
+                )
 
 
 if __name__ == "__main__":
