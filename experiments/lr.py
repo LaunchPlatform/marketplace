@@ -27,14 +27,17 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
 
 
 def main():
-    exp_id = ensure_experiment("Learning Rate")
+    exp_id = ensure_experiment("Learning Rate Blog Post")
     for lr, decay in [
-        (1e-2, 4.500e-4),
-        (1e-3, 4.500e-4),
-        (1e-4, 4.500e-4),
+        (1e-3, 1e-3),
+        (1e-3, 1e-4),
+        (1e-3, 1e-5),
+        (1e-4, 1e-3),
+        (1e-4, 1e-4),
+        (1e-4, 1e-5),
     ]:
         with mlflow.start_run(
-            run_name=f"lr-{lr:.3e}-decay-{decay:.3e}-blog-post",
+            run_name=f"lr-{lr:e}-decay-{decay:e}",
             experiment_id=exp_id,
             description="Find out how learning rate and decay rate affects the training process",
             log_system_metrics=True,
