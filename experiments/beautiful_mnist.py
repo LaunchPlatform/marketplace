@@ -17,6 +17,7 @@ from tinygrad.nn.datasets import mnist
 from tinygrad.nn.state import get_state_dict
 from tinygrad.nn.state import safe_save
 
+from marketplace.multi_nn import MultiBatchNorm
 from marketplace.multi_nn import MultiConv2d
 from marketplace.multi_nn import MultiLinear
 from marketplace.multi_nn import MultiModel
@@ -35,7 +36,9 @@ def load_data():
 
 
 def make_marketplace(
-    structure: list[tuple[int, int]] | None = None, batch_normal: bool = False
+    structure: list[tuple[int, int]] | None = None,
+    batch_normal: bool = False,
+    evolve_batch_normal: bool = False,
 ):
     if structure is None:
         structure = [
@@ -81,11 +84,14 @@ def make_marketplace(
                 Spec(
                     model=MultiModel(
                         [
-                            nn.BatchNorm(32),
+                            nn.BatchNorm(32)
+                            if not evolve_batch_normal
+                            else MultiBatchNorm(structure[2][0], 32),
                             Tensor.max_pool2d,
                         ]
                     ),
-                    evolve=False,
+                    upstream_sampling=structure[2][1],
+                    evolve=evolve_batch_normal,
                 ),
             )
             if batch_normal
@@ -118,11 +124,14 @@ def make_marketplace(
                 Spec(
                     model=MultiModel(
                         [
-                            nn.BatchNorm(64),
+                            nn.BatchNorm(64)
+                            if not evolve_batch_normal
+                            else MultiBatchNorm(structure[5][0], 64),
                             Tensor.max_pool2d,
                         ]
                     ),
-                    evolve=False,
+                    upstream_sampling=structure[5][1],
+                    evolve=evolve_batch_normal,
                 ),
             )
             if batch_normal
