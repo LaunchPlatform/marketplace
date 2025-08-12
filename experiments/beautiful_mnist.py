@@ -68,20 +68,21 @@ def make_marketplace(structure: list[tuple[int, int]] | None = None):
                 [
                     MultiConv2d(structure[1][0], 32, 32, 5),
                     Tensor.relu,
+                    Tensor.max_pool2d,
                 ]
             ),
             upstream_sampling=structure[1][1],
         ),
         # layer2
-        Spec(
-            model=MultiModel(
-                [
-                    # nn.BatchNorm(32),
-                    Tensor.max_pool2d,
-                ],
-            ),
-            evolve=False,
-        ),
+        # Spec(
+        #     model=MultiModel(
+        #         [
+        #             # nn.BatchNorm(32),
+        #
+        #         ],
+        #     ),
+        #     evolve=False,
+        # ),
         # layer3
         Spec(
             model=MultiModel(
@@ -98,20 +99,21 @@ def make_marketplace(structure: list[tuple[int, int]] | None = None):
                 [
                     MultiConv2d(structure[4][0], 64, 64, 3),
                     Tensor.relu,
+                    Tensor.max_pool2d,
                 ]
             ),
             upstream_sampling=structure[4][1],
         ),
-        # layer5
-        Spec(
-            model=MultiModel(
-                [
-                    # nn.BatchNorm(64),
-                    Tensor.max_pool2d,
-                ]
-            ),
-            evolve=False,
-        ),
+        # # layer5
+        # Spec(
+        #     model=MultiModel(
+        #         [
+        #             # nn.BatchNorm(64),
+        #
+        #         ]
+        #     ),
+        #     evolve=False,
+        # ),
         # layer6
         Spec(
             model=MultiModel(
