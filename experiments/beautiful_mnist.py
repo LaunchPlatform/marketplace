@@ -265,6 +265,7 @@ def train(
             for threshold, forward_pass in reversed(forward_pass_schedule):
                 if i >= threshold:
                     if forward_pass != current_forward_pass:
+                        combined_forward_step.reset()
                         mutate_step.reset()
                     current_forward_pass = forward_pass
                     break
