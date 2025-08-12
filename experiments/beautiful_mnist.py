@@ -218,10 +218,7 @@ def train(
     X_train, Y_train, X_test, Y_test = load_data()
 
     @TinyJit
-    def forward_step() -> tuple[Tensor, Tensor]:
-        samples = Tensor.randint(batch_size, high=X_train.shape[0])
-        x = X_train[samples]
-        y = Y_train[samples]
+    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         batch_logits, batch_paths = forward(marketplace, x)
         return Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
@@ -265,7 +262,10 @@ def train(
         all_loss = []
         all_paths = []
         for _ in range(current_forward_pass):
-            batch_loss, batch_path = forward_step()
+            samples = Tensor.randint(batch_size, high=X_train.shape[0])
+            x = X_train[samples]
+            y = Y_train[samples]
+            batch_loss, batch_path = forward_step(x, y)
             all_loss.append(batch_loss)
             all_paths.append(batch_path)
 
