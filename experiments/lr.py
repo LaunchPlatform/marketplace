@@ -13,14 +13,14 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
     (2, 0),
     # layer 1
     (4, 2),
-    # layer 2 (N/A)
-    (0, 0),
+    # layer 2
+    (4, 4),
     # layer 3
     (8, 4),
     # layer 4
     (16, 8),
-    # layer 5 (N/A)
-    (0, 0),
+    # layer 5
+    (16, 16),
     # layer 6
     (32, 16),
 ]
@@ -29,6 +29,9 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
 def main():
     exp_id = ensure_experiment("Learning Rate Blog Post")
     for lr, decay in [
+        (1e-2, 1e-3),
+        (1e-2, 1e-4),
+        (1e-2, 1e-5),
         (1e-3, 1e-3),
         (1e-3, 1e-4),
         (1e-3, 1e-5),

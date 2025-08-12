@@ -47,13 +47,13 @@ def make_marketplace(
             # layer 1
             (32, 16),
             # layer 2 (N/A)
-            (0, 0),
+            (32, 16),
             # layer 3
             (32, 16),
             # layer 4
             (32, 16),
             # layer 5 (N/A)
-            (0, 0),
+            (32, 16),
             # layer 6
             (32, 16),
         ]
