@@ -84,9 +84,7 @@ def make_marketplace(
                 Spec(
                     model=MultiModel(
                         [
-                            nn.BatchNorm(32)
-                            if not evolve_batch_normal
-                            else MultiBatchNorm(structure[2][0], 32),
+                            MultiBatchNorm(structure[2][0], 32),
                             Tensor.max_pool2d,
                         ]
                     ),
@@ -124,9 +122,7 @@ def make_marketplace(
                 Spec(
                     model=MultiModel(
                         [
-                            nn.BatchNorm(64)
-                            if not evolve_batch_normal
-                            else MultiBatchNorm(structure[5][0], 64),
+                            MultiBatchNorm(structure[5][0], 64),
                             Tensor.max_pool2d,
                         ]
                     ),
