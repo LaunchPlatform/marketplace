@@ -75,7 +75,10 @@ def make_marketplace(structure: list[tuple[int, int]] | None = None):
         # layer2
         Spec(
             model=MultiModel(
-                [nn.BatchNorm(32), Tensor.max_pool2d],
+                [
+                    nn.BatchNorm(32, affine=False, track_running_stats=False),
+                    Tensor.max_pool2d,
+                ],
             ),
             evolve=False,
         ),
@@ -103,7 +106,7 @@ def make_marketplace(structure: list[tuple[int, int]] | None = None):
         Spec(
             model=MultiModel(
                 [
-                    nn.BatchNorm(64),
+                    nn.BatchNorm(64, affine=False, track_running_stats=False),
                     Tensor.max_pool2d,
                 ]
             ),
