@@ -217,13 +217,25 @@ def train(
 
     X_train, Y_train, X_test, Y_test = load_data()
 
-    @TinyJit
     def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         batch_logits, batch_paths = forward(marketplace, x)
         return Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
             dim=0,
         ).realize(), batch_paths.realize()
+
+    @TinyJit
+    def combined_forward_step() -> tuple[Tensor, Tensor]:
+        all_loss = []
+        all_paths = []
+        for _ in range(current_forward_pass):
+            samples = Tensor.randint(batch_size, high=X_train.shape[0])
+            x = X_train[samples]
+            y = Y_train[samples]
+            batch_loss, batch_path = forward_step(x, y)
+            all_loss.append(batch_loss)
+            all_paths.append(batch_path)
+        return Tensor.cat(*all_loss).realize(), Tensor.cat(*all_paths).realize()
 
     @TinyJit
     def mutate_step(
@@ -259,18 +271,7 @@ def train(
 
         start_time = time.perf_counter()
 
-        all_loss = []
-        all_paths = []
-        for _ in range(current_forward_pass):
-            samples = Tensor.randint(batch_size, high=X_train.shape[0])
-            x = X_train[samples]
-            y = Y_train[samples]
-            batch_loss, batch_path = forward_step(x, y)
-            all_loss.append(batch_loss)
-            all_paths.append(batch_path)
-
-        combined_loss = Tensor.cat(*all_loss).realize()
-        combined_paths = Tensor.cat(*all_paths).realize()
+        combined_loss, combined_paths = combined_forward_step()
         loss, path = mutate_step(
             combined_loss=combined_loss, combined_paths=combined_paths
         )
