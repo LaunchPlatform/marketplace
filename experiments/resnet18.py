@@ -95,7 +95,7 @@ class BasicBlock(MultiModelBase):
             padding=1,
             bias=False,
         )
-        self.bn1 = nn.BatchNorm2d(out_channels, track_running_stats=False, affine=False)
+        # self.bn1 = nn.BatchNorm2d(out_channels, track_running_stats=False, affine=False)
         self.conv2 = MultiConv2d(
             vendor_count,
             out_channels,
@@ -105,7 +105,7 @@ class BasicBlock(MultiModelBase):
             padding=1,
             bias=False,
         )
-        self.bn2 = nn.BatchNorm2d(out_channels, track_running_stats=False, affine=False)
+        # self.bn2 = nn.BatchNorm2d(out_channels, track_running_stats=False, affine=False)
 
         self.downsample = lambda i, x: x
         if stride != 1 or in_channels != out_channels:
@@ -118,18 +118,18 @@ class BasicBlock(MultiModelBase):
                         stride=stride,
                         bias=False,
                     ),
-                    nn.BatchNorm2d(
-                        out_channels, track_running_stats=False, affine=False
-                    ),
+                    # nn.BatchNorm2d(
+                    #     out_channels, track_running_stats=False, affine=False
+                    # ),
                 ]
             )
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         out = self.conv1(i, x)
-        out = self.bn1(out)
+        # out = self.bn1(out)
         out = out.relu()
         out = self.conv2(i, out)
-        out = self.bn2(out)
+        # out = self.bn2(out)
         out += self.downsample(i, x)
         out = out.relu()
         return out
@@ -149,7 +149,7 @@ def make_marketplace(num_classes: int = 100):
                         padding=3,
                         bias=False,
                     ),
-                    nn.BatchNorm2d(64, track_running_stats=False, affine=False),
+                    # nn.BatchNorm2d(64, track_running_stats=False, affine=False),
                     Tensor.relu,
                     lambda x: x.max_pool2d(
                         kernel_size=3,
@@ -253,7 +253,7 @@ def train(
     dataset_dir: pathlib.Path,
     marketplace: list[Spec],
     step_count: int = 100_000,
-    batch_size: int = 16,
+    batch_size: int = 64,
     num_workers: int = 8,
     initial_lr: float = 1e-3,
     lr_decay_rate: float = 4.5e-4,
@@ -299,7 +299,7 @@ def train(
     #     shared_memory_enabled=True,
     # ) as generator:
     test_acc = float("nan")
-    current_forward_pass = 4
+    current_forward_pass = 1
 
     shuffled_train_files = list(map(pathlib.Path, train_files))
     random.shuffle(shuffled_train_files)
