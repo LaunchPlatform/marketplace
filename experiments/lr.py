@@ -2,22 +2,40 @@ import logging
 
 import mlflow
 
+from .beautiful_mnist import make_marketplace
 from .beautiful_mnist import train
 from .utils import ensure_experiment
 
 logger = logging.getLogger(__name__)
 
+PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
+    # layer 0
+    (2, 0),
+    # layer 1
+    (4, 2),
+    # layer 2 (N/A)
+    (0, 0),
+    # layer 3
+    (8, 4),
+    # layer 4
+    (16, 8),
+    # layer 5 (N/A)
+    (0, 0),
+    # layer 6
+    (32, 16),
+]
+
 
 def main():
     exp_id = ensure_experiment("Learning Rate")
+    marketplace = make_marketplace(PYRAMID32_HALF_UPSTREAM_STRUCTURE)
     for lr, decay in [
+        (1e-2, 4.500e-4),
         (1e-3, 4.500e-4),
-        (1e-3, 4.525e-4),
-        (1e-3, 4.550e-4),
-        (1e-3, 4.575e-4),
+        (1e-4, 4.500e-4),
     ]:
         with mlflow.start_run(
-            run_name=f"lr-{lr:.3e}-decay-{decay:.3e}-round-5",
+            run_name=f"lr-{lr:.3e}-decay-{decay:.3e}-blog-post",
             experiment_id=exp_id,
             description="Find out how learning rate and decay rate affects the training process",
             log_system_metrics=True,
@@ -28,6 +46,7 @@ def main():
                 batch_size=32,
                 initial_lr=lr,
                 lr_decay_rate=decay,
+                marketplace=marketplace,
             )
 
 

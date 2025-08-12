@@ -323,17 +323,20 @@ def train(
                 x, y = next(generator)
                 x_batch.append(x)
                 y_batch.append(y)
-                consumed_count += 1
             x = Tensor.stack(x_batch, dim=0).realize()
             y = Tensor.stack(y_batch, dim=0).realize()
 
             batch_loss, batch_path = forward_step(x, y)
             all_loss.append(batch_loss)
             all_paths.append(batch_path)
-        if len(shuffled_train_files) - consumed_count < batch_size:
+        consumed_count += batch_size * current_forward_pass
+        if len(shuffled_train_files) - consumed_count < (
+            batch_size * current_forward_pass
+        ):
             random.shuffle(shuffled_test_files)
             generator = load(loader, shuffled_train_files)
             consumed_count = 0
+            print("Out of training data, reload")
 
         combined_loss = Tensor.cat(*all_loss).realize()
         combined_paths = Tensor.cat(*all_paths).realize()
