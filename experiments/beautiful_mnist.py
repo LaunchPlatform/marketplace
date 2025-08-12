@@ -171,18 +171,21 @@ def train(
     marketplace: list[Spec],
     initial_forward_pass: int = 1,
     metrics_per_steps: int = 10,
+    forward_pass_schedule: list[tuple[int, int]] | None = None,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "initial_forward_pass=%s, metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s",
+        "initial_forward_pass=%s, metrics_per_steps=%s, forward_pass_schedule=%s, "
+        "checkpoint_filepath=%s, checkpoint_per_steps=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
         initial_forward_pass,
         metrics_per_steps,
+        forward_pass_schedule,
         checkpoint_filepath,
         checkpoint_per_steps,
     )
@@ -194,6 +197,7 @@ def train(
     mlflow.log_param("initial_forward_pass", initial_forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
+    mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
 
@@ -233,6 +237,14 @@ def train(
     current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
+
+        if forward_pass_schedule is not None:
+            for threshold, forward_pass in reversed(forward_pass_schedule):
+                if i >= threshold:
+                    if forward_pass != current_forward_pass:
+                        mutate_step.reset()
+                    current_forward_pass = forward_pass
+                    break
 
         start_time = time.perf_counter()
 
