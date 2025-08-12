@@ -28,7 +28,6 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
 
 def main():
     exp_id = ensure_experiment("Learning Rate")
-    marketplace = make_marketplace(PYRAMID32_HALF_UPSTREAM_STRUCTURE)
     for lr, decay in [
         (1e-2, 4.500e-4),
         (1e-3, 4.500e-4),
@@ -41,6 +40,7 @@ def main():
             log_system_metrics=True,
             tags=dict(round="5"),
         ):
+            marketplace = make_marketplace(PYRAMID32_HALF_UPSTREAM_STRUCTURE)
             train(
                 step_count=3_000,
                 batch_size=32,
