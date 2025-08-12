@@ -14,36 +14,36 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
     # layer 1
     (4, 2),
     # layer 2 (N/A)
-    (0, 0),
+    (4, 4),
     # layer 3
     (8, 4),
     # layer 4
     (16, 8),
     # layer 5 (N/A)
-    (0, 0),
+    (16, 16),
     # layer 6
     (32, 16),
 ]
 
 
 def main():
-    exp_id = ensure_experiment("Batch Size")
+    exp_id = ensure_experiment("Batch Size V2")
     for batch_size, forward_pass in [
-        # (32, 1),
+        (32, 1),
         (32, 2),
         (32, 4),
         (32, 8),
         (32, 16),
-        # (64, 1),
+        (64, 1),
         (64, 2),
         (64, 4),
         (64, 8),
-        # (128, 1),
+        (128, 1),
         (128, 2),
         (128, 4),
-        # (256, 1),
+        (256, 1),
         (256, 2),
-        # (512, 1),
+        (512, 1),
     ]:
         with mlflow.start_run(
             run_name=f"batch-size-{batch_size}-fw-{forward_pass}",
