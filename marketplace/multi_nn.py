@@ -70,6 +70,32 @@ class MultiLinear(MultiModelBase, nn.Linear):
         )
 
 
+class MultiBatchNorm(MultiModelBase, nn.BatchNorm):
+    def __init__(
+        self,
+        vendor_count: int,
+        sz: int,
+        eps: float = 1e-5,
+        affine: bool = True,
+        momentum: float = 0.1,
+    ):
+        super().__init__(sz=sz, eps=eps, affine=affine, momentum=momentum)
+        self.vendor_count = vendor_count
+        if affine:
+            self.weight = repeat(self.weight, vendor_count)
+            self.bias = repeat(self.bias, vendor_count)
+        del self.num_batches_tracked
+
+    def __call__(self, i: Tensor, x: Tensor) -> Tensor:
+        batch_mean, batch_var = self.calc_stats(x)
+        return x.batchnorm(
+            self.weight[i] if self.weight is not None else None,
+            self.bias[i] if self.bias is not None else None,
+            batch_mean,
+            batch_var.add(self.eps).rsqrt(),
+        )
+
+
 class MultiModel(MultiModelBase):
     def __init__(
         self,

@@ -14,13 +14,13 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
     # layer 1
     (4, 2),
     # layer 2 (N/A)
-    (0, 0),
+    (4, 4),
     # layer 3
     (8, 4),
     # layer 4
     (16, 8),
     # layer 5 (N/A)
-    (0, 0),
+    (16, 16),
     # layer 6
     (32, 16),
 ]
