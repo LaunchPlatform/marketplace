@@ -79,7 +79,9 @@ class MultiBatchNorm(MultiModelBase, nn.BatchNorm):
         affine: bool = True,
         momentum: float = 0.1,
     ):
-        super().__init__(sz=sz, eps=eps, affine=affine, momentum=momentum)
+        super().__init__(
+            sz=sz, eps=eps, affine=affine, momentum=momentum, track_running_stats=False
+        )
         self.vendor_count = vendor_count
         if affine:
             self.weight = repeat(self.weight, vendor_count)
