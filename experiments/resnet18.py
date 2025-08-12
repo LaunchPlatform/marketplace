@@ -17,6 +17,7 @@ from tinyloader.loader import load
 from tinyloader.loader import load_with_workers
 from tinyloader.loader import Loader
 
+from marketplace.multi_nn import MultiBatchNorm
 from marketplace.multi_nn import MultiConv2d
 from marketplace.multi_nn import MultiLinear
 from marketplace.multi_nn import MultiModel
@@ -95,7 +96,7 @@ class BasicBlock(MultiModelBase):
             padding=1,
             bias=False,
         )
-        # self.bn1 = nn.BatchNorm2d(out_channels, track_running_stats=False, affine=False)
+        self.bn1 = MultiBatchNorm(vendor_count, out_channels)
         self.conv2 = MultiConv2d(
             vendor_count,
             out_channels,
@@ -105,7 +106,7 @@ class BasicBlock(MultiModelBase):
             padding=1,
             bias=False,
         )
-        # self.bn2 = nn.BatchNorm2d(out_channels, track_running_stats=False, affine=False)
+        self.bn2 = MultiBatchNorm(vendor_count, out_channels)
 
         self.downsample = lambda i, x: x
         if stride != 1 or in_channels != out_channels:
@@ -118,18 +119,16 @@ class BasicBlock(MultiModelBase):
                         stride=stride,
                         bias=False,
                     ),
-                    # nn.BatchNorm2d(
-                    #     out_channels, track_running_stats=False, affine=False
-                    # ),
+                    MultiBatchNorm(vendor_count, out_channels),
                 ]
             )
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         out = self.conv1(i, x)
-        # out = self.bn1(out)
+        out = self.bn1(i, out)
         out = out.relu()
         out = self.conv2(i, out)
-        # out = self.bn2(out)
+        out = self.bn2(i, out)
         out += self.downsample(i, x)
         out = out.relu()
         return out
@@ -149,7 +148,7 @@ def make_marketplace(num_classes: int = 100):
                         padding=3,
                         bias=False,
                     ),
-                    # nn.BatchNorm2d(64, track_running_stats=False, affine=False),
+                    MultiBatchNorm(4, 64),
                     Tensor.relu,
                     lambda x: x.max_pool2d(
                         kernel_size=3,
@@ -377,7 +376,7 @@ def train(
 
 
 def main():
-    with mlflow.start_run():
+    with mlflow.start_run(run_name="resnet18-without-normal-batch-bs-64"):
         train(dataset_dir=pathlib.Path("mnist"), marketplace=make_marketplace(10))
 
 
