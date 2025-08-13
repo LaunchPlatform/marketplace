@@ -135,11 +135,11 @@ class BasicBlock(MultiModelBase):
 
 
 def make_marketplace(num_classes: int = 100):
-    layer0_vendor_count = 8
+    layer0_vendor_count = 4
     layer1_upstream_sampling = 0
-    layer1_vendor_count = 8
+    layer1_vendor_count = 4
     layer2_upstream_sampling = 0
-    layer2_vendor_count = 8
+    layer2_vendor_count = 4
     return [
         Spec(
             model=MultiModel(
