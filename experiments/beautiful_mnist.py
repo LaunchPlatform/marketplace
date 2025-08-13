@@ -58,88 +58,32 @@ def make_marketplace(
         ]
     # TODO: reduce number of layers by merging them and ensure it's fully visited for each vendor (ideally)
     return [
-        # layer0
         Spec(
             model=MultiModel(
                 [
                     MultiConv2d(structure[0][0], 1, 32, 5),
                     Tensor.relu,
-                ]
-            ),
-        ),
-        # layer1
-        Spec(
-            model=MultiModel(
-                [
                     MultiConv2d(structure[1][0], 32, 32, 5),
                     Tensor.relu,
-                    *((Tensor.max_pool2d,) if not batch_normal else ()),
+                    MultiBatchNorm(structure[2][0], 32),
+                    Tensor.max_pool2d,
                 ]
-            ),
-            upstream_sampling=structure[1][1],
-        ),
-        # layer2
-        *(
-            (
-                Spec(
-                    model=MultiModel(
-                        [
-                            MultiBatchNorm(structure[2][0], 32),
-                            Tensor.max_pool2d,
-                        ]
-                    ),
-                    upstream_sampling=structure[2][1],
-                    evolve=evolve_batch_normal,
-                ),
             )
-            if batch_normal
-            else ()
         ),
-        # layer3
         Spec(
             model=MultiModel(
                 [
                     MultiConv2d(structure[3][0], 32, 64, 3),
                     Tensor.relu,
-                ]
-            ),
-            upstream_sampling=structure[3][1],
-        ),
-        # layer4
-        Spec(
-            model=MultiModel(
-                [
                     MultiConv2d(structure[4][0], 64, 64, 3),
                     Tensor.relu,
-                    *((Tensor.max_pool2d,) if not batch_normal else ()),
+                    MultiBatchNorm(structure[5][0], 64),
+                    Tensor.max_pool2d,
+                    lambda x: x.flatten(1),
                 ]
             ),
-            upstream_sampling=structure[4][1],
         ),
-        # layer5
-        *(
-            (
-                Spec(
-                    model=MultiModel(
-                        [
-                            MultiBatchNorm(structure[5][0], 64),
-                            Tensor.max_pool2d,
-                        ]
-                    ),
-                    upstream_sampling=structure[5][1],
-                    evolve=evolve_batch_normal,
-                ),
-            )
-            if batch_normal
-            else ()
-        ),
-        # layer6
-        Spec(
-            model=MultiModel(
-                [lambda x: x.flatten(1), MultiLinear(structure[6][0], 576, 10)]
-            ),
-            upstream_sampling=structure[6][1],
-        ),
+        Spec(model=MultiModel([MultiLinear(structure[6][0], 576, 10)])),
     ]
 
 
