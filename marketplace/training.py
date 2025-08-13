@@ -83,22 +83,18 @@ def produce(
             raise ValueError("Expected leading_input_index to be a scaler tensor")
         # When sticky leader index is provided, it means that we are running in sticky leader mode.
         # TODO: should avoid loop whenever possible to make the compute graph much easier to compile
-        input_indexes = Tensor.stack(
-            *(
-                (i == leading_vendor_index).where(
-                    # we are the leading vendor in current layer, let's pick the leading input index and output it
-                    # as our first one in the leading vendor's output
-                    Tensor.cat(
-                        leading_input_index.reshape(1),
-                        randperm_skip(upstream_sampling, leading_input_index),
-                        dim=0,
-                    ),
-                    # not leading vendor, let's pick randomly from upstream
-                    Tensor.randperm(input_count)[:upstream_sampling],
-                )
-                for i in Tensor.arange(model.vendor_count)
+        input_indexes = (
+            Tensor.arange(model.vendor_count) == leading_vendor_index
+        ).where(
+            # we are the leading vendor in current layer, let's pick the leading input index and output it
+            # as our first one in the leading vendor's output
+            Tensor.cat(
+                leading_input_index.reshape(1),
+                randperm_skip(upstream_sampling, leading_input_index),
+                dim=0,
             ),
-            dim=0,
+            # not leading vendor, let's pick randomly from upstream
+            Tensor.randperm(input_count)[:upstream_sampling],
         )
 
     input_data = x[input_indexes]
