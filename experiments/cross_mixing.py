@@ -31,9 +31,9 @@ def main():
     exp_id = ensure_experiment("Cross Mixing V3")
     for cross_mixing, vendor_count in [
         # (True, 8),
-        # (True, 16),
+        (True, 16),
         # (False, 32),
-        (False, 64),
+        # (False, 64),
     ]:
         with mlflow.start_run(
             run_name=f"cross-mixing-{cross_mixing}-{vendor_count}",
@@ -55,5 +55,10 @@ def main():
 
 
 if __name__ == "__main__":
+    import threading
+
+    new_stack_size = 128 * 1024 * 1024
+    threading.stack_size(new_stack_size)
+
     logging.basicConfig(level=logging.INFO)
     main()
