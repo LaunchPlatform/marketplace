@@ -37,7 +37,7 @@ def main():
         # (False, 64),
     ]:
         with mlflow.start_run(
-            run_name=f"cross-mixing-{cross_mixing}-{vendor_count}",
+            run_name=f"cross-mixing-{cross_mixing}-vendors-{vendor_count}-step-10000",
             experiment_id=exp_id,
             description="Find out if cross mixing indeed helpful or not",
             log_system_metrics=True,
@@ -47,7 +47,7 @@ def main():
             else:
                 marketplace = make_marketplace_without_cross_mixing(vendor_count)
             train(
-                step_count=3_000,
+                step_count=10_000,
                 batch_size=512,
                 initial_lr=1e-3,
                 lr_decay_rate=4.5e-4,
