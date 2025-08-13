@@ -15,11 +15,26 @@ class Spec:
     excluded_param_keys: frozenset[str] | None = None
 
 
+def randperm_skip(size: int, skip_index: int) -> Tensor:
+    """The same as randperm but skip given index `skip_index`
+
+    :param size: size of randperm
+    :param skip_index: index to skip
+    :return: A tensor of random permutation from 0 to N-1 without the skip_index in it
+    """
+    if not (0 <= skip_index < size):
+        raise ValueError("skip must be between 0 and N-1")
+    perm = Tensor.randperm(size)
+    pos = (perm == skip_index).argmax()
+    return Tensor.cat(perm[:pos], perm[pos + 1 :])
+
+
 def produce(
     model: MultiModelBase,
     x: Tensor,
     paths: Tensor | None = None,
     upstream_sampling: int = 0,
+    leader_index: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
     if paths is None:
         # this is the first spec for taking in the raw input, let's feed data to all of them
@@ -37,13 +52,45 @@ def produce(
         upstream_sampling = x.shape[0]
 
     input_count = paths.size(0)
-    input_indexes = Tensor.stack(
-        *(
-            Tensor.randperm(input_count)[:upstream_sampling]
-            for _ in range(model.vendor_count)
-        ),
-        dim=0,
-    )
+    if leader_index is None:
+        # No sticky leader provided it means we are selecting completely randomly from the upstream
+        input_indexes = Tensor.stack(
+            *(
+                Tensor.randperm(input_count)[:upstream_sampling]
+                for _ in range(model.vendor_count)
+            ),
+            dim=0,
+        )
+    else:
+        if leader_index.ndim != 0:
+            raise ValueError("Expected leader index to be a scaler tensor")
+        # When sticky leader index is provided, it means that we are running in sticky leader mode.
+        # The index 0 at the upstream output tensor x is always the leading vendor from the previous layer.
+        # We will input it to the leading vendor in the current layer and put it at index 0 as well
+        # for the following layer to pick up.
+        input_indexes = Tensor.stack(
+            *(
+                (i == leader_index).where(
+                    # we are the leading vendor in current layer, let's
+                    Tensor.cat(
+                        leader_index,
+                        Tensor.randperm(input_count)[: upstream_sampling - 1]
+                        + (
+                            Tensor.cat(
+                                Tensor.zeros(leader_index),
+                                Tensor.ones(upstream_sampling - leader_index - 1),
+                            )
+                        ),
+                        dim=0,
+                    ),
+                    # not leading vendor, let's pick randomly from upstream
+                    Tensor.randperm(input_count)[:upstream_sampling],
+                )
+                for i in Tensor.arange(model.vendor_count)
+            ),
+            dim=0,
+        )
+
     input_data = x[input_indexes]
     # merge different batches for the same vendor into one. not sure if this is needed, but at least it saves us
     # from calling the model multiple times and making the graph more complex

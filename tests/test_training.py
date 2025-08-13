@@ -3,6 +3,7 @@ from tinygrad import Tensor
 
 from marketplace.multi_nn import MultiModelBase
 from marketplace.training import produce
+from marketplace.training import randperm_skip
 
 
 class MultiMultiplyModel(MultiModelBase):
@@ -27,6 +28,19 @@ class MultiMultiplySumModel(MultiModelBase):
 
 def realize(x: Tensor) -> list:
     return x.tolist()
+
+
+@pytest.mark.parametrize(
+    "size, skip_index, repeat",
+    [
+        (10, 0, 10_000),
+    ],
+)
+def test_randperm_skip(size: int, skip_index: int, repeat: int):
+    result = Tensor.stack(
+        *[randperm_skip(size, skip_index) for _ in range(repeat)], dim=0
+    )
+    assert result.size() == (repeat, size - 1)
 
 
 @pytest.mark.parametrize(
