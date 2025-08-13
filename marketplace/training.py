@@ -15,18 +15,20 @@ class Spec:
     excluded_param_keys: frozenset[str] | None = None
 
 
-def randperm_skip(size: int, skip_index: int) -> Tensor:
+def randperm_skip(size: int, skip_index: Tensor) -> Tensor:
     """The same as randperm but skip given index `skip_index`
 
     :param size: size of randperm
     :param skip_index: index to skip
     :return: A tensor of random permutation from 0 to N-1 without the skip_index in it
     """
-    if not (0 <= skip_index < size):
-        raise ValueError("skip must be between 0 and N-1")
-    perm = Tensor.randperm(size)
-    pos = (perm == skip_index).argmax()
-    return Tensor.cat(perm[:pos], perm[pos + 1 :])
+    indexes = Tensor.arange(size - 1)
+    offsets = Tensor.cat(
+        Tensor.zeros(skip_index), Tensor.ones(size - skip_index - 1), dim=0
+    )
+    shifted_indexes = indexes + offsets
+    perm = Tensor.randperm(size - 1)
+    return shifted_indexes[perm]
 
 
 def produce(
@@ -74,13 +76,7 @@ def produce(
                     # we are the leading vendor in current layer, let's
                     Tensor.cat(
                         leader_index,
-                        Tensor.randperm(input_count)[: upstream_sampling - 1]
-                        + (
-                            Tensor.cat(
-                                Tensor.zeros(leader_index),
-                                Tensor.ones(upstream_sampling - leader_index - 1),
-                            )
-                        ),
+                        randperm_skip(upstream_sampling, leader_index),
                         dim=0,
                     ),
                     # not leading vendor, let's pick randomly from upstream
