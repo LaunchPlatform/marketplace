@@ -36,8 +36,6 @@ def load_data():
 
 def make_marketplace(
     structure: list[tuple[int, int]] | None = None,
-    batch_normal: bool = True,
-    evolve_batch_normal: bool = True,
 ):
     if structure is None:
         structure = [
