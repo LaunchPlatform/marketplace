@@ -82,6 +82,7 @@ def produce(
         if leading_input_index.ndim != 0:
             raise ValueError("Expected leading_input_index to be a scaler tensor")
         # When sticky leader index is provided, it means that we are running in sticky leader mode.
+        # TODO: should avoid loop whenever possible to make the compute graph much easier to compile
         input_indexes = Tensor.stack(
             *(
                 (i == leading_vendor_index).where(

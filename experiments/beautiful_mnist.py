@@ -56,6 +56,7 @@ def make_marketplace(
             # layer 6
             (32, 16),
         ]
+    # TODO: reduce number of layers by merging them and ensure it's fully visited for each vendor (ideally)
     return [
         # layer0
         Spec(
