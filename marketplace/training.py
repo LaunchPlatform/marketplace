@@ -23,9 +23,7 @@ def randperm_skip(size: int, skip_index: Tensor) -> Tensor:
     :return: A tensor of random permutation from 0 to N-1 without the skip_index in it
     """
     indexes = Tensor.arange(size - 1)
-    offsets = Tensor.cat(
-        Tensor.zeros(skip_index), Tensor.ones(size - skip_index - 1), dim=0
-    )
+    offsets = (indexes >= skip_index).cast(indexes.dtype)
     shifted_indexes = indexes + offsets
     perm = Tensor.randperm(size - 1)
     return shifted_indexes[perm]
