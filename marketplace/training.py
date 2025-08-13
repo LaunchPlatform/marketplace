@@ -132,6 +132,8 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
                 continue
             leading_params = params[leading_index]
             delta = Tensor.uniform(*params.shape, low=-jitter, high=jitter)
+            # TODO: by generating a big block of random number and masking the part we don't want to change with
+            #       zeros, while it runs faster overall, but we waste time generating random numbers not really used...
             delta[leading_index].assign(Tensor.zeros(*leading_params.shape))
             params.assign(
                 leading_params.repeat(
