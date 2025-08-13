@@ -138,4 +138,4 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
                     spec.model.vendor_count, *((1,) * leading_params.ndim)
                 )
                 + delta
-            ).realize()
+            )
