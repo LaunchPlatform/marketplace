@@ -151,10 +151,10 @@ def train(
 
     X_train, Y_train, X_test, Y_test = load_data()
 
-    def forward_step(
-        x: Tensor,
-        y: Tensor,
-    ) -> tuple[Tensor, Tensor]:
+    def forward_step() -> tuple[Tensor, Tensor]:
+        samples = Tensor.randint(batch_size, high=X_train.shape[0])
+        x = X_train[samples]
+        y = Y_train[samples]
         batch_logits, batch_paths = forward(marketplace, x)
         return Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
@@ -166,10 +166,7 @@ def train(
         all_loss = []
         all_paths = []
         for _ in range(current_forward_pass):
-            samples = Tensor.randint(batch_size, high=X_train.shape[0])
-            x = X_train[samples]
-            y = Y_train[samples]
-            batch_loss, batch_path = forward_step(x, y)
+            batch_loss, batch_path = forward_step()
             # TODO: we don't need to cat the result, we only need to find the best and keep it
             all_loss.append(batch_loss)
             all_paths.append(batch_path)

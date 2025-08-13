@@ -57,6 +57,7 @@ def produce(
 
     if upstream_sampling == 0:
         # when upstream sampling is zero, it means we sample the full input
+        upstream_sampling = x.shape[0]
         input_indexes = Tensor.arange(x.shape[0]).repeat(model.vendor_count, 1)
     else:
         input_count = paths.size(0)
