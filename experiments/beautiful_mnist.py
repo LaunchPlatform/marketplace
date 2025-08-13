@@ -278,7 +278,7 @@ def train(
             combined_loss=combined_loss, combined_paths=combined_paths
         )
         if sticky_leaders:
-            leading_path = path
+            leading_path.replace(path).realize()
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
