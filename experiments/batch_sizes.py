@@ -27,7 +27,7 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
 
 
 def main():
-    exp_id = ensure_experiment("Batch Size V2")
+    exp_id = ensure_experiment("Batch Size V3 (Sticky Leader)")
     for batch_size, forward_pass in [
         (32, 1),
         (32, 2),
@@ -57,6 +57,7 @@ def main():
                 initial_forward_pass=forward_pass,
                 initial_lr=1e-3,
                 lr_decay_rate=1e-4,
+                sticky_leaders=True,
                 marketplace=marketplace,
             )
 
