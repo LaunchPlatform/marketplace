@@ -4,19 +4,19 @@ import functools
 from tinygrad import nn
 from tinygrad import Tensor
 
-from .multi_nn import MultiModel
+from .multi_nn import MultiModelBase
 
 
 @dataclasses.dataclass
 class Spec:
-    model: MultiModel
+    model: MultiModelBase
     upstream_sampling: int = 0
     evolve: bool = True
     excluded_param_keys: frozenset[str] | None = None
 
 
 def produce(
-    model: MultiModel,
+    model: MultiModelBase,
     x: Tensor,
     paths: Tensor | None = None,
     upstream_sampling: int = 0,

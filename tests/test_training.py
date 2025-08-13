@@ -4,9 +4,19 @@ import operator
 import pytest
 from tinygrad import Tensor
 
-from marketplace.training import Model
+from marketplace.multi_nn import MultiModel
+from marketplace.multi_nn import MultiModelBase
 from marketplace.training import produce
-from marketplace.training import uniform_between
+
+
+class MultiplyMultiModel(MultiModelBase):
+    def __init__(self, values: list[float]):
+        super().__init__()
+        self.vendor_count = len(values)
+        self.weights = Tensor(values)
+
+    def __call__(self, i: Tensor, x: Tensor):
+        return x * self.weights[i]
 
 
 def realize(x: Tensor) -> list:
@@ -14,10 +24,10 @@ def realize(x: Tensor) -> list:
 
 
 @pytest.mark.parametrize(
-    "vendors, x, expected",
+    "model, x, expected",
     [
         (
-            [functools.partial(operator.mul, n) for n in (0.0, 1.0, 2.0)],
+            MultiplyMultiModel([0.0, 1.0, 2.0]),
             Tensor([1.0, 2.0, 3.0]),
             (
                 Tensor(
@@ -33,11 +43,9 @@ def realize(x: Tensor) -> list:
     ],
 )
 def test_produce_with_input_data(
-    vendors: list[Model], x: Tensor, expected: tuple[Tensor, Tensor]
+    model: MultiModelBase, x: Tensor, expected: tuple[Tensor, Tensor]
 ):
-    assert list(map(realize, produce(vendors=vendors, x=x))) == list(
-        map(realize, expected)
-    )
+    assert list(map(realize, produce(model=model, x=x))) == list(map(realize, expected))
 
 
 @pytest.mark.parametrize(
@@ -70,7 +78,7 @@ def test_produce_with_input_data(
     ],
 )
 def test_produce(
-    vendors: list[Model], upstream_sampling: int, x: Tensor, paths: Tensor
+    vendors: list[MultiModelBase], upstream_sampling: int, x: Tensor, paths: Tensor
 ):
     output, out_paths = produce(
         vendors=vendors, x=x, paths=paths, upstream_sampling=upstream_sampling
