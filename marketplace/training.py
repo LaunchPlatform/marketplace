@@ -34,8 +34,6 @@ def produce(
     x: Tensor,
     paths: Tensor | None = None,
     upstream_sampling: int = 0,
-    leading_vendor_index: Tensor | None = None,
-    leading_input_index: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
     """Produce various of output for the given model and its vendors with upstream sampling
 
@@ -43,8 +41,6 @@ def produce(
     :param x: input data from the previous layer
     :param paths: paths for each input data from the previous layer
     :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
-    :param leading_vendor_index: the index of leader vendor in the current layer
-    :param leading_input_index: the input index of the leading vendor from the previous layer
     :return: (output_data, paths)
     """
     if paths is None:
@@ -60,43 +56,14 @@ def produce(
         )
 
     if upstream_sampling == 0:
-        upstream_sampling = x.shape[0]
-
-    input_count = paths.size(0)
-    if leading_vendor_index is None:
-        # No sticky leader provided it means we are selecting completely randomly from the upstream
+        # when upstream sampling is zero, it means we sample the full input
+        input_indexes = Tensor.arange(x.shape[0]).repeat(model.vendor_count, 1)
+    else:
+        input_count = paths.size(0)
         input_indexes = Tensor.stack(
             *(
                 Tensor.randperm(input_count)[:upstream_sampling]
                 for _ in range(model.vendor_count)
-            ),
-            dim=0,
-        )
-    else:
-        if leading_vendor_index.ndim != 0:
-            raise ValueError("Expected leading_vendor_index to be a scaler tensor")
-        if leading_input_index is None:
-            raise ValueError(
-                "Both leading_vendor_index and leading_input_index needs to be none or non-none"
-            )
-        if leading_input_index.ndim != 0:
-            raise ValueError("Expected leading_input_index to be a scaler tensor")
-        # When sticky leader index is provided, it means that we are running in sticky leader mode.
-        # TODO: should avoid loop whenever possible to make the compute graph much easier to compile
-        input_indexes = Tensor.stack(
-            *(
-                (i == leading_vendor_index).where(
-                    # we are the leading vendor in current layer, let's pick the leading input index and output it
-                    # as our first one in the leading vendor's output
-                    Tensor.cat(
-                        leading_input_index.reshape(1),
-                        randperm_skip(upstream_sampling, leading_input_index),
-                        dim=0,
-                    ),
-                    # not leading vendor, let's pick randomly from upstream
-                    Tensor.randperm(input_count)[:upstream_sampling],
-                )
-                for i in Tensor.arange(model.vendor_count)
             ),
             dim=0,
         )
@@ -133,33 +100,16 @@ def forward(
     specs: list[Spec],
     x: Tensor,
     initial_paths: Tensor | None = None,
-    leading_path: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
     data = x
     paths = initial_paths
-    if leading_path is None:
-        for spec in specs:
-            data, paths = produce(
-                model=spec.model,
-                x=data,
-                paths=paths,
-                upstream_sampling=spec.upstream_sampling,
-            )
-    else:
-        leading_input_index = 0
-        for spec, leading_vendor_index in zip(specs, leading_path):
-            actual_upstream_sampling = spec.upstream_sampling
-            if actual_upstream_sampling == 0:
-                actual_upstream_sampling = len(data)
-            data, paths = produce(
-                model=spec.model,
-                x=data,
-                paths=paths,
-                upstream_sampling=spec.upstream_sampling,
-                leading_vendor_index=leading_vendor_index,
-                leading_input_index=leading_input_index,
-            )
-            leading_input_index = leading_vendor_index * actual_upstream_sampling
+    for spec in specs:
+        data, paths = produce(
+            model=spec.model,
+            x=data,
+            paths=paths,
+            upstream_sampling=spec.upstream_sampling,
+        )
     return data, paths
 
 
