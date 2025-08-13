@@ -132,7 +132,8 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
                 continue
             leading_params = params[leading_index]
             delta = Tensor.uniform(params.shape, low=-jitter, high=jitter)
-            delta[leading_index] = Tensor.zeros(*params.shape[1:])
+            delta[leading_index].replace(Tensor.zeros(*params.shape[1:]))
             params.replace(
-                leading_params.repeat(spec.model.vendor_count, 1) + delta
+                leading_params.repeat(spec.model.vendor_count, *((1,) * params.ndim))
+                + delta
             ).realize()
