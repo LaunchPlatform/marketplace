@@ -134,3 +134,79 @@ def test_produce(
 
     expected_output = [model(j, x[i]).tolist() for i, j in out_paths]
     assert output.tolist() == expected_output
+
+
+@pytest.mark.parametrize(
+    "model, upstream_sampling, x, paths, leading_vendor_index, leading_input_index",
+    [
+        (
+            MultiMultiplyModel([1.0, 3.0, 5.0]),
+            2,
+            Tensor(
+                [
+                    [1.0, 2.0, 3.0],
+                    [2.0, 3.0, 4.0],
+                    [4.0, 5.0, 6.0],
+                ]
+            ),
+            Tensor([[0], [1], [2]]),
+            0,
+            1,
+        ),
+        (
+            MultiMultiplyModel([1.0, 3.0, 5.0]),
+            3,
+            Tensor(
+                [
+                    [1.0, 2.0, 3.0],
+                    [2.0, 3.0, 4.0],
+                    [4.0, 5.0, 6.0],
+                ]
+            ),
+            Tensor([[0], [1], [2]]),
+            1,
+            2,
+        ),
+    ],
+)
+def test_produce_with_leader_index(
+    model: MultiModelBase,
+    upstream_sampling: int,
+    x: Tensor,
+    paths: Tensor,
+    leading_vendor_index: int,
+    leading_input_index: int,
+):
+    output, out_paths = produce(
+        model=model,
+        x=x,
+        paths=paths,
+        upstream_sampling=upstream_sampling,
+        leading_vendor_index=Tensor(leading_vendor_index),
+        leading_input_index=Tensor(leading_input_index),
+    )
+
+    actual_upstream_sampling = upstream_sampling
+    if actual_upstream_sampling == 0:
+        actual_upstream_sampling = len(x)
+
+    assert out_paths[leading_vendor_index * actual_upstream_sampling].tolist() == (
+        paths[leading_input_index].tolist() + [leading_vendor_index]
+    )
+    assert (
+        output[leading_vendor_index * actual_upstream_sampling].tolist()
+        == model(Tensor(leading_vendor_index), x[leading_input_index]).tolist()
+    )
+    assert all(v >= 0 and v < len(x) for v in out_paths[:, :1].flatten().tolist())
+    expected_output = [model(j, x[i]).tolist() for i, j in out_paths[1:]]
+    assert output[1:].tolist() == expected_output
+    assert (
+        out_paths[:, 1:].tolist()
+        == (
+            Tensor.arange(model.vendor_count)
+            .unsqueeze(1)
+            .repeat(1, upstream_sampling if upstream_sampling > 0 else len(x))
+            .flatten()
+            .unsqueeze(1)
+        ).tolist()
+    )
