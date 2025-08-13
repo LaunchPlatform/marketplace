@@ -44,28 +44,24 @@ def make_marketplace(
             # layer 0
             (32, 0),
             # layer 1
-            (32, 16),
-            # layer 2 (N/A)
-            (32, 16),
-            # layer 3
-            (32, 16),
-            # layer 4
-            (32, 16),
-            # layer 5 (N/A)
-            (32, 16),
-            # layer 6
-            (32, 16),
+            (32, 0),
+            # layer 2
+            (32, 0),
         ]
-    # TODO: reduce number of layers by merging them and ensure it's fully visited for each vendor (ideally)
+    l0_vendor_count = structure[0][0]
+    l1_vendor_count = structure[1][0]
+    l1_upstream_sampling = structure[1][1]
+    l2_vendor_count = structure[2][0]
+    l2_upstream_sampling = structure[2][1]
     return [
         Spec(
             model=MultiModel(
                 [
-                    MultiConv2d(structure[0][0], 1, 32, 5),
+                    MultiConv2d(l0_vendor_count, 1, 32, 5),
                     Tensor.relu,
-                    MultiConv2d(structure[1][0], 32, 32, 5),
+                    MultiConv2d(l0_vendor_count, 32, 32, 5),
                     Tensor.relu,
-                    MultiBatchNorm(structure[2][0], 32),
+                    MultiBatchNorm(l0_vendor_count, 32),
                     Tensor.max_pool2d,
                 ]
             )
@@ -73,17 +69,21 @@ def make_marketplace(
         Spec(
             model=MultiModel(
                 [
-                    MultiConv2d(structure[3][0], 32, 64, 3),
+                    MultiConv2d(l1_vendor_count, 32, 64, 3),
                     Tensor.relu,
-                    MultiConv2d(structure[4][0], 64, 64, 3),
+                    MultiConv2d(l1_vendor_count, 64, 64, 3),
                     Tensor.relu,
-                    MultiBatchNorm(structure[5][0], 64),
+                    MultiBatchNorm(l1_vendor_count, 64),
                     Tensor.max_pool2d,
                     lambda x: x.flatten(1),
                 ]
             ),
+            upstream_sampling=l1_upstream_sampling,
         ),
-        Spec(model=MultiModel([MultiLinear(structure[6][0], 576, 10)])),
+        Spec(
+            model=MultiModel([MultiLinear(l2_vendor_count, 576, 10)]),
+            upstream_sampling=l2_upstream_sampling,
+        ),
     ]
 
 
