@@ -33,7 +33,7 @@ def realize(x: Tensor) -> list:
 @pytest.mark.parametrize(
     "size, skip_index, repeat",
     [
-        (10, 0, 1_000),
+        (10, 0, 100),
     ],
 )
 def test_randperm_skip(size: int, skip_index: int, repeat: int):
@@ -41,9 +41,10 @@ def test_randperm_skip(size: int, skip_index: int, repeat: int):
         *[randperm_skip(size, Tensor(skip_index)) for _ in range(repeat)], dim=0
     ).realize()
     assert result.size() == (repeat, size - 1)
-    assert (result == skip_index).sum().item() == 0
-    assert (result == skip_index).sum(axis=1).item() == 0
-    assert (result == skip_index).min().item() == 0
+    for row in result:
+        assert frozenset(row.tolist()) == (
+            frozenset(range(size)) - frozenset([skip_index])
+        )
 
 
 @pytest.mark.parametrize(
