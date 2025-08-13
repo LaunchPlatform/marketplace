@@ -127,24 +127,12 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
         if not spec.evolve:
             continue
         multi_params = nn.state.get_state_dict(spec.model)
-        for i in range(spec.model.vendor_count):
-            for key, params in multi_params.items():
-                if (
-                    spec.excluded_param_keys is not None
-                    and key in spec.excluded_param_keys
-                ):
-                    continue
-                leading_params = params[leading_index]
-                params[i] = (
-                    leading_params
-                    + (i == leading_index).where(
-                        # Do not change the leading vendor
-                        Tensor(0),
-                        # Copy from the leading vendor and add a bit jitters
-                        (
-                            Tensor.uniform(
-                                *leading_params.shape, low=-jitter, high=jitter
-                            )
-                        ),
-                    )
-                ).realize()
+        for key, params in multi_params.items():
+            if spec.excluded_param_keys is not None and key in spec.excluded_param_keys:
+                continue
+            leading_params = params[leading_index]
+            delta = Tensor.uniform(params.shape, low=-jitter, high=jitter)
+            delta[leading_index] = Tensor.zeros(*params.shape[1:])
+            params.replace(
+                leading_params.repeat(spec.model.vendor_count, 1) + delta
+            ).realize()
