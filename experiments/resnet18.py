@@ -135,12 +135,17 @@ class BasicBlock(MultiModelBase):
 
 
 def make_marketplace(num_classes: int = 100):
+    layer0_vendor_count = 8
+    layer1_upstream_sampling = 0
+    layer1_vendor_count = 8
+    layer2_upstream_sampling = 0
+    layer2_vendor_count = 8
     return [
         Spec(
             model=MultiModel(
                 [
                     MultiConv2d(
-                        4,
+                        layer0_vendor_count,
                         in_channels=3,
                         out_channels=64,
                         kernel_size=7,
@@ -148,102 +153,83 @@ def make_marketplace(num_classes: int = 100):
                         padding=3,
                         bias=False,
                     ),
-                    MultiBatchNorm(4, 64),
+                    MultiBatchNorm(layer0_vendor_count, 64),
                     Tensor.relu,
                     lambda x: x.max_pool2d(
                         kernel_size=3,
                         stride=2,
                         padding=1,
                     ),
+                    BasicBlock(
+                        layer0_vendor_count,
+                        in_channels=64,
+                        out_channels=64,
+                        stride=1,
+                    ),
+                    BasicBlock(
+                        layer0_vendor_count,
+                        in_channels=64,
+                        out_channels=64,
+                        stride=1,
+                    ),
                 ]
             ),
+            upstream_sampling=2,
         ),
         # layer1
         Spec(
             model=MultiModel(
                 [
                     BasicBlock(
-                        4,
-                        in_channels=64,
-                        out_channels=64,
-                        stride=1,
-                    ),
-                    BasicBlock(
-                        4,
-                        in_channels=64,
-                        out_channels=64,
-                        stride=1,
-                    ),
-                ]
-            ),
-            upstream_sampling=2,
-        ),
-        # layer2
-        Spec(
-            model=MultiModel(
-                [
-                    BasicBlock(
-                        4,
+                        layer1_vendor_count,
                         in_channels=64,
                         out_channels=128,
                         stride=2,
                     ),
                     BasicBlock(
-                        4,
+                        layer1_vendor_count,
                         in_channels=128,
                         out_channels=128,
                         stride=1,
                     ),
-                ]
-            ),
-            upstream_sampling=2,
-        ),
-        # layer3
-        Spec(
-            model=MultiModel(
-                [
                     BasicBlock(
-                        8,
+                        layer1_vendor_count,
                         in_channels=128,
                         out_channels=256,
                         stride=2,
                     ),
                     BasicBlock(
-                        8,
+                        layer1_vendor_count,
                         in_channels=256,
                         out_channels=256,
                         stride=1,
                     ),
                 ]
             ),
-            upstream_sampling=4,
+            upstream_sampling=layer1_upstream_sampling,
         ),
         # layer4
         Spec(
             model=MultiModel(
                 [
                     BasicBlock(
-                        12,
+                        layer2_vendor_count,
                         in_channels=256,
                         out_channels=512,
                         stride=2,
                     ),
                     BasicBlock(
-                        12,
+                        layer2_vendor_count,
                         in_channels=512,
                         out_channels=512,
                         stride=1,
                     ),
                     lambda x: x.avg_pool2d(kernel_size=7),
                     lambda x: x.flatten(1),
+                    MultiLinear(16, 512, num_classes),
                 ]
             ),
-            upstream_sampling=6,
-        ),
-        # layer5
-        Spec(
-            model=MultiModel([MultiLinear(16, 512, num_classes)]),
-            upstream_sampling=8,
+            upstream_sampling=layer2_upstream_sampling,
         ),
     ]
 
