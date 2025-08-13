@@ -686,7 +686,7 @@ requires-dist = [
     { name = "mlflow", specifier = ">=3.2.0" },
     { name = "numpy", specifier = ">=2.3.2" },
     { name = "psutil", specifier = ">=7.0.0" },
-    { name = "tinygrad", git = "https://github.com/tinygrad/tinygrad.git?rev=0ce0f5101028e8b5ca70eb8cf8241b7baf945e45" },
+    { name = "tinygrad", git = "https://github.com/tinygrad/tinygrad.git?rev=e9e5a08a04accb60242eb82bdba5bad7675636e5" },
     { name = "tinyloader", specifier = ">=0.1.3" },
 ]
 
@@ -1697,7 +1697,7 @@ wheels = [
 [[package]]
 name = "tinygrad"
 version = "0.10.3"
-source = { git = "https://github.com/tinygrad/tinygrad.git?rev=0ce0f5101028e8b5ca70eb8cf8241b7baf945e45#0ce0f5101028e8b5ca70eb8cf8241b7baf945e45" }
+source = { git = "https://github.com/tinygrad/tinygrad.git?rev=e9e5a08a04accb60242eb82bdba5bad7675636e5#e9e5a08a04accb60242eb82bdba5bad7675636e5" }
 
 [[package]]
 name = "tinyloader"

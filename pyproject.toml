@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-tinygrad = { git = "https://github.com/tinygrad/tinygrad.git", rev="0ce0f5101028e8b5ca70eb8cf8241b7baf945e45" }
+tinygrad = { git = "https://github.com/tinygrad/tinygrad.git", rev="e9e5a08a04accb60242eb82bdba5bad7675636e5" }
 
 [dependency-groups]
 dev = [
