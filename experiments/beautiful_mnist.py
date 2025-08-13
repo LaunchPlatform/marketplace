@@ -36,15 +36,16 @@ def load_data():
 
 def make_marketplace(
     structure: list[tuple[int, int]] | None = None,
+    default_vendor_count: int = 32,
 ):
     if structure is None:
         structure = [
             # layer 0
-            (32, 0),
+            (default_vendor_count, 0),
             # layer 1
-            (32, 0),
+            (default_vendor_count, 0),
             # layer 2
-            (32, 0),
+            (default_vendor_count, 0),
         ]
     l0_vendor_count = structure[0][0]
     l1_vendor_count = structure[1][0]
