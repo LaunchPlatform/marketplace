@@ -129,18 +129,37 @@ def produce(
 
 
 def forward(
-    specs: list[Spec], x: Tensor, initial_paths: Tensor | None = None
+    specs: list[Spec],
+    x: Tensor,
+    initial_paths: Tensor | None = None,
+    leading_paths: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
-    def step(acc: tuple[Tensor, Tensor | None], spec: Spec) -> tuple[Tensor, Tensor]:
-        data, paths = acc
-        return produce(
-            model=spec.model,
-            x=data,
-            paths=paths,
-            upstream_sampling=spec.upstream_sampling,
-        )
-
-    return functools.reduce(step, specs, (x, initial_paths))
+    data = x
+    paths = initial_paths
+    if leading_paths is None:
+        for spec in specs:
+            data, paths = produce(
+                model=spec.model,
+                x=data,
+                paths=paths,
+                upstream_sampling=spec.upstream_sampling,
+            )
+    else:
+        leading_input_index = 0
+        for spec, leading_vendor_index in zip(specs, leading_paths):
+            actual_upstream_sampling = spec.upstream_sampling
+            if actual_upstream_sampling == 0:
+                actual_upstream_sampling = len(data)
+            data, paths = produce(
+                model=spec.model,
+                x=data,
+                paths=paths,
+                upstream_sampling=spec.upstream_sampling,
+                leading_vendor_index=leading_vendor_index,
+                leading_input_index=leading_input_index,
+            )
+            leading_input_index = leading_vendor_index * actual_upstream_sampling
+    return data, paths
 
 
 def forward_with_path(specs: list[Spec], x: Tensor, paths: Tensor) -> Tensor:
