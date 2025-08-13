@@ -34,8 +34,19 @@ def produce(
     x: Tensor,
     paths: Tensor | None = None,
     upstream_sampling: int = 0,
-    leader_index: Tensor | None = None,
+    leading_vendor_index: Tensor | None = None,
+    leading_input_index: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
+    """Produce various of output for the given model and its vendors with upstream sampling
+
+    :param model: multi-mmodel used to produce output
+    :param x: input data from the previous layer
+    :param paths: paths for each input data from the previous layer
+    :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
+    :param leading_vendor_index: the index of leader vendor in the current layer
+    :param leading_input_index: the input index of the leading vendor from the previous layer
+    :return: (output_data, paths)
+    """
     if paths is None:
         # this is the first spec for taking in the raw input, let's feed data to all of them
         output_data = Tensor.stack(
@@ -52,7 +63,7 @@ def produce(
         upstream_sampling = x.shape[0]
 
     input_count = paths.size(0)
-    if leader_index is None:
+    if leading_vendor_index is None:
         # No sticky leader provided it means we are selecting completely randomly from the upstream
         input_indexes = Tensor.stack(
             *(
@@ -62,19 +73,23 @@ def produce(
             dim=0,
         )
     else:
-        if leader_index.ndim != 0:
-            raise ValueError("Expected leader index to be a scaler tensor")
+        if leading_vendor_index.ndim != 0:
+            raise ValueError("Expected leading_vendor_index to be a scaler tensor")
+        if leading_input_index is None:
+            raise ValueError(
+                "Both leading_vendor_index and leading_input_index needs to be none or non-none"
+            )
+        if leading_input_index.ndim != 0:
+            raise ValueError("Expected leading_input_index to be a scaler tensor")
         # When sticky leader index is provided, it means that we are running in sticky leader mode.
-        # The index 0 at the upstream output tensor x is always the leading vendor from the previous layer.
-        # We will input it to the leading vendor in the current layer and put it at index 0 as well
-        # for the following layer to pick up.
         input_indexes = Tensor.stack(
             *(
-                (i == leader_index).where(
-                    # we are the leading vendor in current layer, let's
+                (i == leading_vendor_index).where(
+                    # we are the leading vendor in current layer, let's pick the leading input index and output it
+                    # as our first one in the leading vendor's output
                     Tensor.cat(
-                        leader_index,
-                        randperm_skip(upstream_sampling, leader_index),
+                        leading_input_index.reshape(1),
+                        randperm_skip(upstream_sampling, leading_input_index),
                         dim=0,
                     ),
                     # not leading vendor, let's pick randomly from upstream
