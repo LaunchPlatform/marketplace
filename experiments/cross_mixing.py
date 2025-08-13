@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import mlflow
 
@@ -55,10 +56,12 @@ def main():
 
 
 if __name__ == "__main__":
-    import threading
-
-    new_stack_size = 128 * 1024 * 1024
-    threading.stack_size(new_stack_size)
-
     logging.basicConfig(level=logging.INFO)
+
+    # ref: https://github.com/tinygrad/tinygrad/issues/8617
+    # With complex huge compute graph, tinygrad runs into recursion too deep issue, let's bump it up
+    NEW_RECURSION_LIMIT = 100_000
+    logger.info("Current recursion limit is %s", sys.getrecursionlimit())
+    logger.info("Set recursion limit to %s", NEW_RECURSION_LIMIT)
+    sys.setrecursionlimit(NEW_RECURSION_LIMIT)
     main()
