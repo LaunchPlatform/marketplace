@@ -34,10 +34,11 @@ def main():
         # (False, 64, False),
         # (False, 128, False),
         # (True, 0, False),
-        (True, 0, True),
+        # (True, 0, True),
+        (True, 0, False),
     ]:
         with mlflow.start_run(
-            run_name=f"cross-mixing-{cross_mixing}-{vendor_count}-sticky-leader{sticky_leaders}",
+            run_name=f"cross-mixing-{cross_mixing}-{vendor_count}-sticky-leader-{sticky_leaders}",
             experiment_id=exp_id,
             description="Find out if cross mixing indeed helpful or not",
             log_system_metrics=True,
