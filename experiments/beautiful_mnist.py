@@ -8,7 +8,6 @@ import time
 import click
 import mlflow
 from tinygrad import GlobalCounters
-from tinygrad import nn
 from tinygrad import Tensor
 from tinygrad import TinyJit
 from tinygrad.helpers import getenv
@@ -21,7 +20,6 @@ from marketplace.multi_nn import MultiBatchNorm
 from marketplace.multi_nn import MultiConv2d
 from marketplace.multi_nn import MultiLinear
 from marketplace.multi_nn import MultiModel
-from marketplace.multi_nn import SingletonModel
 from marketplace.training import forward
 from marketplace.training import forward_with_path
 from marketplace.training import mutate
