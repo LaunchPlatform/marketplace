@@ -132,11 +132,11 @@ def forward(
     specs: list[Spec],
     x: Tensor,
     initial_paths: Tensor | None = None,
-    leading_paths: Tensor | None = None,
+    leading_path: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
     data = x
     paths = initial_paths
-    if leading_paths is None:
+    if leading_path is None:
         for spec in specs:
             data, paths = produce(
                 model=spec.model,
@@ -146,7 +146,7 @@ def forward(
             )
     else:
         leading_input_index = 0
-        for spec, leading_vendor_index in zip(specs, leading_paths):
+        for spec, leading_vendor_index in zip(specs, leading_path):
             actual_upstream_sampling = spec.upstream_sampling
             if actual_upstream_sampling == 0:
                 actual_upstream_sampling = len(data)

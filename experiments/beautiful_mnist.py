@@ -211,22 +211,26 @@ def train(
 
     X_train, Y_train, X_test, Y_test = load_data()
 
-    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
-        batch_logits, batch_paths = forward(marketplace, x)
+    def forward_step(
+        x: Tensor, y: Tensor, leading_path: Tensor | None = None
+    ) -> tuple[Tensor, Tensor]:
+        batch_logits, batch_paths = forward(marketplace, x, leading_path=leading_path)
         return Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
             dim=0,
         ).realize(), batch_paths.realize()
 
     @TinyJit
-    def combined_forward_step() -> tuple[Tensor, Tensor]:
+    def combined_forward_step(
+        leading_path: Tensor | None = None,
+    ) -> tuple[Tensor, Tensor]:
         all_loss = []
         all_paths = []
         for _ in range(current_forward_pass):
             samples = Tensor.randint(batch_size, high=X_train.shape[0])
             x = X_train[samples]
             y = Y_train[samples]
-            batch_loss, batch_path = forward_step(x, y)
+            batch_loss, batch_path = forward_step(x, y, leading_path)
             all_loss.append(batch_loss)
             all_paths.append(batch_path)
         return Tensor.cat(*all_loss).realize(), Tensor.cat(*all_paths).realize()
@@ -252,6 +256,9 @@ def train(
 
     test_acc = float("nan")
     current_forward_pass = initial_forward_pass
+    leading_path: Tensor | None = None
+    if sticky_leaders:
+        leading_path = Tensor.zeros(len(marketplace))
     for i in (t := trange(step_count)):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
 
@@ -266,10 +273,12 @@ def train(
 
         start_time = time.perf_counter()
 
-        combined_loss, combined_paths = combined_forward_step()
+        combined_loss, combined_paths = combined_forward_step(leading_path)
         loss, path = mutate_step(
             combined_loss=combined_loss, combined_paths=combined_paths
         )
+        if sticky_leaders:
+            leading_path = path
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
