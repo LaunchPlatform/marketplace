@@ -226,7 +226,7 @@ def make_marketplace(num_classes: int = 100):
                     ),
                     lambda x: x.avg_pool2d(kernel_size=7),
                     lambda x: x.flatten(1),
-                    MultiLinear(16, 512, num_classes),
+                    MultiLinear(layer2_vendor_count, 512, num_classes),
                 ]
             ),
             upstream_sampling=layer2_upstream_sampling,
