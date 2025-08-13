@@ -30,8 +30,9 @@ PYRAMID32_HALF_UPSTREAM_STRUCTURE = [
 def main():
     exp_id = ensure_experiment("Cross Mixing V3")
     for cross_mixing, vendor_count in [
+        # (True, 8),
         (True, 16),
-        (False, 32),
+        # (False, 32),
     ]:
         with mlflow.start_run(
             run_name=f"cross-mixing-{cross_mixing}-{vendor_count}",
