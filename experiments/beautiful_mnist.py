@@ -7,6 +7,7 @@ import time
 
 import click
 import mlflow
+from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
 from tinygrad import TinyJit
@@ -256,7 +257,7 @@ def train(
     current_forward_pass = initial_forward_pass
     leading_path: Tensor | None = None
     if sticky_leaders:
-        leading_path = Tensor.zeros(len(marketplace))
+        leading_path = Tensor.zeros(len(marketplace), dtype=dtypes.int)
     for i in (t := trange(step_count)):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
 
