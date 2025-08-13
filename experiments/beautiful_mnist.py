@@ -230,6 +230,7 @@ def train(
             x = X_train[samples]
             y = Y_train[samples]
             batch_loss, batch_path = forward_step(x, y, leading_path)
+            # TODO: we don't need to cat the result, we only need to find the best and keep it
             all_loss.append(batch_loss)
             all_paths.append(batch_path)
         return Tensor.cat(*all_loss).realize(), Tensor.cat(*all_paths).realize()
