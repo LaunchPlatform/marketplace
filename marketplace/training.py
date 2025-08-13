@@ -130,8 +130,8 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
         for key, params in multi_params.items():
             if spec.excluded_param_keys is not None and key in spec.excluded_param_keys:
                 continue
+            leading_params = params[leading_index]
             for i in range(spec.model.vendor_count):
-                leading_params = params[leading_index]
                 params[i] = (
                     leading_params
                     + (i == leading_index).where(
