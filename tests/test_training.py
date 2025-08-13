@@ -1,10 +1,6 @@
-import functools
-import operator
-
 import pytest
 from tinygrad import Tensor
 
-from marketplace.multi_nn import MultiModel
 from marketplace.multi_nn import MultiModelBase
 from marketplace.training import produce
 
@@ -85,6 +81,18 @@ def test_produce_with_input_data(
             ),
             Tensor([[0], [1], [2]]),
         ),
+        (
+            MultiMultiplyModel([1.0, 3.0, 5.0]),
+            0,
+            Tensor(
+                [
+                    [1.0, 2.0, 3.0],
+                    [2.0, 3.0, 4.0],
+                    [4.0, 5.0, 6.0],
+                ]
+            ),
+            Tensor([[0], [1], [2]]),
+        ),
     ],
 )
 def test_produce(
@@ -100,7 +108,7 @@ def test_produce(
         == (
             Tensor.arange(model.vendor_count)
             .unsqueeze(1)
-            .repeat(1, upstream_sampling)
+            .repeat(1, upstream_sampling if upstream_sampling > 0 else len(x))
             .flatten()
             .unsqueeze(1)
         ).tolist()
