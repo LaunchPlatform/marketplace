@@ -48,7 +48,7 @@ surf2 = ax.plot_surface(
 )
 
 # Add labels and title
-ax.set_xlabel("Number of Layers ($N$)")
+ax.set_xlabel("Depth of Market ($N$)")
 ax.set_ylabel("Number of Vendors ($M$)")
 ax.set_zlabel("Unit Cost")
 ax.set_title("Unit Costs: Marketplace vs. All-at-Once")
@@ -61,5 +61,5 @@ fig.colorbar(surf2, ax=ax, shrink=0.5, aspect=5, label="$U_A$")
 ax.set_zscale("log")
 
 # Save the plot
-plt.savefig("3d_unit_cost_comparison.png")
+plt.savefig("3d-unit-cost-comparison.png")
 plt.close()
