@@ -86,6 +86,68 @@ def make_marketplace(
     ]
 
 
+def make_deep_marketplace(
+    structure: list[tuple[int, int]] | None = None,
+    default_vendor_count: int = 4,
+):
+    return [
+        Spec(
+            model=MultiModel(
+                [
+                    MultiConv2d(l0_vendor_count, 1, 32, 5),
+                    Tensor.relu,
+                ]
+            )
+        ),
+        Spec(
+            model=MultiModel(
+                [
+                    MultiConv2d(l0_vendor_count, 32, 32, 5),
+                    Tensor.relu,
+                ]
+            )
+        ),
+        Spec(
+            model=MultiModel(
+                [
+                    MultiBatchNorm(l0_vendor_count, 32),
+                    Tensor.max_pool2d,
+                ]
+            )
+        ),
+        Spec(
+            model=MultiModel(
+                [
+                    MultiConv2d(l1_vendor_count, 32, 64, 3),
+                    Tensor.relu,
+                ]
+            )
+        ),
+        Spec(
+            model=MultiModel(
+                [
+                    MultiConv2d(l1_vendor_count, 64, 64, 3),
+                    Tensor.relu,
+                ]
+            ),
+        ),
+        Spec(
+            model=MultiModel(
+                [
+                    MultiBatchNorm(l1_vendor_count, 64),
+                    Tensor.max_pool2d,
+                    lambda x: x.flatten(1),
+                ]
+            ),
+            upstream_sampling=l1_upstream_sampling,
+        ),
+        Spec(
+            model=MultiModel([MultiLinear(l2_vendor_count, 576, 10)]),
+            upstream_sampling=l2_upstream_sampling,
+        ),
+    ]
+
+
 def make_marketplace_without_cross_mixing(vendor_count: int):
     return [
         Spec(
