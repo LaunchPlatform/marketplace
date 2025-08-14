@@ -32,7 +32,7 @@ def main():
     exp_id = ensure_experiment("Cross Mixing V3")
     for cross_mixing, vendor_count in [
         # (True, 8),
-        (True, 12),
+        (True, 16),
         # (False, 32),
         # (False, 64),
     ]:

@@ -90,60 +90,73 @@ def make_deep_marketplace(
     structure: list[tuple[int, int]] | None = None,
     default_vendor_count: int = 4,
 ):
+    if structure is None:
+        structure = [(default_vendor_count, 0)] * 7
     return [
+        # layer0
         Spec(
             model=MultiModel(
                 [
-                    MultiConv2d(l0_vendor_count, 1, 32, 5),
+                    MultiConv2d(structure[0][0], 1, 32, 5),
                     Tensor.relu,
                 ]
             )
         ),
+        # layer1
         Spec(
             model=MultiModel(
                 [
-                    MultiConv2d(l0_vendor_count, 32, 32, 5),
-                    Tensor.relu,
-                ]
-            )
-        ),
-        Spec(
-            model=MultiModel(
-                [
-                    MultiBatchNorm(l0_vendor_count, 32),
-                    Tensor.max_pool2d,
-                ]
-            )
-        ),
-        Spec(
-            model=MultiModel(
-                [
-                    MultiConv2d(l1_vendor_count, 32, 64, 3),
-                    Tensor.relu,
-                ]
-            )
-        ),
-        Spec(
-            model=MultiModel(
-                [
-                    MultiConv2d(l1_vendor_count, 64, 64, 3),
+                    MultiConv2d(structure[1][0], 32, 32, 5),
                     Tensor.relu,
                 ]
             ),
+            upstream_sampling=structure[1][1],
         ),
+        # layer2
         Spec(
             model=MultiModel(
                 [
-                    MultiBatchNorm(l1_vendor_count, 64),
+                    MultiBatchNorm(structure[2][0], 32),
+                    Tensor.max_pool2d,
+                ]
+            ),
+            upstream_sampling=structure[2][1],
+        ),
+        # layer3
+        Spec(
+            model=MultiModel(
+                [
+                    MultiConv2d(structure[3][0], 32, 64, 3),
+                    Tensor.relu,
+                ]
+            ),
+            upstream_sampling=structure[3][1],
+        ),
+        # layer4
+        Spec(
+            model=MultiModel(
+                [
+                    MultiConv2d(structure[4][0], 64, 64, 3),
+                    Tensor.relu,
+                ]
+            ),
+            upstream_sampling=structure[4][1],
+        ),
+        # layer5
+        Spec(
+            model=MultiModel(
+                [
+                    MultiBatchNorm(structure[5][0], 64),
                     Tensor.max_pool2d,
                     lambda x: x.flatten(1),
                 ]
             ),
-            upstream_sampling=l1_upstream_sampling,
+            upstream_sampling=structure[5][1],
         ),
+        # layer6
         Spec(
-            model=MultiModel([MultiLinear(l2_vendor_count, 576, 10)]),
-            upstream_sampling=l2_upstream_sampling,
+            model=MultiModel([MultiLinear(structure[6][0], 576, 10)]),
+            upstream_sampling=structure[6][1],
         ),
     ]
 
