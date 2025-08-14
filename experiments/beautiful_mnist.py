@@ -91,7 +91,7 @@ def make_deep_marketplace(
     default_vendor_count: int = 4,
 ):
     if structure is None:
-        structure = [(default_vendor_count, 0)] * 7
+        structure = [(default_vendor_count, 0)] * 5
     return [
         # layer0
         Spec(
@@ -108,6 +108,8 @@ def make_deep_marketplace(
                 [
                     MultiConv2d(structure[1][0], 32, 32, 5),
                     Tensor.relu,
+                    MultiBatchNorm(structure[2][0], 32),
+                    Tensor.max_pool2d,
                 ]
             ),
             upstream_sampling=structure[1][1],
@@ -116,8 +118,8 @@ def make_deep_marketplace(
         Spec(
             model=MultiModel(
                 [
-                    MultiBatchNorm(structure[2][0], 32),
-                    Tensor.max_pool2d,
+                    MultiConv2d(structure[2][0], 32, 64, 3),
+                    Tensor.relu,
                 ]
             ),
             upstream_sampling=structure[2][1],
@@ -126,37 +128,19 @@ def make_deep_marketplace(
         Spec(
             model=MultiModel(
                 [
-                    MultiConv2d(structure[3][0], 32, 64, 3),
+                    MultiConv2d(structure[3][0], 64, 64, 3),
                     Tensor.relu,
+                    MultiBatchNorm(structure[3][0], 64),
+                    Tensor.max_pool2d,
+                    lambda x: x.flatten(1),
                 ]
             ),
             upstream_sampling=structure[3][1],
         ),
         # layer4
         Spec(
-            model=MultiModel(
-                [
-                    MultiConv2d(structure[4][0], 64, 64, 3),
-                    Tensor.relu,
-                ]
-            ),
+            model=MultiModel([MultiLinear(structure[4][0], 576, 10)]),
             upstream_sampling=structure[4][1],
-        ),
-        # layer5
-        Spec(
-            model=MultiModel(
-                [
-                    MultiBatchNorm(structure[5][0], 64),
-                    Tensor.max_pool2d,
-                    lambda x: x.flatten(1),
-                ]
-            ),
-            upstream_sampling=structure[5][1],
-        ),
-        # layer6
-        Spec(
-            model=MultiModel([MultiLinear(structure[6][0], 576, 10)]),
-            upstream_sampling=structure[6][1],
         ),
     ]
 
