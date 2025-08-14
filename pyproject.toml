@@ -18,7 +18,9 @@ tinygrad = { git = "https://github.com/tinygrad/tinygrad.git", rev="e9e5a08a04ac
 
 [dependency-groups]
 dev = [
+    "matplotlib>=3.10.5",
     "pytest>=8.4.1",
+    "seaborn>=0.13.2",
     "tensorboard>=2.20.0",
     "tensorboardx>=2.6.4",
 ]
