@@ -16,18 +16,19 @@ def main():
     exp_id = ensure_experiment("Cross Mixing V3")
     for cross_mixing, vendor_count in [
         # (True, 8),
-        (True, 16),
+        # (True, 16),
         # (False, 32),
         # (False, 64),
+        (True, 8)
     ]:
         with mlflow.start_run(
-            run_name=f"cross-mixing-deep-market",
+            run_name=f"cross-mixing-deep-market-{vendor_count}",
             experiment_id=exp_id,
             description="Find out if cross mixing indeed helpful or not",
             log_system_metrics=True,
         ):
             if True:
-                marketplace = make_deep_marketplace(default_vendor_count=4)
+                marketplace = make_deep_marketplace(default_vendor_count=vendor_count)
             elif cross_mixing:
                 marketplace = make_marketplace(default_vendor_count=vendor_count)
             else:
