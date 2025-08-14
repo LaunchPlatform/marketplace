@@ -3,7 +3,6 @@ import sys
 
 import mlflow
 
-from .beautiful_mnist import make_deep_marketplace
 from .beautiful_mnist import make_marketplace
 from .beautiful_mnist import make_marketplace_without_cross_mixing
 from .beautiful_mnist import train
@@ -13,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Cross Mixing V4")
+    exp_id = ensure_experiment("Market Depth")
     for market_depth, vendor_count in [
         (1, 64),
         (3, 8),
@@ -21,7 +20,7 @@ def main():
         with mlflow.start_run(
             run_name=f"cross-mixing-depth-{market_depth}-vendor-{vendor_count}",
             experiment_id=exp_id,
-            description="Find out if cross mixing indeed helpful or not",
+            description="Find out how market depth affects performance",
             log_system_metrics=True,
         ):
             if market_depth == 3:
