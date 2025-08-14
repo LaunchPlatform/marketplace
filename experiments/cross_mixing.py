@@ -13,31 +13,28 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Cross Mixing V3")
-    for cross_mixing, vendor_count in [
-        # (True, 8),
-        # (True, 16),
-        # (False, 32),
-        # (False, 64),
-        (True, 8)
+    exp_id = ensure_experiment("Cross Mixing V4")
+    for market_depth, vendor_count in [
+        (1, 64),
+        (3, 8),
     ]:
         with mlflow.start_run(
-            run_name=f"cross-mixing-deep-market-{vendor_count}",
+            run_name=f"cross-mixing-depth-{market_depth}-vendor-{vendor_count}",
             experiment_id=exp_id,
             description="Find out if cross mixing indeed helpful or not",
             log_system_metrics=True,
         ):
-            if True:
-                marketplace = make_deep_marketplace(default_vendor_count=vendor_count)
-            elif cross_mixing:
+            if market_depth == 3:
                 marketplace = make_marketplace(default_vendor_count=vendor_count)
-            else:
+            elif market_depth == 1:
                 marketplace = make_marketplace_without_cross_mixing(vendor_count)
+            else:
+                raise ValueError(f"Unexpected depth {market_depth}")
             train(
                 step_count=10_000,
                 batch_size=512,
                 initial_lr=1e-3,
-                lr_decay_rate=4.5e-4,
+                lr_decay_rate=1e-3,
                 marketplace=marketplace,
             )
 
