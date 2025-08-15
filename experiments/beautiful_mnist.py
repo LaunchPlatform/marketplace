@@ -7,7 +7,6 @@ import time
 
 import click
 import mlflow
-from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
 from tinygrad import TinyJit
@@ -17,6 +16,7 @@ from tinygrad.nn.datasets import mnist
 from tinygrad.nn.state import get_state_dict
 from tinygrad.nn.state import safe_save
 
+from .utils import ensure_experiment
 from marketplace.multi_nn import MultiBatchNorm
 from marketplace.multi_nn import MultiConv2d
 from marketplace.multi_nn import MultiLinear
@@ -370,5 +370,6 @@ def main(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    with mlflow.start_run():
+    exp_id = ensure_experiment("Marketplace Is All You Need")
+    with mlflow.start_run(run_id="marketplace-is-all-you-need-beautiful-mnist"):
         main()
