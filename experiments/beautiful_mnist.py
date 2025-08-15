@@ -36,7 +36,7 @@ def load_data():
 
 def make_marketplace(
     structure: list[tuple[int, int]] | None = None,
-    default_vendor_count: int = 32,
+    default_vendor_count: int = 8,
 ):
     if structure is None:
         structure = [
@@ -329,25 +329,25 @@ def write_checkpoint(
 
 @click.command("beautiful_mnist")
 @click.option("--step-count", type=int, default=10_000, help="How many steps to run")
-@click.option("--batch-size", type=int, default=32, help="Size of batch")
+@click.option("--batch-size", type=int, default=512, help="Size of batch")
 @click.option(
     "--initial-lr", type=float, default=1e-3, help="Initial learning rate value"
 )
 @click.option("--lr-decay", type=float, default=1e-3, help="Learning rate decay rate")
-@click.option("-c", "--comment", type=str, help="Comment for Tensorboard logs")
+@click.option("--vendor-count", type=int, default=8, help="Vendor count")
 def main(
     step_count: int,
     batch_size: int,
     initial_lr: float,
     lr_decay: float,
-    comment: str | None,
+    vendor_count: int,
 ):
     train(
         step_count=step_count,
         batch_size=batch_size,
         initial_lr=initial_lr,
         lr_decay_rate=lr_decay,
-        marketplace=make_marketplace(),
+        marketplace=make_marketplace(default_vendor_count=vendor_count),
     )
 
 
