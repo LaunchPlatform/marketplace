@@ -17,6 +17,24 @@ from experiments.beautiful_mnist import train
 from experiments.utils import ensure_experiment
 
 
+DEPTH_3_MODEL_STATE_KEY_MAP = {
+    "spec.0.layers.0.bias": "layers.0.bias",
+    "spec.0.layers.0.weight": "layers.0.weight",
+    "spec.0.layers.2.bias": "layers.2.bias",
+    "spec.0.layers.2.weight": "layers.2.weight",
+    "spec.0.layers.4.bias": "layers.4.bias",
+    "spec.0.layers.4.weight": "layers.4.weight",
+    "spec.1.layers.0.bias": "layers.6.weight",
+    "spec.1.layers.0.weight": "layers.6.weight",
+    "spec.1.layers.2.bias": "layers.8.weight",
+    "spec.1.layers.2.weight": "layers.8.weight",
+    "spec.1.layers.4.bias": "layers.10.weight",
+    "spec.1.layers.4.weight": "layers.10.weight",
+    "spec.2.layers.0.bias": "layers.13.weight",
+    "spec.2.layers.0.weight": "layers.13.weight",
+}
+
+
 class Model:
     def __init__(self):
         self.layers: list[Callable[[Tensor], Tensor]] = [
