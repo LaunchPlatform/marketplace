@@ -111,8 +111,6 @@ class MultiModel(MultiModelBase):
         for i, model in enumerate(self.layers):
             if not isinstance(model, MultiModelBase):
                 continue
-            if isinstance(model, SingletonModel):
-                continue
             if self.vendor_count is None:
                 self.vendor_count = model.vendor_count
             else:
@@ -132,12 +130,3 @@ class MultiModel(MultiModelBase):
             else:
                 value = model(value)
         return value
-
-
-class SingletonModel(MultiModelBase):
-    def __init__(self, model: typing.Callable[[Tensor], Tensor]):
-        self.vendor_count = 1
-        self.singleton = model
-
-    def __call__(self, i: Tensor, x: Tensor) -> Tensor:
-        return self.singleton(x)
