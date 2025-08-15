@@ -1,6 +1,5 @@
 # model based off https://medium.com/data-science/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
 import functools
-import itertools
 import logging
 import pathlib
 import time
@@ -13,8 +12,6 @@ from tinygrad import TinyJit
 from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
-from tinygrad.nn.state import get_state_dict
-from tinygrad.nn.state import safe_save
 
 from .utils import ensure_experiment
 from marketplace.multi_nn import MultiBatchNorm
@@ -25,6 +22,7 @@ from marketplace.training import forward
 from marketplace.training import forward_with_path
 from marketplace.training import mutate
 from marketplace.training import Spec
+from marketplace.utils import write_checkpoint
 
 logger = logging.getLogger(__name__)
 
@@ -306,34 +304,6 @@ def train(
             global_step=i,
             output_filepath=pathlib.Path(checkpoint_filepath),
         )
-
-
-def write_checkpoint(
-    marketplace: list[Spec],
-    path: Tensor,
-    global_step: int,
-    output_filepath: pathlib.Path,
-):
-    logger.info(
-        "Writing checkpoint with global_step %s to %s", global_step, output_filepath
-    )
-    parameters = dict(
-        itertools.chain.from_iterable(
-            [
-                (f"layer.{i}.{key}", weights[index])
-                for key, weights in get_state_dict(spec.model).items()
-            ]
-            for i, (index, spec) in enumerate(zip(path, marketplace))
-        )
-    )
-    checkpoint_tmp_filepath = output_filepath.with_suffix(".tmp")
-    safe_save(
-        parameters | dict(global_step=Tensor(global_step)), str(checkpoint_tmp_filepath)
-    )
-    checkpoint_tmp_filepath.rename(output_filepath)
-    logger.info(
-        "Wrote checkpoint with global_step %s to %s", global_step, output_filepath
-    )
 
 
 @click.command("beautiful_mnist")
