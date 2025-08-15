@@ -29,13 +29,13 @@ DEPTH_3_MODEL_STATE_KEY_MAP = {
     "spec.0.layers.2.weight": "layers.2.weight",
     "spec.0.layers.4.bias": "layers.4.bias",
     "spec.0.layers.4.weight": "layers.4.weight",
-    "spec.1.layers.0.bias": "layers.6.weight",
+    "spec.1.layers.0.bias": "layers.6.bias",
     "spec.1.layers.0.weight": "layers.6.weight",
-    "spec.1.layers.2.bias": "layers.8.weight",
+    "spec.1.layers.2.bias": "layers.8.bias",
     "spec.1.layers.2.weight": "layers.8.weight",
-    "spec.1.layers.4.bias": "layers.10.weight",
+    "spec.1.layers.4.bias": "layers.10.bias",
     "spec.1.layers.4.weight": "layers.10.weight",
-    "spec.2.layers.0.bias": "layers.13.weight",
+    "spec.2.layers.0.bias": "layers.13.bias",
     "spec.2.layers.0.weight": "layers.13.weight",
 }
 BATCH_NORM_KEYS = ["layers.4", "layers.10"]
