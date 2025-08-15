@@ -250,6 +250,8 @@ def train(
             forward_with_path(marketplace, X_test, path).argmax(axis=1) == Y_test
         ).mean() * 100
 
+    i = 0
+    path = None
     test_acc = float("nan")
     current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):
@@ -296,6 +298,13 @@ def train(
         t.set_description(
             f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
             f"acc: {test_acc:5.2f}%, {gflops:9,.2f} GFLOPS"
+        )
+    if path is not None and i is not None:
+        write_checkpoint(
+            marketplace=marketplace,
+            path=path,
+            global_step=i,
+            output_filepath=pathlib.Path(checkpoint_filepath),
         )
 
 
