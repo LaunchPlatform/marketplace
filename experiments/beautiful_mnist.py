@@ -335,12 +335,25 @@ def write_checkpoint(
 )
 @click.option("--lr-decay", type=float, default=1e-3, help="Learning rate decay rate")
 @click.option("--vendor-count", type=int, default=8, help="Vendor count")
+@click.option(
+    "--checkpoint-filepath",
+    type=click.Path(dir_okay=False, writable=True),
+    help="Filepath of checkpoint to write to",
+)
+@click.option(
+    "--checkpoint-per-steps",
+    type=int,
+    default=100,
+    help="For how many steps we should write a checkpoint",
+)
 def main(
     step_count: int,
     batch_size: int,
     initial_lr: float,
     lr_decay: float,
     vendor_count: int,
+    checkpoint_filepath: str,
+    checkpoint_per_steps: int,
 ):
     train(
         step_count=step_count,
@@ -348,6 +361,10 @@ def main(
         initial_lr=initial_lr,
         lr_decay_rate=lr_decay,
         marketplace=make_marketplace(default_vendor_count=vendor_count),
+        checkpoint_filepath=pathlib.Path(checkpoint_filepath)
+        if checkpoint_filepath is not None
+        else None,
+        checkpoint_per_steps=checkpoint_per_steps,
     )
 
 
