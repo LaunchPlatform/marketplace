@@ -5,10 +5,12 @@ import time
 from typing import Callable
 
 import mlflow
+from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import nn
 from tinygrad import Tensor
 from tinygrad import TinyJit
+from tinygrad.device import is_dtype_supported
 from tinygrad.helpers import colored
 from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
@@ -36,6 +38,7 @@ DEPTH_3_MODEL_STATE_KEY_MAP = {
     "spec.2.layers.0.bias": "layers.13.weight",
     "spec.2.layers.0.weight": "layers.13.weight",
 }
+BATCH_NORM_KEYS = ["layers.4", "layers.10"]
 logger = logging.getLogger(__name__)
 
 
@@ -72,9 +75,22 @@ def train_mnist():
         logger.info("Loading model weights from %s", model_weights_filepath)
         model_state = safe_load(model_weights_filepath)
         converted_state = {
-            model_state[DEPTH_3_MODEL_STATE_KEY_MAP[key]]: value
+            DEPTH_3_MODEL_STATE_KEY_MAP[key]: value
             for key, value in model_state.items()
+            if key in DEPTH_3_MODEL_STATE_KEY_MAP
         }
+        for key in BATCH_NORM_KEYS:
+            converted_state[f"{key}.num_batches_tracked"] = Tensor.zeros(
+                1,
+                dtype="long" if is_dtype_supported(dtypes.long) else "int",
+                requires_grad=False,
+            )
+            converted_state[f"{key}.running_mean"] = Tensor.zeros_like(
+                converted_state[f"{key}.weight"]
+            )
+            converted_state[f"{key}.running_var"] = Tensor.zeros_like(
+                converted_state[f"{key}.weight"]
+            )
         load_state_dict(model, converted_state)
         logger.info("Model weight loaded")
 
