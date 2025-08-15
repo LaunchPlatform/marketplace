@@ -1,4 +1,6 @@
 # model based off https://medium.com/data-science/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
+import logging
+import os
 import time
 from typing import Callable
 
@@ -11,11 +13,12 @@ from tinygrad.helpers import colored
 from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
+from tinygrad.nn.state import load_state_dict
+from tinygrad.nn.state import safe_load
 
 from experiments.beautiful_mnist import make_marketplace
 from experiments.beautiful_mnist import train
 from experiments.utils import ensure_experiment
-
 
 DEPTH_3_MODEL_STATE_KEY_MAP = {
     "spec.0.layers.0.bias": "layers.0.bias",
@@ -33,6 +36,7 @@ DEPTH_3_MODEL_STATE_KEY_MAP = {
     "spec.2.layers.0.bias": "layers.13.weight",
     "spec.2.layers.0.weight": "layers.13.weight",
 }
+logger = logging.getLogger(__name__)
 
 
 class Model:
@@ -62,6 +66,18 @@ def train_mnist():
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
     model = Model()
+
+    model_weights_filepath = os.environ.get("MODEL_WEIGHTS")
+    if model_weights_filepath is not None:
+        logger.info("Loading model weights from %s", model_weights_filepath)
+        model_state = safe_load(model_weights_filepath)
+        converted_state = {
+            model_state[DEPTH_3_MODEL_STATE_KEY_MAP[key]]: value
+            for key, value in model_state.items()
+        }
+        load_state_dict(model, converted_state)
+        logger.info("Model weight loaded")
+
     opt = (nn.optim.Adam if not getenv("MUON") else nn.optim.Muon)(
         nn.state.get_parameters(model)
     )
