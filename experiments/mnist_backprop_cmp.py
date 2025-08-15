@@ -29,12 +29,16 @@ DEPTH_3_MODEL_STATE_KEY_MAP = {
     "spec.0.layers.2.weight": "layers.2.weight",
     "spec.0.layers.4.bias": "layers.4.bias",
     "spec.0.layers.4.weight": "layers.4.weight",
+    "spec.0.layers.4.running_mean": "layers.4.running_mean",
+    "spec.0.layers.4.running_var": "layers.4.running_var",
     "spec.1.layers.0.bias": "layers.6.bias",
     "spec.1.layers.0.weight": "layers.6.weight",
     "spec.1.layers.2.bias": "layers.8.bias",
     "spec.1.layers.2.weight": "layers.8.weight",
     "spec.1.layers.4.bias": "layers.10.bias",
     "spec.1.layers.4.weight": "layers.10.weight",
+    "spec.1.layers.4.running_mean": "layers.10.running_mean",
+    "spec.1.layers.4.running_var": "layers.10.running_var",
     "spec.2.layers.0.bias": "layers.13.bias",
     "spec.2.layers.0.weight": "layers.13.weight",
 }
@@ -84,12 +88,6 @@ def train_mnist():
                 1,
                 dtype="long" if is_dtype_supported(dtypes.long) else "int",
                 requires_grad=False,
-            )
-            converted_state[f"{key}.running_mean"] = Tensor.zeros_like(
-                converted_state[f"{key}.weight"]
-            )
-            converted_state[f"{key}.running_var"] = Tensor.zeros_like(
-                converted_state[f"{key}.weight"]
             )
         load_state_dict(model, converted_state)
         logger.info("Model weight loaded")
