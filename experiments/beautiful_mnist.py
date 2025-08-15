@@ -370,6 +370,6 @@ def main(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    exp_id = ensure_experiment("Marketplace Is All You Need")
-    with mlflow.start_run(run_id="marketplace-is-all-you-need-beautiful-mnist"):
+    exp_id = ensure_experiment("Marketplace")
+    with mlflow.start_run(run_name="beautiful-mnist"):
         main()
