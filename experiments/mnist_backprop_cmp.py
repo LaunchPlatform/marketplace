@@ -1,4 +1,5 @@
 # model based off https://medium.com/data-science/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
+import time
 from typing import Callable
 
 import mlflow
@@ -68,8 +69,14 @@ def train_mnist():
     for i in (t := trange(getenv("STEPS", 70))):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         loss = train_step()
+        start_time = time.perf_counter()
+        run_time = time.perf_counter() - start_time
+        gflops = GlobalCounters.global_ops * 1e-9 / run_time
         if i % 10 == 9:
             test_acc = get_test_acc().item()
+            mlflow.log_metric("training/loss", loss.item(), step=i)
+            mlflow.log_metric("training/accuracy", test_acc, step=i)
+            mlflow.log_metric("training/gflops", gflops, step=i)
         t.set_description(f"loss: {loss.item():6.2f} test_accuracy: {test_acc:5.2f}%")
 
     # verify eval acc
