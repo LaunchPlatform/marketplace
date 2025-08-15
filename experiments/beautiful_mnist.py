@@ -321,7 +321,7 @@ def write_checkpoint(
         itertools.chain.from_iterable(
             [
                 (f"layer.{i}.{key}", weights[index])
-                for key, weights in get_state_dict(spec.singleton).items()
+                for key, weights in get_state_dict(spec.model).items()
             ]
             for i, (index, spec) in enumerate(zip(path, marketplace))
         )
