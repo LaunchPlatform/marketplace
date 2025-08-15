@@ -80,16 +80,48 @@ class MultiBatchNorm(MultiModelBase, nn.BatchNorm):
         momentum: float = 0.1,
     ):
         super().__init__(
-            sz=sz, eps=eps, affine=affine, momentum=momentum, track_running_stats=False
+            sz=sz,
+            eps=eps,
+            affine=affine,
+            momentum=momentum,
         )
         self.vendor_count = vendor_count
         if affine:
             self.weight = repeat(self.weight, vendor_count)
             self.bias = repeat(self.bias, vendor_count)
-        del self.num_batches_tracked
+        if hasattr(self, "running_mean"):
+            self.running_mean = repeat(self.running_mean, vendor_count)
+        if hasattr(self, "running_var"):
+            self.running_var = repeat(self.running_var, vendor_count)
+        self.num_batches_tracked = repeat(self.num_batches_tracked, vendor_count)
+
+    def calc_stats(self, i: Tensor, x: Tensor) -> tuple[Tensor, Tensor]:
+        shape_mask: list[int] = [1, -1, *([1] * (x.ndim - 2))]
+        # This requires two full memory accesses to x
+        # https://github.com/pytorch/pytorch/blob/c618dc13d2aa23625cb0d7ada694137532a4fa33/aten/src/ATen/native/cuda/Normalization.cuh
+        # There's "online" algorithms that fix this, like https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_Online_algorithm
+        batch_mean = x.mean(
+            axis=(reduce_axes := tuple(x for x in range(x.ndim) if x != 1))
+        )
+        y = x - batch_mean.detach().reshape(shape=shape_mask)  # d(var)/d(mean) = 0
+        batch_var = (y * y).mean(axis=reduce_axes)
+        return batch_mean, batch_var
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
-        batch_mean, batch_var = self.calc_stats(x)
+        batch_mean, batch_var = self.calc_stats(i, x)
+        if self.track_running_stats:
+            self.running_mean[i].assign(
+                (1 - self.momentum) * self.running_mean[i]
+                + self.momentum * batch_mean.detach()
+            )
+            self.running_var[i].assign(
+                (1 - self.momentum) * self.running_var[i]
+                + self.momentum
+                * x.numel()
+                / (x.numel() - x.shape[1])
+                * batch_var.detach()
+            )
+            self.num_batches_tracked[i] += 1
         return x.batchnorm(
             self.weight[i] if self.weight is not None else None,
             self.bias[i] if self.bias is not None else None,
