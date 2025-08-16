@@ -9,6 +9,8 @@ def repeat(w: Tensor, count: int) -> Tensor:
 
 
 class MultiModelBase:
+    training: typing.ClassVar[bool] = False
+
     vendor_count: int
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
@@ -97,6 +99,10 @@ class MultiBatchNorm(MultiModelBase, nn.BatchNorm):
 
     def calc_stats(self, i: Tensor, x: Tensor) -> tuple[Tensor, Tensor]:
         shape_mask: list[int] = [1, -1, *([1] * (x.ndim - 2))]
+        if self.track_running_stats and not MultiModelBase.training:
+            return self.running_mean[i], self.running_var[i].reshape(
+                shape=shape_mask
+            ).expand(x.shape)
         # This requires two full memory accesses to x
         # https://github.com/pytorch/pytorch/blob/c618dc13d2aa23625cb0d7ada694137532a4fa33/aten/src/ATen/native/cuda/Normalization.cuh
         # There's "online" algorithms that fix this, like https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_Online_algorithm
@@ -109,7 +115,7 @@ class MultiBatchNorm(MultiModelBase, nn.BatchNorm):
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         batch_mean, batch_var = self.calc_stats(i, x)
-        if self.track_running_stats:
+        if self.track_running_stats and MultiModelBase.training:
             self.running_mean[i].assign(
                 (1 - self.momentum) * self.running_mean[i]
                 + self.momentum * batch_mean.detach()
