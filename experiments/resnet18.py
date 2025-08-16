@@ -251,6 +251,7 @@ def train(
     lr = Tensor(initial_lr)
 
     @TinyJit
+    @MultiModelBase.train()
     def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         batch_logits, batch_paths = forward(marketplace, x)
         return Tensor.stack(

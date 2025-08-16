@@ -14,10 +14,11 @@ from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
 
 from .utils import ensure_experiment
-from marketplace.multi_nn import MultiBatchNorm, MultiModelBase
+from marketplace.multi_nn import MultiBatchNorm
 from marketplace.multi_nn import MultiConv2d
 from marketplace.multi_nn import MultiLinear
 from marketplace.multi_nn import MultiModel
+from marketplace.multi_nn import MultiModelBase
 from marketplace.training import forward
 from marketplace.training import forward_with_path
 from marketplace.training import mutate
@@ -298,7 +299,7 @@ def train(
             f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
             f"acc: {test_acc:5.2f}%, {gflops:9,.2f} GFLOPS"
         )
-    if path is not None and i is not None:
+    if path is not None and i is not None and checkpoint_filepath is not None:
         write_checkpoint(
             marketplace=marketplace,
             path=path,
