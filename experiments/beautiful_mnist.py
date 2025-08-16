@@ -69,8 +69,7 @@ def make_marketplace(
                     MultiBatchNorm(4, 32),
                     Tensor.max_pool2d,
                 ]
-            ),
-            upstream_sampling=8,
+            )
         ),
         Spec(
             model=MultiModel(
@@ -81,7 +80,7 @@ def make_marketplace(
                     Tensor.relu,
                 ]
             ),
-            upstream_sampling=8,
+            upstream_sampling=l1_upstream_sampling,
         ),
         Spec(
             model=MultiModel(
@@ -91,11 +90,11 @@ def make_marketplace(
                     lambda x: x.flatten(1),
                 ]
             ),
-            upstream_sampling=8,
+            upstream_sampling=l1_upstream_sampling,
         ),
         Spec(
             model=MultiModel([MultiLinear(l2_vendor_count, 576, 10)]),
-            upstream_sampling=8,
+            upstream_sampling=l2_upstream_sampling,
         ),
     ]
 

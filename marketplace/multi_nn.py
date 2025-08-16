@@ -99,7 +99,6 @@ class MultiBatchNorm(MultiModelBase, nn.BatchNorm):
             eps=eps,
             affine=affine,
             momentum=momentum,
-            track_running_stats=False,
         )
         self.vendor_count = vendor_count
         if affine:
