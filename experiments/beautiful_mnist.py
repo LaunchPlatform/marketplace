@@ -284,9 +284,11 @@ def train(
 
         start_time = time.perf_counter()
 
-        combined_loss, combined_paths = combined_forward_step()
+        combined_loss, combined_accuracy, combined_paths = combined_forward_step()
         loss, accuracy, path = mutate_step(
-            combined_loss=combined_loss, combined_paths=combined_paths
+            combined_loss=combined_loss,
+            combined_accuracy=combined_accuracy,
+            combined_paths=combined_paths,
         )
 
         end_time = time.perf_counter()
