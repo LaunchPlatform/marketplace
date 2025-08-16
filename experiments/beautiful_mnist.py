@@ -290,6 +290,11 @@ def train(
 @click.option("--lr-decay", type=float, default=1e-3, help="Learning rate decay rate")
 @click.option("--vendor-count", type=int, default=8, help="Vendor count")
 @click.option(
+    "--batch-norm",
+    is_flag=True,
+    help="Use batch norm instead of instance norm (bad performance)",
+)
+@click.option(
     "--checkpoint-filepath",
     type=click.Path(dir_okay=False, writable=True),
     help="Filepath of checkpoint to write to",
@@ -306,6 +311,7 @@ def main(
     initial_lr: float,
     lr_decay: float,
     vendor_count: int,
+    batch_norm: bool,
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
 ):
@@ -314,17 +320,23 @@ def main(
     NEW_RECURSION_LIMIT = 100_000
     logger.info("Current recursion limit is %s", sys.getrecursionlimit())
     logger.info("Set recursion limit to %s", NEW_RECURSION_LIMIT)
-
+    norm_cls = MultiInstanceNorm
+    if batch_norm:
+        logger.info("!!!Warning!!! Training with batch norm, performance will be bad")
+        norm_cls = MultiBatchNorm
     exp_id = ensure_experiment("Marketplace")
     with mlflow.start_run(
-        experiment_id=exp_id, run_name="beautiful-mnist-instance-norm"
+        experiment_id=exp_id,
+        run_name="beautiful-mnistnorm",
     ):
         train(
             step_count=step_count,
             batch_size=batch_size,
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
-            marketplace=make_marketplace(default_vendor_count=vendor_count),
+            marketplace=make_marketplace(
+                default_vendor_count=vendor_count, norm_cls=norm_cls
+            ),
             checkpoint_filepath=pathlib.Path(checkpoint_filepath)
             if checkpoint_filepath is not None
             else None,
