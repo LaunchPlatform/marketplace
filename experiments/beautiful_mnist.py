@@ -321,8 +321,8 @@ def train(
             )
 
         t.set_description(
-            f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
-            f"acc: {test_acc:5.2f}%, {gflops:9,.2f} GFLOPS"
+            f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():.2e}, "
+            f"acc: {accuracy.item():.2f}%, vacc: {test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
         )
     if path is not None and i is not None and checkpoint_filepath is not None:
         write_checkpoint(
