@@ -210,39 +210,55 @@ def train(
     X_train, Y_train, X_test, Y_test = load_data()
 
     @TinyJit
-    def forward_step() -> tuple[Tensor, Tensor]:
+    def forward_step() -> tuple[Tensor, Tensor, Tensor]:
         samples = Tensor.randint(batch_size, high=X_train.shape[0])
         x = X_train[samples]
         y = Y_train[samples]
         batch_logits, batch_paths = forward(marketplace, x)
-        return Tensor.stack(
+        loss = Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
             dim=0,
-        ).realize(), batch_paths.realize()
+        )
+        accuracy = Tensor.stack(
+            *((logits.sigmoid().argmax(axis=1) == y).sum() for logits in batch_logits),
+            dim=0,
+        )
+        return (
+            loss.realize(),
+            accuracy.realize(),
+            batch_paths.realize(),
+        )
 
     @MultiModelBase.train()
-    def combined_forward_step() -> tuple[Tensor, Tensor]:
+    def combined_forward_step() -> tuple[Tensor, Tensor, Tensor]:
         all_loss = []
+        all_accuracy = []
         all_paths = []
         for _ in range(current_forward_pass):
-            batch_loss, batch_path = forward_step()
+            batch_loss, batch_accuracy, batch_path = forward_step()
             # TODO: we don't need to cat the result, we only need to find the best and keep it
             all_loss.append(batch_loss)
+            all_accuracy.append(batch_accuracy)
             all_paths.append(batch_path)
-        return Tensor.cat(*all_loss).realize(), Tensor.cat(*all_paths).realize()
+        return (
+            Tensor.cat(*all_loss).realize(),
+            Tensor.cat(*all_accuracy),
+            Tensor.cat(*all_paths).realize(),
+        )
 
     @TinyJit
     def mutate_step(
-        combined_loss: Tensor, combined_paths: Tensor
-    ) -> tuple[Tensor, Tensor]:
+        combined_loss: Tensor, combined_accuracy: Tensor, combined_paths: Tensor
+    ) -> tuple[Tensor, Tensor, Tensor]:
         min_loss, min_loss_index = combined_loss.topk(1, largest=False)
         min_path = combined_paths[min_loss_index].flatten()
+        min_accuracy = combined_accuracy[min_loss_index]
         mutate(
             marketplace=marketplace,
             leading_path=min_path,
             jitter=lr,
         )
-        return min_loss.realize(), min_path.realize()
+        return min_loss.realize(), min_accuracy.realize(), min_path.realize()
 
     @TinyJit
     def get_test_acc(path: Tensor) -> Tensor:
@@ -269,7 +285,7 @@ def train(
         start_time = time.perf_counter()
 
         combined_loss, combined_paths = combined_forward_step()
-        loss, path = mutate_step(
+        loss, accuracy, path = mutate_step(
             combined_loss=combined_loss, combined_paths=combined_paths
         )
 
@@ -281,10 +297,11 @@ def train(
         if i % metrics_per_steps == (metrics_per_steps - 1):
             test_acc = get_test_acc(path).item()
             mlflow.log_metric("training/loss", loss.item(), step=i)
-            mlflow.log_metric("training/accuracy", test_acc, step=i)
+            mlflow.log_metric("training/accuracy", accuracy.item(), step=i)
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
+            mlflow.log_metric("testing/accuracy", test_acc, step=i)
         if checkpoint_filepath is not None and i % checkpoint_per_steps == (
             checkpoint_per_steps - 1
         ):
