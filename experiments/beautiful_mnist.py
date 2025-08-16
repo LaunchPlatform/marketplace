@@ -14,7 +14,7 @@ from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
 
 from .utils import ensure_experiment
-from marketplace.multi_nn import MultiBatchNorm
+from marketplace.multi_nn import MultiBatchNorm, MultiModelBase
 from marketplace.multi_nn import MultiConv2d
 from marketplace.multi_nn import MultiLinear
 from marketplace.multi_nn import MultiModel
@@ -219,6 +219,7 @@ def train(
         ).realize(), batch_paths.realize()
 
     @TinyJit
+    @MultiModelBase.train()
     def combined_forward_step() -> tuple[Tensor, Tensor]:
         all_loss = []
         all_paths = []
@@ -350,5 +351,5 @@ def main(
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     exp_id = ensure_experiment("Marketplace")
-    with mlflow.start_run(run_name="beautiful-mnist"):
+    with mlflow.start_run(experiment_id=exp_id, run_name="beautiful-mnist"):
         main()
