@@ -219,10 +219,16 @@ def train(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
             dim=0,
         )
-        accuracy = Tensor.stack(
-            *((logits.sigmoid().argmax(axis=1) == y).sum() for logits in batch_logits),
-            dim=0,
-        )
+        accuracy = (
+            Tensor.stack(
+                *(
+                    (logits.sigmoid().argmax(axis=1) == y).sum()
+                    for logits in batch_logits
+                ),
+                dim=0,
+            )
+            / batch_size
+        ) * 100
         return (
             loss.realize(),
             accuracy.realize(),
