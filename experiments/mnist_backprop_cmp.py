@@ -136,7 +136,7 @@ def train_mnist():
 
 
 if __name__ == "__main__":
-    exp_id = ensure_experiment("Backprop Comparison")
+    exp_id = ensure_experiment("Backprop Comparison V2")
     with mlflow.start_run(
         run_name="backprop",
         experiment_id=exp_id,
