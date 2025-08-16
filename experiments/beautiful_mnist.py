@@ -17,6 +17,7 @@ from tinygrad.nn.datasets import mnist
 from .utils import ensure_experiment
 from marketplace.multi_nn import MultiBatchNorm
 from marketplace.multi_nn import MultiConv2d
+from marketplace.multi_nn import MultiInstanceNorm
 from marketplace.multi_nn import MultiLinear
 from marketplace.multi_nn import MultiModel
 from marketplace.multi_nn import MultiModelBase
@@ -60,13 +61,7 @@ def make_marketplace(
                     Tensor.relu,
                     MultiConv2d(l0_vendor_count, 32, 32, 5),
                     Tensor.relu,
-                ]
-            )
-        ),
-        Spec(
-            model=MultiModel(
-                [
-                    MultiBatchNorm(4, 32),
+                    MultiInstanceNorm(l0_vendor_count, 32),
                     Tensor.max_pool2d,
                 ]
             )
@@ -78,14 +73,7 @@ def make_marketplace(
                     Tensor.relu,
                     MultiConv2d(l1_vendor_count, 64, 64, 3),
                     Tensor.relu,
-                ]
-            ),
-            upstream_sampling=l1_upstream_sampling,
-        ),
-        Spec(
-            model=MultiModel(
-                [
-                    MultiBatchNorm(4, 64),
+                    MultiInstanceNorm(l1_vendor_count, 64),
                     Tensor.max_pool2d,
                     lambda x: x.flatten(1),
                 ]
@@ -383,7 +371,7 @@ def main(
 
     exp_id = ensure_experiment("Marketplace")
     with mlflow.start_run(
-        experiment_id=exp_id, run_name="beautiful-mnist-mutate-batch-norm-in-sep-spec"
+        experiment_id=exp_id, run_name="beautiful-mnist-instance-norm"
     ):
         train(
             step_count=step_count,
