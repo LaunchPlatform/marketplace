@@ -4,6 +4,7 @@ import logging
 import pathlib
 import sys
 import time
+import typing
 
 import click
 import mlflow
@@ -38,6 +39,7 @@ def load_data():
 def make_marketplace(
     structure: list[tuple[int, int]] | None = None,
     default_vendor_count: int = 8,
+    norm_cls: typing.Type[MultiModelBase] = MultiInstanceNorm,
 ):
     if structure is None:
         structure = [
@@ -61,7 +63,7 @@ def make_marketplace(
                     Tensor.relu,
                     MultiConv2d(l0_vendor_count, 32, 32, 5),
                     Tensor.relu,
-                    MultiInstanceNorm(l0_vendor_count, 32),
+                    norm_cls(l0_vendor_count, 32),
                     Tensor.max_pool2d,
                 ]
             )
@@ -73,7 +75,7 @@ def make_marketplace(
                     Tensor.relu,
                     MultiConv2d(l1_vendor_count, 64, 64, 3),
                     Tensor.relu,
-                    MultiInstanceNorm(l1_vendor_count, 64),
+                    norm_cls(l1_vendor_count, 64),
                     Tensor.max_pool2d,
                     lambda x: x.flatten(1),
                 ]
@@ -87,66 +89,10 @@ def make_marketplace(
     ]
 
 
-def make_deep_marketplace(
-    structure: list[tuple[int, int]] | None = None,
-    default_vendor_count: int = 4,
+def make_marketplace_without_cross_mixing(
+    vendor_count: int,
+    norm_cls: typing.Type[MultiModelBase] = MultiInstanceNorm,
 ):
-    if structure is None:
-        structure = [(default_vendor_count, 0)] * 5
-    return [
-        # layer0
-        Spec(
-            model=MultiModel(
-                [
-                    MultiConv2d(structure[0][0], 1, 32, 5),
-                    Tensor.relu,
-                ]
-            )
-        ),
-        # layer1
-        Spec(
-            model=MultiModel(
-                [
-                    MultiConv2d(structure[1][0], 32, 32, 5),
-                    Tensor.relu,
-                    MultiBatchNorm(structure[2][0], 32),
-                    Tensor.max_pool2d,
-                ]
-            ),
-            upstream_sampling=structure[1][1],
-        ),
-        # layer2
-        Spec(
-            model=MultiModel(
-                [
-                    MultiConv2d(structure[2][0], 32, 64, 3),
-                    Tensor.relu,
-                ]
-            ),
-            upstream_sampling=structure[2][1],
-        ),
-        # layer3
-        Spec(
-            model=MultiModel(
-                [
-                    MultiConv2d(structure[3][0], 64, 64, 3),
-                    Tensor.relu,
-                    MultiBatchNorm(structure[3][0], 64),
-                    Tensor.max_pool2d,
-                    lambda x: x.flatten(1),
-                ]
-            ),
-            upstream_sampling=structure[3][1],
-        ),
-        # layer4
-        Spec(
-            model=MultiModel([MultiLinear(structure[4][0], 576, 10)]),
-            upstream_sampling=structure[4][1],
-        ),
-    ]
-
-
-def make_marketplace_without_cross_mixing(vendor_count: int):
     return [
         Spec(
             model=MultiModel(
@@ -155,13 +101,13 @@ def make_marketplace_without_cross_mixing(vendor_count: int):
                     Tensor.relu,
                     MultiConv2d(vendor_count, 32, 32, 5),
                     Tensor.relu,
-                    MultiBatchNorm(vendor_count, 32),
+                    norm_cls(vendor_count, 32),
                     Tensor.max_pool2d,
                     MultiConv2d(vendor_count, 32, 64, 3),
                     Tensor.relu,
                     MultiConv2d(vendor_count, 64, 64, 3),
                     Tensor.relu,
-                    MultiBatchNorm(vendor_count, 64),
+                    norm_cls(vendor_count, 64),
                     Tensor.max_pool2d,
                     lambda x: x.flatten(1),
                     MultiLinear(vendor_count, 576, 10),
