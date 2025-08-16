@@ -337,24 +337,26 @@ def train(
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
         if i % 10 == (10 - 1):
+            # TODO: optimize this
             test_generator = load(loader, shuffled_test_files)
 
             x_batch = []
             y_batch = []
-            for _ in range(batch_size):
+            # XXX: well, this is not great, but let's some quick hack to make it works
+            for _ in range(batch_size * 128):
                 x, y = next(test_generator)
                 x_batch.append(x)
                 y_batch.append(y)
 
             x = Tensor.stack(x_batch, dim=0).realize()
             y = Tensor.stack(y_batch, dim=0).realize()
-
             test_acc = get_test_acc(path, x, y).item()
+
             mlflow.log_metric("training/loss", loss.item(), step=i)
-            mlflow.log_metric("training/accuracy", test_acc, step=i)
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
+            mlflow.log_metric("testing/accuracy", test_acc, step=i)
 
         t.set_description(
             f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():e}, "
