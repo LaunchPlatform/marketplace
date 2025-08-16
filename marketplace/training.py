@@ -120,6 +120,19 @@ def forward_with_path(specs: list[Spec], x: Tensor, paths: Tensor) -> Tensor:
     return data
 
 
+def traverse(model: MultiModelBase, path: list[str]) -> MultiModelBase:
+    current = model
+    while path:
+        key = path.pop(0)
+        if isinstance(current, (list, tuple)):
+            current = current[int(key)]
+        elif isinstance(current, dict):
+            current = current[key]
+        else:
+            current = getattr(current, key)
+    return current
+
+
 def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
     for spec, leading_index in zip(marketplace, leading_path):
         if not spec.evolve:
@@ -129,7 +142,13 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
             if spec.excluded_param_keys is not None and key in spec.excluded_param_keys:
                 continue
             leading_params = params[leading_index]
-            if key in getattr(spec.model, "copy_only_params", ()):
+            path = key.split(".")
+            owner_model = traverse(spec.model, path[:-1])
+            copy_only_params = ()
+            if hasattr(owner_model, "copy_only_params"):
+                copy_only_params = owner_model.copy_only_params
+            attr_name = path[-1]
+            if attr_name in copy_only_params:
                 params.assign(
                     leading_params.repeat(
                         spec.model.vendor_count, *((1,) * leading_params.ndim)

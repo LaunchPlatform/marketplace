@@ -108,6 +108,7 @@ class MultiBatchNorm(MultiModelBase, nn.BatchNorm):
             self.running_mean = repeat(self.running_mean, vendor_count)
         if hasattr(self, "running_var"):
             self.running_var = repeat(self.running_var, vendor_count)
+        self.num_batches_tracked = repeat(self.num_batches_tracked, vendor_count)
 
     def calc_stats(self, i: Tensor, x: Tensor) -> tuple[Tensor, Tensor]:
         shape_mask: list[int] = [1, -1, *([1] * (x.ndim - 2))]
