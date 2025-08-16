@@ -3,6 +3,7 @@ import typing
 
 from tinygrad import nn
 from tinygrad import Tensor
+from tinygrad.nn import InstanceNorm
 
 
 def repeat(w: Tensor, count: int) -> Tensor:
@@ -147,6 +148,26 @@ class MultiBatchNorm(MultiModelBase, nn.BatchNorm):
             batch_mean,
             batch_var.add(self.eps).rsqrt(),
         )
+
+
+class MultiInstanceNorm(MultiModelBase, InstanceNorm):
+    def __init__(self, vendor_count: int, num_features: int, eps=1e-5, affine=True):
+        self.vendor_count = vendor_count
+        super().__init__(num_features=num_features, eps=eps, affine=affine)
+        self.weight = repeat(self.weight, vendor_count)
+        self.bias = repeat(self.bias, vendor_count)
+
+    def __call__(self, i: Tensor, x: Tensor) -> Tensor:
+        x = (
+            x.reshape(x.shape[0], self.num_features, -1)
+            .layernorm(eps=self.eps)
+            .reshape(x.shape)
+        )
+        if self.weight is None or self.bias is None:
+            return x
+        return x * self.weight[i].reshape(1, -1, *[1] * (x.ndim - 2)) + self.bias[
+            i
+        ].reshape(1, -1, *[1] * (x.ndim - 2))
 
 
 class MultiModel(MultiModelBase):
