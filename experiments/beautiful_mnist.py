@@ -59,7 +59,13 @@ def make_marketplace(
                     Tensor.relu,
                     MultiConv2d(l0_vendor_count, 32, 32, 5),
                     Tensor.relu,
-                    MultiBatchNorm(l0_vendor_count, 32),
+                ]
+            )
+        ),
+        Spec(
+            model=MultiModel(
+                [
+                    MultiBatchNorm(4, 32),
                     Tensor.max_pool2d,
                 ]
             )
@@ -71,7 +77,14 @@ def make_marketplace(
                     Tensor.relu,
                     MultiConv2d(l1_vendor_count, 64, 64, 3),
                     Tensor.relu,
-                    MultiBatchNorm(l1_vendor_count, 64),
+                ]
+            ),
+            upstream_sampling=l1_upstream_sampling,
+        ),
+        Spec(
+            model=MultiModel(
+                [
+                    MultiBatchNorm(4, 64),
                     Tensor.max_pool2d,
                     lambda x: x.flatten(1),
                 ]
@@ -378,6 +391,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     exp_id = ensure_experiment("Marketplace")
     with mlflow.start_run(
-        experiment_id=exp_id, run_name="beautiful-mnist-report-training-accuracy"
+        experiment_id=exp_id, run_name="beautiful-mnist-mutate-batch-norm-in-sep-spec"
     ):
         main()
