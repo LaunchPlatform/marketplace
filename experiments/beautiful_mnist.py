@@ -216,7 +216,7 @@ def train(
         y = Y_train[samples]
         batch_logits, batch_paths = forward(marketplace, x)
         return Tensor.stack(
-            *((logits.sigmoid().argmax(axis=1) == y).sum() for logits in batch_logits),
+            *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
             dim=0,
         ).realize(), batch_paths.realize()
 
@@ -235,7 +235,7 @@ def train(
     def mutate_step(
         combined_loss: Tensor, combined_paths: Tensor
     ) -> tuple[Tensor, Tensor]:
-        min_loss, min_loss_index = combined_loss.topk(1, largest=True)
+        min_loss, min_loss_index = combined_loss.topk(1, largest=False)
         min_path = combined_paths[min_loss_index].flatten()
         mutate(
             marketplace=marketplace,
@@ -314,7 +314,7 @@ def train(
 @click.option(
     "--initial-lr", type=float, default=1e-3, help="Initial learning rate value"
 )
-@click.option("--lr-decay", type=float, default=1e-4, help="Learning rate decay rate")
+@click.option("--lr-decay", type=float, default=1e-3, help="Learning rate decay rate")
 @click.option("--vendor-count", type=int, default=8, help="Vendor count")
 @click.option(
     "--checkpoint-filepath",
@@ -352,7 +352,5 @@ def main(
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     exp_id = ensure_experiment("Marketplace")
-    with mlflow.start_run(
-        experiment_id=exp_id, run_name="beautiful-mnist-optimize-accuracy"
-    ):
+    with mlflow.start_run(experiment_id=exp_id, run_name="beautiful-mnist"):
         main()
