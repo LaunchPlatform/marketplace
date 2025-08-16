@@ -11,20 +11,21 @@ def repeat(w: Tensor, count: int) -> Tensor:
 
 class MultiModelBase:
     training: typing.ClassVar[bool] = False
-
     vendor_count: int
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         raise NotImplementedError()
 
-    @classmethod
-    @contextlib.contextmanager
-    def train(cls):
-        try:
-            cls.training = True
-            yield
-        finally:
-            cls.training = False
+    class train(contextlib.ContextDecorator):
+        def __init__(self, mode: bool = True):
+            self.mode = mode
+
+        def __enter__(self):
+            self.prev = MultiModelBase.training
+            MultiModelBase.training = self.mode
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            MultiModelBase.training = self.prev
 
 
 class MultiConv2d(MultiModelBase, nn.Conv2d):
@@ -83,6 +84,8 @@ class MultiLinear(MultiModelBase, nn.Linear):
 
 
 class MultiBatchNorm(MultiModelBase, nn.BatchNorm):
+    copy_only_params = frozenset(["running_mean", "running_var", "num_batches_tracked"])
+
     def __init__(
         self,
         vendor_count: int,
@@ -105,7 +108,6 @@ class MultiBatchNorm(MultiModelBase, nn.BatchNorm):
             self.running_mean = repeat(self.running_mean, vendor_count)
         if hasattr(self, "running_var"):
             self.running_var = repeat(self.running_var, vendor_count)
-        del self.num_batches_tracked
 
     def calc_stats(self, i: Tensor, x: Tensor) -> tuple[Tensor, Tensor]:
         shape_mask: list[int] = [1, -1, *([1] * (x.ndim - 2))]
@@ -137,6 +139,7 @@ class MultiBatchNorm(MultiModelBase, nn.BatchNorm):
                 / (x.numel() - x.shape[1])
                 * batch_var.detach()
             )
+            self.num_batches_tracked += 1
         return x.batchnorm(
             self.weight[i] if self.weight is not None else None,
             self.bias[i] if self.bias is not None else None,

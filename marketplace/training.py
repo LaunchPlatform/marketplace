@@ -1,5 +1,4 @@
 import dataclasses
-import functools
 
 from tinygrad import nn
 from tinygrad import Tensor
@@ -115,11 +114,10 @@ def forward(
 
 
 def forward_with_path(specs: list[Spec], x: Tensor, paths: Tensor) -> Tensor:
-    def step(acc: Tensor, spec_idx: tuple[Spec, Tensor]) -> Tensor:
-        spec, idx = spec_idx
-        return spec.model(idx, acc)
-
-    return functools.reduce(step, zip(specs, paths), x)
+    data = x
+    for spec, index in zip(specs, paths):
+        data = spec.model(index, data)
+    return data
 
 
 def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
@@ -131,6 +129,13 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
             if spec.excluded_param_keys is not None and key in spec.excluded_param_keys:
                 continue
             leading_params = params[leading_index]
+            if key in getattr(spec.model, "copy_only_params", ()):
+                params.assign(
+                    leading_params.repeat(
+                        spec.model.vendor_count, *((1,) * leading_params.ndim)
+                    )
+                ).realize()
+                continue
             delta = Tensor.uniform(*params.shape, low=-jitter, high=jitter)
             # TODO: by generating a big block of random number and masking the part we don't want to change with
             #       zeros, while it runs faster overall, but we waste time generating random numbers not really used...
