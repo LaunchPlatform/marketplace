@@ -374,23 +374,29 @@ def main(
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
 ):
-    train(
-        step_count=step_count,
-        batch_size=batch_size,
-        initial_lr=initial_lr,
-        lr_decay_rate=lr_decay,
-        marketplace=make_marketplace(default_vendor_count=vendor_count),
-        checkpoint_filepath=pathlib.Path(checkpoint_filepath)
-        if checkpoint_filepath is not None
-        else None,
-        checkpoint_per_steps=checkpoint_per_steps,
-    )
+    # ref: https://github.com/tinygrad/tinygrad/issues/8617
+    # With complex huge compute graph, tinygrad runs into recursion too deep issue, let's bump it up
+    NEW_RECURSION_LIMIT = 100_000
+    logger.info("Current recursion limit is %s", sys.getrecursionlimit())
+    logger.info("Set recursion limit to %s", NEW_RECURSION_LIMIT)
 
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     exp_id = ensure_experiment("Marketplace")
     with mlflow.start_run(
         experiment_id=exp_id, run_name="beautiful-mnist-mutate-batch-norm-in-sep-spec"
     ):
-        main()
+        train(
+            step_count=step_count,
+            batch_size=batch_size,
+            initial_lr=initial_lr,
+            lr_decay_rate=lr_decay,
+            marketplace=make_marketplace(default_vendor_count=vendor_count),
+            checkpoint_filepath=pathlib.Path(checkpoint_filepath)
+            if checkpoint_filepath is not None
+            else None,
+            checkpoint_per_steps=checkpoint_per_steps,
+        )
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    main()
