@@ -12,13 +12,17 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Market Depth")
+    exp_id = ensure_experiment("Market Depth V2")
     for market_depth, vendor_count in [
+        (1, 8),
+        (1, 16),
+        (1, 32),
         (1, 64),
         (3, 8),
+        (3, 16),
     ]:
         with mlflow.start_run(
-            run_name=f"cross-mixing-depth-{market_depth}-vendor-{vendor_count}",
+            run_name=f"market-depth-{market_depth}-vendor-{vendor_count}",
             experiment_id=exp_id,
             description="Find out how market depth affects performance",
             log_system_metrics=True,
@@ -33,7 +37,7 @@ def main():
                 step_count=10_000,
                 batch_size=512,
                 initial_lr=1e-3,
-                lr_decay_rate=1e-3,
+                lr_decay_rate=1e-4,
                 marketplace=marketplace,
             )
 
