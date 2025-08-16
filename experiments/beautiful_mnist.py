@@ -89,34 +89,6 @@ def make_marketplace(
     ]
 
 
-def make_marketplace_without_cross_mixing(
-    vendor_count: int,
-    norm_cls: typing.Type[MultiModelBase] = MultiInstanceNorm,
-):
-    return [
-        Spec(
-            model=MultiModel(
-                [
-                    MultiConv2d(vendor_count, 1, 32, 5),
-                    Tensor.relu,
-                    MultiConv2d(vendor_count, 32, 32, 5),
-                    Tensor.relu,
-                    norm_cls(vendor_count, 32),
-                    Tensor.max_pool2d,
-                    MultiConv2d(vendor_count, 32, 64, 3),
-                    Tensor.relu,
-                    MultiConv2d(vendor_count, 64, 64, 3),
-                    Tensor.relu,
-                    norm_cls(vendor_count, 64),
-                    Tensor.max_pool2d,
-                    lambda x: x.flatten(1),
-                    MultiLinear(vendor_count, 576, 10),
-                ]
-            ),
-        ),
-    ]
-
-
 def train(
     step_count: int,
     batch_size: int,
