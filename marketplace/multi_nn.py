@@ -1,3 +1,4 @@
+import contextlib
 import typing
 
 from tinygrad import nn
@@ -15,6 +16,15 @@ class MultiModelBase:
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         raise NotImplementedError()
+
+    @classmethod
+    @contextlib.contextmanager
+    def train(cls):
+        try:
+            cls.training = True
+            yield
+        finally:
+            cls.training = False
 
 
 class MultiConv2d(MultiModelBase, nn.Conv2d):
