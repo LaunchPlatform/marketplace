@@ -209,6 +209,7 @@ def train(
 
     X_train, Y_train, X_test, Y_test = load_data()
 
+    @TinyJit
     def forward_step() -> tuple[Tensor, Tensor]:
         samples = Tensor.randint(batch_size, high=X_train.shape[0])
         x = X_train[samples]
@@ -219,7 +220,6 @@ def train(
             dim=0,
         ).realize(), batch_paths.realize()
 
-    @TinyJit
     @MultiModelBase.train()
     def combined_forward_step() -> tuple[Tensor, Tensor]:
         all_loss = []
