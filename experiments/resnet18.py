@@ -17,8 +17,8 @@ from tinyloader.loader import load
 from tinyloader.loader import load_with_workers
 from tinyloader.loader import Loader
 
-from marketplace.multi_nn import MultiBatchNorm
 from marketplace.multi_nn import MultiConv2d
+from marketplace.multi_nn import MultiInstanceNorm
 from marketplace.multi_nn import MultiLinear
 from marketplace.multi_nn import MultiModel
 from marketplace.multi_nn import MultiModelBase
@@ -96,7 +96,7 @@ class BasicBlock(MultiModelBase):
             padding=1,
             bias=False,
         )
-        self.bn1 = MultiBatchNorm(vendor_count, out_channels)
+        self.bn1 = MultiInstanceNorm(vendor_count, out_channels)
         self.conv2 = MultiConv2d(
             vendor_count,
             out_channels,
@@ -106,7 +106,7 @@ class BasicBlock(MultiModelBase):
             padding=1,
             bias=False,
         )
-        self.bn2 = MultiBatchNorm(vendor_count, out_channels)
+        self.bn2 = MultiInstanceNorm(vendor_count, out_channels)
 
         self.downsample = lambda i, x: x
         if stride != 1 or in_channels != out_channels:
@@ -119,7 +119,7 @@ class BasicBlock(MultiModelBase):
                         stride=stride,
                         bias=False,
                     ),
-                    MultiBatchNorm(vendor_count, out_channels),
+                    MultiInstanceNorm(vendor_count, out_channels),
                 ]
             )
 
@@ -153,7 +153,7 @@ def make_marketplace(num_classes: int = 100):
                         padding=3,
                         bias=False,
                     ),
-                    MultiBatchNorm(layer0_vendor_count, 64),
+                    MultiInstanceNorm(layer0_vendor_count, 64),
                     Tensor.relu,
                     lambda x: x.max_pool2d(
                         kernel_size=3,
