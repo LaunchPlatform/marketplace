@@ -137,12 +137,12 @@ def train_mnist():
 
 if __name__ == "__main__":
     exp_id = ensure_experiment("Backprop Comparison V2")
-    with mlflow.start_run(
-        run_name="backprop",
-        experiment_id=exp_id,
-        log_system_metrics=True,
-    ):
-        train_mnist()
+    # with mlflow.start_run(
+    #     run_name="backprop",
+    #     experiment_id=exp_id,
+    #     log_system_metrics=True,
+    # ):
+    #     train_mnist()
     with mlflow.start_run(
         run_name="marketplace",
         experiment_id=exp_id,
@@ -153,6 +153,6 @@ if __name__ == "__main__":
             step_count=3_000,
             batch_size=512,
             initial_lr=1e-3,
-            lr_decay_rate=1e-3,
+            lr_decay_rate=1e-4,
             marketplace=marketplace,
         )
