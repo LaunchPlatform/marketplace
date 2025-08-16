@@ -123,8 +123,8 @@ def train_mnist():
         if i % 10 == 9:
             test_acc = get_test_acc().item()
             mlflow.log_metric("training/loss", loss.item(), step=i)
-            mlflow.log_metric("training/accuracy", test_acc, step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
+            mlflow.log_metric("testing/accuracy", test_acc, step=i)
         t.set_description(f"loss: {loss.item():6.2f} test_accuracy: {test_acc:5.2f}%")
 
     # verify eval acc
