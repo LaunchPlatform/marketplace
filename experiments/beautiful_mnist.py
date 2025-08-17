@@ -155,7 +155,8 @@ def train(
             dim=0,
         )
         best_loss, best_index = loss.topk(1, largest=False)
-        accuracy = (batch_logits[best_index].argmax(axis=1) == y).sum()
+        best_index = best_index.squeeze(0)
+        accuracy = (batch_logits[best_index].sigmoid().argmax(axis=1) == y).sum()
         return (
             best_loss.realize(),
             accuracy.realize(),
@@ -193,16 +194,16 @@ def train(
 
         start_time = time.perf_counter()
 
-        best_loss, best_accuracy, best_path = forward_step()
+        best_loss, best_accuracy, path = forward_step()
         for _ in range(current_forward_pass - 1):
             batch_loss, batch_accuracy, batch_path = forward_step()
             if batch_loss.item() >= best_loss:
                 continue
             best_loss = batch_loss
             best_accuracy = batch_accuracy
-            best_path = batch_path
+            path = batch_path
 
-        mutate_step(best_path)
+        mutate_step(path)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
@@ -222,7 +223,7 @@ def train(
         ):
             write_checkpoint(
                 marketplace=marketplace,
-                path=best_path,
+                path=path,
                 global_step=i,
                 output_filepath=pathlib.Path(checkpoint_filepath),
             )
