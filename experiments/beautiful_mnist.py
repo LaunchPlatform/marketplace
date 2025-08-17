@@ -259,7 +259,7 @@ def train(
 @click.option(
     "--initial-lr", type=float, default=1e-3, help="Initial learning rate value"
 )
-@click.option("--lr-decay", type=float, default=1e-3, help="Learning rate decay rate")
+@click.option("--lr-decay", type=float, default=1e-4, help="Learning rate decay rate")
 @click.option("--vendor-count", type=int, default=8, help="Vendor count")
 @click.option(
     "--batch-norm",
