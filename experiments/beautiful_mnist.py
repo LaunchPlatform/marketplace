@@ -138,8 +138,10 @@ def train(
         for spec in marketplace:
             for key, param in get_state_dict(spec.model).items():
                 param.shard_(vendor_devices, axis=0)
-        X_train.shard_(vendor_devices, axis=0)
-        Y_train.shard_(vendor_devices, axis=0)
+        X_train.to_(vendor_devices)
+        Y_train.to_(vendor_devices)
+        X_test.to_(vendor_devices)
+        Y_test.to_(vendor_devices)
 
     @TinyJit
     def forward_step() -> tuple[Tensor, Tensor, Tensor]:
