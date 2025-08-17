@@ -6,7 +6,7 @@ To learn more about the concept, please refer to the article:
 
 [Marketplace: my first attempt at training without backprop on GPU efficiently](https://fangpenlin.com/posts/2025/08/18/marketplace-my-first-attempt-at-training-without-backprop-on-gpu-efficiently/)
 
-For example, the [beautiful_mnist model](https://github.com/tinygrad/tinygrad/blob/c30a113b2a876cabaea1049601fea3a0b758c5b1/examples/beautiful_mnist.py) included in Tinygrad's example folder can be broken down into three groups of layers:
+For example, the [beautiful_mnist model](https://github.com/tinygrad/tinygrad/blob/c30a113b2a876cabaea1049601fea3a0b758c5b1/examples/beautiful_mnist.py) included in [Tinygrad](https://github.com/tinygrad/tinygrad)'s example folder can be broken down into three groups of layers:
 
 ```python
 from marketplace.multi_model import MultiModel, MultiConv2d, MultiLinear, MultiInstanceNorm
@@ -105,7 +105,7 @@ All of the experiments are in the `experiments` folder.
 To run the training, you can use the following command:
 
 ```bash
-uv run python -m experiments.beautiful_mnist
+CUDA=1 uv run python -m experiments.beautiful_mnist
 ```
 
 It comes with some arguments to control the training, you can see them by running:
