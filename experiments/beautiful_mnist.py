@@ -299,7 +299,7 @@ def main(
     exp_id = ensure_experiment("Marketplace")
     with mlflow.start_run(
         experiment_id=exp_id,
-        run_name="beautiful-mnistnorm",
+        run_name="beautiful-mnist",
     ):
         train(
             step_count=step_count,
