@@ -311,6 +311,7 @@ def main(
     # With complex huge compute graph, tinygrad runs into recursion too deep issue, let's bump it up
     NEW_RECURSION_LIMIT = 100_000
     logger.info("Current recursion limit is %s", sys.getrecursionlimit())
+    sys.setrecursionlimit(NEW_RECURSION_LIMIT)
     logger.info("Set recursion limit to %s", NEW_RECURSION_LIMIT)
     norm_cls = MultiInstanceNorm
     if batch_norm:
