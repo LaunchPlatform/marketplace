@@ -240,7 +240,7 @@ def make_marketplace(num_classes: int = 100, default_vendor_count: int = 4):
 def train(
     dataset_dir: pathlib.Path,
     marketplace: list[Spec],
-    step_count: int = 100_000,
+    step_count: int = 500_000,
     batch_size: int = 64,
     num_workers: int = 8,
     initial_lr: float = 1e-3,
