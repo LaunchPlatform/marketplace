@@ -80,6 +80,9 @@ def main():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
+    # Notice: to run this exp, you may need to set a bigger MAX_KERNEL_BUFFERS value
+    # like export MAX_KERNEL_BUFFERS=100
+
     # ref: https://github.com/tinygrad/tinygrad/issues/8617
     # With complex huge compute graph, tinygrad runs into recursion too deep issue, let's bump it up
     NEW_RECURSION_LIMIT = 100_000
