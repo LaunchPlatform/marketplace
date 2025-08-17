@@ -8,12 +8,14 @@ import typing
 
 import click
 import mlflow
+from tinygrad import Device
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
 from tinygrad import TinyJit
 from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
+from tinygrad.nn.state import get_state_dict
 
 from .utils import ensure_experiment
 from marketplace.multi_nn import MultiBatchNorm
@@ -95,6 +97,7 @@ def train(
     initial_lr: float,
     lr_decay_rate: float,
     marketplace: list[Spec],
+    vendor_devices: tuple[str] | None = None,
     initial_forward_pass: int = 1,
     metrics_per_steps: int = 10,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
@@ -103,12 +106,13 @@ def train(
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "initial_forward_pass=%s, metrics_per_steps=%s, forward_pass_schedule=%s, "
+        "vendor_devices=%s, initial_forward_pass=%s, metrics_per_steps=%s, forward_pass_schedule=%s, "
         "checkpoint_filepath=%s, checkpoint_per_steps=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
+        vendor_devices,
         initial_forward_pass,
         metrics_per_steps,
         forward_pass_schedule,
@@ -123,11 +127,19 @@ def train(
     mlflow.log_param("initial_forward_pass", initial_forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
+    mlflow.log_param("vendor_devices", vendor_devices)
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
 
     X_train, Y_train, X_test, Y_test = load_data()
+
+    if vendor_devices:
+        for spec in marketplace:
+            for key, param in get_state_dict(spec.model).items():
+                param.shard_(vendor_devices, axis=0)
+        X_train.shard_(vendor_devices, axis=0)
+        Y_train.shard_(vendor_devices, axis=0)
 
     @TinyJit
     def forward_step() -> tuple[Tensor, Tensor, Tensor]:
@@ -267,6 +279,11 @@ def train(
     help="Use batch norm instead of instance norm (bad performance)",
 )
 @click.option(
+    "--gpus",
+    type=int,
+    help="Distribute vendors to multiple GPUs to speed up the training",
+)
+@click.option(
     "--checkpoint-filepath",
     type=click.Path(dir_okay=False, writable=True),
     help="Filepath of checkpoint to write to",
@@ -284,6 +301,7 @@ def main(
     lr_decay: float,
     vendor_count: int,
     batch_norm: bool,
+    gpus: int,
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
 ):
@@ -297,6 +315,9 @@ def main(
         logger.info("!!!Warning!!! Training with batch norm, performance will be bad")
         norm_cls = MultiBatchNorm
     exp_id = ensure_experiment("Marketplace")
+    vendor_devices = None
+    if gpus:
+        vendor_devices = tuple(f"{Device.DEFAULT}:{i}" for i in range(gpus))
     with mlflow.start_run(
         experiment_id=exp_id,
         run_name="beautiful-mnist",
