@@ -17,6 +17,7 @@ from tinyloader.loader import load
 from tinyloader.loader import load_with_workers
 from tinyloader.loader import Loader
 
+from .utils import ensure_experiment
 from marketplace.multi_nn import MultiConv2d
 from marketplace.multi_nn import MultiInstanceNorm
 from marketplace.multi_nn import MultiLinear
@@ -112,7 +113,8 @@ class BasicBlock(MultiModelBase):
         if stride != 1 or in_channels != out_channels:
             self.downsample = MultiModel(
                 [
-                    nn.Conv2d(
+                    MultiConv2d(
+                        vendor_count,
                         in_channels,
                         out_channels,
                         kernel_size=1,
@@ -134,12 +136,12 @@ class BasicBlock(MultiModelBase):
         return out
 
 
-def make_marketplace(num_classes: int = 100):
-    layer0_vendor_count = 4
+def make_marketplace(num_classes: int = 100, default_vendor_count: int = 4):
+    layer0_vendor_count = default_vendor_count
     layer1_upstream_sampling = 0
-    layer1_vendor_count = 4
+    layer1_vendor_count = default_vendor_count
     layer2_upstream_sampling = 0
-    layer2_vendor_count = 4
+    layer2_vendor_count = default_vendor_count
     return [
         Spec(
             model=MultiModel(
@@ -365,8 +367,15 @@ def train(
 
 
 def main():
-    with mlflow.start_run(run_name="resnet18-without-normal-batch-bs-64"):
-        train(dataset_dir=pathlib.Path("mnist"), marketplace=make_marketplace(10))
+    exp_id = ensure_experiment("ResNet18")
+    with mlflow.start_run(experiment_id=exp_id, run_name="resnet18"):
+        mlflow.log_param("vendor_count", 4)
+        mlflow.log_param("num_classes", 10)
+        mlflow.log_param("dataset", "mnist")
+        train(
+            dataset_dir=pathlib.Path("mnist"),
+            marketplace=make_marketplace(num_classes=10),
+        )
 
 
 if __name__ == "__main__":
