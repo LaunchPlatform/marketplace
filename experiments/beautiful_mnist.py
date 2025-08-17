@@ -283,7 +283,7 @@ def train(
 @click.option(
     "--gpus",
     type=int,
-    help="Distribute vendors to multiple GPUs to speed up the training",
+    help="Distribute vendors to multiple GPUs to speed up the training (not working yet)",
 )
 @click.option(
     "--checkpoint-filepath",
