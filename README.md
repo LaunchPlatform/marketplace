@@ -1,12 +1,12 @@
 # Marketplace
-Marketplace is a machine learning experiment project attempting to train a model without using backpropagation on GPU efficiently.
-The idea is to breaking down layers of a machine learning model into smaller groups of layers, run them with variants of parameters with different combinations.
-We pick the best overall parameters combination and mutate it with different variants of parameters.
-To learn more about the idea, please refer to the article:
+Marketplace is a machine learning experiment aimed at training a model efficiently on a GPU without using backpropagation.
+The approach involves breaking down the layers of a machine learning model into smaller groups, running them with various parameter combinations.
+We select the best-performing parameter combination and mutate it with different parameter variants.
+To learn more about the concept, please refer to the article:
 
 [Marketplace: my first attempt at training without backprop on GPU efficiently](https://fangpenlin.com/posts/2025/08/18/marketplace-my-first-attempt-at-training-without-backprop-on-gpu-efficiently/)
 
-For example, the beautiful_mnist model included in Tinygrad's example folder can be broken down into three groups of layers:
+For example, the [beautiful_mnist model](https://github.com/tinygrad/tinygrad/blob/c30a113b2a876cabaea1049601fea3a0b758c5b1/examples/beautiful_mnist.py) included in Tinygrad's example folder can be broken down into three groups of layers:
 
 ```python
 from marketplace.multi_model import MultiModel, MultiConv2d, MultiLinear, MultiInstanceNorm
