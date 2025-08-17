@@ -98,3 +98,18 @@ That's it.
 We just trained a model without using backpropagation and relying on only the forward pass!
 By reepeating the process, we can train a model.
 Of course, this is still no match for the backprop training, but it's an interesting start.
+
+## Experiments
+
+All of the experiments are in the `experiments` folder.
+To run the training, you can use the following command:
+
+```bash
+uv run python -m experiments.beautiful_mnist
+```
+
+It comes with some arguments to control the training, you can see them by running:
+
+```bash
+uv run python -m experiments.beautiful_mnist --help
+```
