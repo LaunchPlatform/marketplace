@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import mlflow
 
@@ -10,14 +11,14 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Forward Pass")
+    exp_id = ensure_experiment("Forward Pass V2")
     for forward_pass in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]:
         with mlflow.start_run(
             run_name=f"forward-pass-{forward_pass}",
             experiment_id=exp_id,
             log_system_metrics=True,
         ):
-            marketplace = make_marketplace(default_vendor_count=12)
+            marketplace = make_marketplace(default_vendor_count=16)
             train(
                 step_count=10_000,
                 batch_size=512,
@@ -30,4 +31,12 @@ def main():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+
+    # ref: https://github.com/tinygrad/tinygrad/issues/8617
+    # With complex huge compute graph, tinygrad runs into recursion too deep issue, let's bump it up
+    NEW_RECURSION_LIMIT = 100_000
+    logger.info("Current recursion limit is %s", sys.getrecursionlimit())
+    sys.setrecursionlimit(NEW_RECURSION_LIMIT)
+    logger.info("Set recursion limit to %s", NEW_RECURSION_LIMIT)
+
     main()
