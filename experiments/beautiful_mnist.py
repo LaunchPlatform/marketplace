@@ -332,6 +332,7 @@ def main(
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count, norm_cls=norm_cls
             ),
+            vendor_devices=vendor_devices,
             checkpoint_filepath=pathlib.Path(checkpoint_filepath)
             if checkpoint_filepath is not None
             else None,
