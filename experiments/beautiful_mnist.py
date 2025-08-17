@@ -144,6 +144,7 @@ def train(
         Y_test.to_(vendor_devices)
 
     @TinyJit
+    @MultiModelBase.train()
     def forward_step() -> tuple[Tensor, Tensor, Tensor]:
         samples = Tensor.randint(batch_size, high=X_train.shape[0])
         x = X_train[samples]
@@ -153,52 +154,21 @@ def train(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
             dim=0,
         )
-        accuracy = (
-            Tensor.stack(
-                *(
-                    (logits.sigmoid().argmax(axis=1) == y).sum()
-                    for logits in batch_logits
-                ),
-                dim=0,
-            )
-            / batch_size
-        ) * 100
+        best_loss, best_index = loss.topk(1, largest=False)
+        accuracy = (batch_logits[best_index].argmax(axis=1) == y).sum()
         return (
-            loss.realize(),
+            best_loss.realize(),
             accuracy.realize(),
-            batch_paths.realize(),
-        )
-
-    @MultiModelBase.train()
-    def combined_forward_step() -> tuple[Tensor, Tensor, Tensor]:
-        all_loss = []
-        all_accuracy = []
-        all_paths = []
-        for _ in range(current_forward_pass):
-            batch_loss, batch_accuracy, batch_path = forward_step()
-            # TODO: we don't need to cat the result, we only need to find the best and keep it
-            all_loss.append(batch_loss)
-            all_accuracy.append(batch_accuracy)
-            all_paths.append(batch_path)
-        return (
-            Tensor.cat(*all_loss).realize(),
-            Tensor.cat(*all_accuracy),
-            Tensor.cat(*all_paths).realize(),
+            batch_paths[best_index].realize(),
         )
 
     @TinyJit
-    def mutate_step(
-        combined_loss: Tensor, combined_accuracy: Tensor, combined_paths: Tensor
-    ) -> tuple[Tensor, Tensor, Tensor]:
-        min_loss, min_loss_index = combined_loss.topk(1, largest=False)
-        min_path = combined_paths[min_loss_index].flatten()
-        min_accuracy = combined_accuracy[min_loss_index]
+    def mutate_step(best_path: Tensor):
         mutate(
             marketplace=marketplace,
-            leading_path=min_path,
+            leading_path=best_path,
             jitter=lr,
         )
-        return min_loss.realize(), min_accuracy.realize(), min_path.realize()
 
     @TinyJit
     def get_test_acc(path: Tensor) -> Tensor:
@@ -217,19 +187,22 @@ def train(
             for threshold, forward_pass in reversed(forward_pass_schedule):
                 if i >= threshold:
                     if forward_pass != current_forward_pass:
-                        combined_forward_step.reset()
                         mutate_step.reset()
                     current_forward_pass = forward_pass
                     break
 
         start_time = time.perf_counter()
 
-        combined_loss, combined_accuracy, combined_paths = combined_forward_step()
-        loss, accuracy, path = mutate_step(
-            combined_loss=combined_loss,
-            combined_accuracy=combined_accuracy,
-            combined_paths=combined_paths,
-        )
+        best_loss, best_accuracy, best_path = forward_step()
+        for _ in range(current_forward_pass - 1):
+            batch_loss, batch_accuracy, batch_path = forward_step()
+            if batch_loss.item() >= best_loss:
+                continue
+            best_loss = batch_loss
+            best_accuracy = batch_accuracy
+            best_path = batch_path
+
+        mutate_step(best_path)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
@@ -238,8 +211,8 @@ def train(
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
             test_acc = get_test_acc(path).item()
-            mlflow.log_metric("training/loss", loss.item(), step=i)
-            mlflow.log_metric("training/accuracy", accuracy.item(), step=i)
+            mlflow.log_metric("training/loss", best_loss.item(), step=i)
+            mlflow.log_metric("training/accuracy", best_accuracy.item(), step=i)
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
@@ -249,14 +222,14 @@ def train(
         ):
             write_checkpoint(
                 marketplace=marketplace,
-                path=path,
+                path=best_path,
                 global_step=i,
                 output_filepath=pathlib.Path(checkpoint_filepath),
             )
 
         t.set_description(
-            f"loss: {loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():.2e}, "
-            f"acc: {accuracy.item():.2f}%, vacc: {test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
+            f"loss: {best_loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():.2e}, "
+            f"acc: {best_accuracy.item():.2f}%, vacc: {test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
         )
     if path is not None and i is not None and checkpoint_filepath is not None:
         write_checkpoint(
