@@ -345,7 +345,7 @@ def train(
             x_batch = []
             y_batch = []
             # XXX: well, this is not great, but let's some quick hack to make it works
-            for _ in range(batch_size * 128):
+            for _ in range(batch_size * 32):
                 x, y = next(test_generator)
                 x_batch.append(x)
                 y_batch.append(y)
