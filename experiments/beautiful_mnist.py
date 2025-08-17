@@ -156,7 +156,9 @@ def train(
         )
         best_loss, best_index = loss.topk(1, largest=False)
         best_index = best_index.squeeze(0)
-        accuracy = (batch_logits[best_index].sigmoid().argmax(axis=1) == y).sum()
+        accuracy = (
+            (batch_logits[best_index].sigmoid().argmax(axis=1) == y).sum() / batch_size
+        ) * 100
         return (
             best_loss.realize(),
             accuracy.realize(),
@@ -197,7 +199,7 @@ def train(
         best_loss, best_accuracy, path = forward_step()
         for _ in range(current_forward_pass - 1):
             batch_loss, batch_accuracy, batch_path = forward_step()
-            if batch_loss.item() >= best_loss:
+            if batch_loss.item() >= best_loss.item():
                 continue
             best_loss = batch_loss
             best_accuracy = batch_accuracy
@@ -248,6 +250,12 @@ def train(
     "--initial-lr", type=float, default=1e-3, help="Initial learning rate value"
 )
 @click.option("--lr-decay", type=float, default=1e-4, help="Learning rate decay rate")
+@click.option(
+    "--forward-pass",
+    type=int,
+    default=1,
+    help="How many forward pass to run (simulate distributed computing)",
+)
 @click.option("--vendor-count", type=int, default=8, help="Vendor count")
 @click.option(
     "--batch-norm",
@@ -275,6 +283,7 @@ def main(
     batch_size: int,
     initial_lr: float,
     lr_decay: float,
+    forward_pass: int,
     vendor_count: int,
     batch_norm: bool,
     gpus: int,
@@ -304,6 +313,7 @@ def main(
             batch_size=batch_size,
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
+            initial_forward_pass=forward_pass,
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count, norm_cls=norm_cls
             ),
