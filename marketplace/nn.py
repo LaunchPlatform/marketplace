@@ -74,14 +74,13 @@ class Model(ModelBase):
 
 class Conv2D(nn.Conv2d, ModelBase):
     def forward(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
-        weight_delta = rng.delta_like(self.weight)
-
-        bias_delta = None
+        weight = self.weight + rng.delta_like(self.weight)
+        bias = None
         if self.bias is not None:
-            bias_delta = rng.delta_like(self.bias)
+            bias = self.bias + rng.delta_like(self.bias)
         return x.conv2d(
-            self.weight + weight_delta,
-            self.bias + bias_delta if self.bias is not None else None,
+            weight,
+            bias if bias is not None else None,
             self.groups,
             self.stride,
             self.dilation,
@@ -98,15 +97,13 @@ class Conv2D(nn.Conv2d, ModelBase):
 
 class Linear(nn.Linear, ModelBase):
     def forward(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
-        weight_delta = rng.delta_like(self.weight)
-
-        bias_delta = None
+        weight = self.weight + rng.delta_like(self.weight)
+        bias = None
         if self.bias is not None:
-            bias_delta = rng.delta_like(self.bias)
-
+            bias = self.bias + rng.delta_like(self.bias)
         return x.linear(
-            (self.weight + weight_delta).transpose(),
-            (self.bias + bias_delta) if self.bias is not None else None,
+            weight.transpose(),
+            bias if bias is not None else None,
         )
 
     def update(self, rng: RandomNumberGenerator) -> OrderedDict[str, Tensor]:
@@ -126,11 +123,11 @@ class InstanceNorm(nn.InstanceNorm, ModelBase):
         )
         if self.weight is None or self.bias is None:
             return x
-        weight_delta = rng.delta_like(self.weight)
-        bias_delta = rng.delta_like(self.bias)
-        return x * (self.weight + weight_delta).reshape(1, -1, *[1] * (x.ndim - 2)) + (
-            self.bias + bias_delta
-        ).reshape(1, -1, *[1] * (x.ndim - 2))
+        weight = self.weight + rng.delta_like(self.weight)
+        bias = self.bias + rng.delta_like(self.bias)
+        return x * weight.reshape(1, -1, *[1] * (x.ndim - 2)) + bias.reshape(
+            1, -1, *[1] * (x.ndim - 2)
+        )
 
     def update(self, rng: RandomNumberGenerator) -> OrderedDict[str, Tensor]:
         params = OrderedDict()
