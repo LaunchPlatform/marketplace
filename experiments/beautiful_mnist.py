@@ -25,9 +25,9 @@ from marketplace.nn import Model
 from marketplace.nn import ModelBase
 from marketplace.random import RandomNumberGenerator
 from marketplace.training import forward
-from marketplace.training import forward_with_path
 from marketplace.training import mutate
 from marketplace.training import Spec
+from marketplace.training import straight_forward
 from marketplace.utils import write_checkpoint
 
 logger = logging.getLogger(__name__)
@@ -173,9 +173,9 @@ def train(
         )
 
     @TinyJit
-    def get_test_acc(path: Tensor) -> Tensor:
+    def get_test_acc() -> Tensor:
         return (
-            forward_with_path(marketplace, X_test, path).argmax(axis=1) == Y_test
+            straight_forward(marketplace, X_test).argmax(axis=1) == Y_test
         ).mean() * 100
 
     i = 0
@@ -212,13 +212,13 @@ def train(
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
-            # test_acc = get_test_acc(path).item()
+            test_acc = get_test_acc().item()
             mlflow.log_metric("training/loss", best_loss.item(), step=i)
             mlflow.log_metric("training/accuracy", best_accuracy.item(), step=i)
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
-            # mlflow.log_metric("testing/accuracy", test_acc, step=i)
+            mlflow.log_metric("testing/accuracy", test_acc, step=i)
         if checkpoint_filepath is not None and i % checkpoint_per_steps == (
             checkpoint_per_steps - 1
         ):

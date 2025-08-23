@@ -122,10 +122,10 @@ def forward(
     return data, seeds
 
 
-def forward_with_path(specs: list[Spec], x: Tensor, paths: Tensor) -> Tensor:
+def straight_forward(specs: list[Spec], x: Tensor) -> Tensor:
     data = x
-    for spec, index in zip(specs, paths):
-        data = spec.model(index, data)
+    for spec in specs:
+        data = spec.model(data)
     return data
 
 

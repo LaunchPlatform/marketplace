@@ -5,7 +5,6 @@ from typing import OrderedDict
 
 from tinygrad import nn
 from tinygrad import Tensor
-from tinygrad.nn import InstanceNorm
 
 from .random import RandomNumberGenerator
 
@@ -13,7 +12,10 @@ from .random import RandomNumberGenerator
 class ModelBase:
     training: typing.ClassVar[bool] = False
 
-    def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
+    def __call__(self, x: Tensor) -> Tensor:
+        raise NotImplementedError()
+
+    def forward(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         raise NotImplementedError()
 
     def update(self, rng: RandomNumberGenerator):
@@ -38,11 +40,17 @@ class Model(ModelBase):
     ):
         self.layers: typing.List[ModelBase | typing.Callable[[Tensor], Tensor]] = layers
 
-    def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
+    def __call__(self, x: Tensor) -> Tensor:
+        value = x
+        for model in self.layers:
+            value = model(value)
+        return value
+
+    def forward(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         value = x
         for model in self.layers:
             if isinstance(model, ModelBase):
-                value = model(rng, value)
+                value = model.forward(rng, value)
             else:
                 value = model(value)
         return value
@@ -65,7 +73,7 @@ class Model(ModelBase):
 
 
 class Conv2D(ModelBase, nn.Conv2d):
-    def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
+    def forward(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         weight_delta = rng.delta_like(self.weight)
 
         bias_delta = None
@@ -89,7 +97,7 @@ class Conv2D(ModelBase, nn.Conv2d):
 
 
 class Linear(ModelBase, nn.Linear):
-    def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
+    def forward(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         weight_delta = rng.delta_like(self.weight)
 
         bias_delta = None
@@ -109,8 +117,8 @@ class Linear(ModelBase, nn.Linear):
         return params
 
 
-class InstanceNorm(ModelBase, InstanceNorm):
-    def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
+class InstanceNorm(ModelBase, nn.InstanceNorm):
+    def forward(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         x = (
             x.reshape(x.shape[0], self.num_features, -1)
             .layernorm(eps=self.eps)
