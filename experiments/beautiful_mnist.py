@@ -163,10 +163,10 @@ def train(
         )
 
     @TinyJit
-    def mutate_step(best_path: Tensor):
+    def mutate_step(best_seeds: Tensor):
         mutate(
             marketplace=marketplace,
-            leading_path=best_path,
+            best_seeds=best_seeds,
             jitter=lr,
         )
 
@@ -177,7 +177,7 @@ def train(
         ).mean() * 100
 
     i = 0
-    path = None
+    seeds = None
     test_acc = float("nan")
     current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):
@@ -193,16 +193,16 @@ def train(
 
         start_time = time.perf_counter()
 
-        best_loss, best_accuracy, path = forward_step()
+        best_loss, best_accuracy, seeds = forward_step()
         for _ in range(current_forward_pass - 1):
-            batch_loss, batch_accuracy, batch_path = forward_step()
+            batch_loss, batch_accuracy, batch_seeds = forward_step()
             if batch_loss.item() >= best_loss.item():
                 continue
             best_loss = batch_loss
             best_accuracy = batch_accuracy
-            path = batch_path
+            seeds = batch_seeds
 
-        mutate_step(path)
+        mutate_step(seeds)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time

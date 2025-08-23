@@ -141,15 +141,14 @@ def traverse(model: MultiModelBase, path: list[str]) -> MultiModelBase:
     return current
 
 
-def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
-    for spec, leading_index in zip(marketplace, leading_path):
+def mutate(marketplace: list[Spec], best_seeds: Tensor, jitter: Tensor):
+    for spec, seed in zip(marketplace, best_seeds):
         if not spec.evolve:
             continue
         multi_params = nn.state.get_state_dict(spec.model)
         for key, params in multi_params.items():
             if spec.excluded_param_keys is not None and key in spec.excluded_param_keys:
                 continue
-            leading_params = params[leading_index]
             path = key.split(".")
             owner_model = traverse(spec.model, path[:-1])
             copy_only_params = ()
@@ -157,16 +156,8 @@ def mutate(marketplace: list[Spec], leading_path: Tensor, jitter: Tensor):
                 copy_only_params = owner_model.copy_only_params
             attr_name = path[-1]
             if attr_name in copy_only_params:
-                params.assign(
-                    leading_params.repeat(
-                        spec.model.vendor_count, *((1,) * leading_params.ndim)
-                    )
-                ).realize()
                 continue
-            delta = Tensor.uniform(*params.shape, low=-jitter, high=jitter)
-            # TODO: by generating a big block of random number and masking the part we don't want to change with
-            #       zeros, while it runs faster overall, but we waste time generating random numbers not really used...
-            delta[leading_index].assign(Tensor.zeros(*leading_params.shape))
+
             params.assign(
                 leading_params.repeat(
                     spec.model.vendor_count, *((1,) * leading_params.ndim)

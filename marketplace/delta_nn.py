@@ -14,6 +14,9 @@ class DeltaModelBase:
     def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         raise NotImplementedError()
 
+    def update(self, rng: RandomNumberGenerator):
+        raise NotImplementedError()
+
     class train(contextlib.ContextDecorator):
         def __init__(self, mode: bool = True):
             self.mode = mode
@@ -44,6 +47,12 @@ class DeltaModel(DeltaModelBase):
                 value = model(value)
         return value
 
+    def update(self, rng: RandomNumberGenerator):
+        for model in self.layers:
+            if not isinstance(model, DeltaModelBase):
+                continue
+            model.update(rng)
+
 
 class DeltaConv2d(DeltaModelBase, nn.Conv2d):
     def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
@@ -61,6 +70,11 @@ class DeltaConv2d(DeltaModelBase, nn.Conv2d):
             self.padding,
         )
 
+    def update(self, rng: RandomNumberGenerator):
+        self.weight.assign(self.weight + rng.uniform_like(self.weight))
+        if self.bias is not None:
+            self.bias.assign(self.bias + rng.uniform_like(self.bias))
+
 
 class DeltaLinear(DeltaModelBase, nn.Linear):
     def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
@@ -74,6 +88,11 @@ class DeltaLinear(DeltaModelBase, nn.Linear):
             (self.weight + weight_delta).transpose(),
             (self.bias + bias_delta) if self.bias is not None else None,
         )
+
+    def update(self, rng: RandomNumberGenerator):
+        self.weight.assign(self.weight + rng.uniform_like(self.weight))
+        if self.bias is not None:
+            self.bias.assign(self.bias + rng.uniform_like(self.bias))
 
 
 class DeltaInstanceNorm(DeltaModelBase, InstanceNorm):
@@ -90,3 +109,9 @@ class DeltaInstanceNorm(DeltaModelBase, InstanceNorm):
         return x * (self.weight + weight_delta).reshape(1, -1, *[1] * (x.ndim - 2)) + (
             self.bias + bias_delta
         ).reshape(1, -1, *[1] * (x.ndim - 2))
+
+    def update(self, rng: RandomNumberGenerator):
+        if self.weight is None or self.bias is None:
+            return
+        self.weight.assign(self.weight + rng.uniform_like(self.weight))
+        self.bias.assign(self.bias + rng.uniform_like(self.bias))
