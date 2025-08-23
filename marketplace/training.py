@@ -145,22 +145,6 @@ def mutate(marketplace: list[Spec], best_seeds: Tensor, jitter: Tensor):
     for spec, seed in zip(marketplace, best_seeds):
         if not spec.evolve:
             continue
-        multi_params = nn.state.get_state_dict(spec.model)
-        for key, params in multi_params.items():
-            if spec.excluded_param_keys is not None and key in spec.excluded_param_keys:
-                continue
-            path = key.split(".")
-            owner_model = traverse(spec.model, path[:-1])
-            copy_only_params = ()
-            if hasattr(owner_model, "copy_only_params"):
-                copy_only_params = owner_model.copy_only_params
-            attr_name = path[-1]
-            if attr_name in copy_only_params:
-                continue
-
-            params.assign(
-                leading_params.repeat(
-                    spec.model.vendor_count, *((1,) * leading_params.ndim)
-                )
-                + delta
-            ).realize()
+        updated_params = spec.model.update(RandomNumberGenerator(seed=seed))
+        for params in updated_params.values():
+            params.realize()
