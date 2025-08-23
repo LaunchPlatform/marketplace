@@ -26,6 +26,25 @@ class DeltaModelBase:
             DeltaModelBase.training = self.prev
 
 
+class DeltaModel(DeltaModelBase):
+    def __init__(
+        self,
+        layers: typing.List[DeltaModelBase | typing.Callable[[Tensor], Tensor]],
+    ):
+        self.layers: typing.List[DeltaModelBase | typing.Callable[[Tensor], Tensor]] = (
+            layers
+        )
+
+    def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
+        value = x
+        for model in self.layers:
+            if isinstance(model, DeltaModelBase):
+                value = model(rng, value)
+            else:
+                value = model(value)
+        return value
+
+
 class DeltaConv2d(DeltaModelBase, nn.Conv2d):
     def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         weight_delta = rng.uniform_like(self.weight)
