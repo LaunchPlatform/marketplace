@@ -18,11 +18,11 @@ from tinygrad.nn.datasets import mnist
 from tinygrad.nn.state import get_state_dict
 
 from .utils import ensure_experiment
-from marketplace.delta_nn import Conv2D
-from marketplace.delta_nn import InstanceNorm
-from marketplace.delta_nn import Linear
-from marketplace.delta_nn import Model
-from marketplace.delta_nn import ModelBase
+from marketplace.nn import Conv2D
+from marketplace.nn import InstanceNorm
+from marketplace.nn import Linear
+from marketplace.nn import Model
+from marketplace.nn import ModelBase
 from marketplace.random import RandomNumberGenerator
 from marketplace.training import forward
 from marketplace.training import forward_with_path
