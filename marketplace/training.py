@@ -106,15 +106,16 @@ def produce(
 def forward(
     specs: list[Spec],
     x: Tensor,
-    initial_paths: Tensor | None = None,
+    initial_seeds: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
     data = x
-    paths = initial_paths
+    seeds = initial_seeds
     for spec in specs:
         data, paths = produce(
             model=spec.model,
+            vendor_count=spec.vendor_count,
             x=data,
-            seeds=paths,
+            seeds=seeds,
             upstream_sampling=spec.upstream_sampling,
         )
     return data, paths
