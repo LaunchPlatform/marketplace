@@ -103,13 +103,16 @@ class RandomNumberGenerator:
         dtype: DTypeLike | None = None,
         contiguous: bool = True,
     ) -> Tensor:
-        return rand(
-            *shape,
-            seed=self.seed,
-            counter=self.counter,
-            device=device,
-            dtype=dtype,
-            contiguous=contiguous,
+        return (self.seed != 0).where(
+            rand(
+                *shape,
+                seed=self.seed,
+                counter=self.counter,
+                device=device,
+                dtype=dtype,
+                contiguous=contiguous,
+            ),
+            Tensor.zeros(*shape, device=device, dtype=dtype),
         )
 
     def uniform(
