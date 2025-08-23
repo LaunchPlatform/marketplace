@@ -49,35 +49,32 @@ def produce(
     :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
     :return: (output_data, paths)
     """
-    if seeds is None:
-        seeds = Tensor.randint(vendor_count, low=0, high=SEED_MAX, dtype=dtypes.uint64)
-        counters = Tensor.zeros(vendor_count, dtype=dtypes.int)
+    new_seeds = Tensor.randint(vendor_count, low=0, high=SEED_MAX, dtype=dtypes.uint64)
 
+    if seeds is None:
         # this is the first spec for taking in the raw input, let's feed data to all of them
         # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
         output_data = Tensor.stack(
-            *(
-                model(RandomNumberGenerator(seed=seed, counter=counter), x)
-                for seed, counter in zip(seeds, counters)
-            ),
+            *(model(RandomNumberGenerator(seed=seed), x) for seed in new_seeds),
             dim=0,
         )
-        return output_data, seeds.unsqueeze(1)
+        return output_data, new_seeds.unsqueeze(1)
     if x.size(0) != seeds.size(0):
         raise ValueError(
-            "Provided input data's first dimension doesn't match with the paths' first dimension"
+            "Provided input data's first dimension doesn't match with the seeds' first dimension"
         )
 
     if upstream_sampling == 0:
         # when upstream sampling is zero, it means we sample the full input
         upstream_sampling = x.shape[0]
-        input_indexes = Tensor.arange(x.shape[0]).repeat(model.vendor_count, 1)
+        input_indexes = Tensor.arange(x.shape[0]).expand(vendor_count, -1)
     else:
         input_count = seeds.size(0)
+        # TODO: use RANGIFY?
         input_indexes = Tensor.stack(
             *(
                 Tensor.randperm(input_count)[:upstream_sampling]
-                for _ in range(model.vendor_count)
+                for _ in range(vendor_count)
             ),
             dim=0,
         )
@@ -89,25 +86,21 @@ def produce(
 
     output_data = Tensor.stack(
         *(
-            model(i, merged)
-            for i, merged in zip(range(model.vendor_count), merged_batches)
+            model(RandomNumberGenerator(seed=seed), merged)
+            for seed, merged in zip(new_seeds, merged_batches)
         ),
         dim=0,
     )
     # breaking down merged batches back to individual batches
     output_data = output_data.reshape(-1, input_data.shape[2], *output_data.shape[2:])
 
-    prev_paths = seeds[input_indexes].flatten(0, 1)
-    new_paths = (
-        Tensor.arange(model.vendor_count)
-        .unsqueeze(1)
-        .repeat(1, upstream_sampling)
-        .flatten()
-        .unsqueeze(1)
+    prev_seeds = seeds[input_indexes].flatten(0, 1)
+    current_seeds = (
+        new_seeds.unsqueeze(1).repeat(1, upstream_sampling).flatten().unsqueeze(1)
     )
-    merged_paths = prev_paths.cat(new_paths, dim=1)
+    merged_seeds = prev_seeds.cat(current_seeds, dim=1)
 
-    return output_data, merged_paths
+    return output_data, merged_seeds
 
 
 def forward(
