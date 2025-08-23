@@ -151,10 +151,11 @@ def train(
     def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         for spec_seeds in vendor_seeds:
             spec_seeds.assign(
-                Tensor.zeros(1, dtype=dtypes.uint64).cat(
+                Tensor.cat(
+                    Tensor.zeros(1, dtype=dtypes.uint64),
                     Tensor.randint(
                         len(spec_seeds) - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
-                    )
+                    ),
                 )
             ).realize()
 
