@@ -118,7 +118,7 @@ def forward(
             seeds=seeds,
             upstream_sampling=spec.upstream_sampling,
         )
-    return data, paths
+    return data, seeds
 
 
 def forward_with_path(specs: list[Spec], x: Tensor, paths: Tensor) -> Tensor:
