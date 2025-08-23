@@ -1,5 +1,7 @@
 import contextlib
 import typing
+from collections import OrderedDict
+from typing import OrderedDict
 
 from tinygrad import nn
 from tinygrad import Tensor
@@ -47,11 +49,21 @@ class DeltaModel(DeltaModelBase):
                 value = model(value)
         return value
 
-    def update(self, rng: RandomNumberGenerator):
-        for model in self.layers:
+    def update(self, rng: RandomNumberGenerator) -> OrderedDict[str, Tensor]:
+        params = OrderedDict()
+        for i, model in enumerate(self.layers):
             if not isinstance(model, DeltaModelBase):
                 continue
-            model.update(rng)
+            model_params = model.update(rng)
+            params.update(
+                OrderedDict(
+                    [
+                        (f"layers[{i}].{key}", value)
+                        for key, value in model_params.items()
+                    ]
+                )
+            )
+        return params
 
 
 class DeltaConv2d(DeltaModelBase, nn.Conv2d):
@@ -70,10 +82,14 @@ class DeltaConv2d(DeltaModelBase, nn.Conv2d):
             self.padding,
         )
 
-    def update(self, rng: RandomNumberGenerator):
-        self.weight.assign(self.weight + rng.uniform_like(self.weight))
+    def update(self, rng: RandomNumberGenerator) -> OrderedDict[str, Tensor]:
+        params = OrderedDict()
+        params["weight"] = self.weight.assign(
+            self.weight + rng.uniform_like(self.weight)
+        )
         if self.bias is not None:
-            self.bias.assign(self.bias + rng.uniform_like(self.bias))
+            params["bias"] = self.bias.assign(self.bias + rng.uniform_like(self.bias))
+        return params
 
 
 class DeltaLinear(DeltaModelBase, nn.Linear):
@@ -89,10 +105,14 @@ class DeltaLinear(DeltaModelBase, nn.Linear):
             (self.bias + bias_delta) if self.bias is not None else None,
         )
 
-    def update(self, rng: RandomNumberGenerator):
-        self.weight.assign(self.weight + rng.uniform_like(self.weight))
+    def update(self, rng: RandomNumberGenerator) -> OrderedDict[str, Tensor]:
+        params = OrderedDict()
+        params["weight"] = self.weight.assign(
+            self.weight + rng.uniform_like(self.weight)
+        )
         if self.bias is not None:
-            self.bias.assign(self.bias + rng.uniform_like(self.bias))
+            params["bias "] = self.bias.assign(self.bias + rng.uniform_like(self.bias))
+        return params
 
 
 class DeltaInstanceNorm(DeltaModelBase, InstanceNorm):
@@ -110,8 +130,12 @@ class DeltaInstanceNorm(DeltaModelBase, InstanceNorm):
             self.bias + bias_delta
         ).reshape(1, -1, *[1] * (x.ndim - 2))
 
-    def update(self, rng: RandomNumberGenerator):
+    def update(self, rng: RandomNumberGenerator) -> OrderedDict[str, Tensor]:
+        params = OrderedDict()
         if self.weight is None or self.bias is None:
-            return
-        self.weight.assign(self.weight + rng.uniform_like(self.weight))
-        self.bias.assign(self.bias + rng.uniform_like(self.bias))
+            return params
+        params["weight"] = self.weight.assign(
+            self.weight + rng.uniform_like(self.weight)
+        )
+        params["bias"] = self.bias.assign(self.bias + rng.uniform_like(self.bias))
+        return params
