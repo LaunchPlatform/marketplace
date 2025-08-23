@@ -23,7 +23,6 @@ from marketplace.delta_nn import DeltaInstanceNorm
 from marketplace.delta_nn import DeltaLinear
 from marketplace.delta_nn import DeltaModel
 from marketplace.delta_nn import DeltaModelBase
-from marketplace.multi_nn import MultiModelBase
 from marketplace.random import RandomNumberGenerator
 from marketplace.training import forward
 from marketplace.training import forward_with_path
