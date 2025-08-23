@@ -28,11 +28,10 @@ def _threefry_random_bits(key: Tensor, counts0: Tensor, counts1: Tensor) -> Tens
 def rand(
     *shape,
     seed: Tensor,
-    base_count: int | Tensor = 0,
+    counter: Tensor = 0,
     device: str | None = None,
     dtype: DTypeLike | None = None,
     contiguous: bool = True,
-    **kwargs,
 ) -> Tensor:
     if not dtypes.is_float(dtype := to_dtype(dtype or dtypes.default_float)):
         raise ValueError(f"rand only supports float dtypes, got {dtype}")
@@ -47,9 +46,6 @@ def rand(
     if seed.ndim != 0:
         raise ValueError("Seed must be a scalar")
 
-    if not isinstance(base_count, int):
-        raise ValueError("Base count needs to be an integer")
-
     # if shape has 0, return zero tensor
     if (numel := prod(shape)) == 0:
         return Tensor.zeros(shape, device=device, dtype=dtype, **kwargs)
@@ -57,12 +53,16 @@ def rand(
     # how many 4 bytes random bits sets we should generate
     num = ceildiv(numel * dtype.itemsize, 4)
 
+    # increase counter
+    counter.assign(counter + num).contiguous()
+    bits_count = counter - num
+
     # threefry random bits
     counts0 = (
         Tensor.arange(
             ceildiv(num, 2), device=device, dtype=dtypes.uint32, requires_grad=False
         )
-        + base_count
+        + bits_count
     )
     counts1 = counts0 + ceildiv(num, 2)
     bits = _threefry_random_bits(seed, counts0, counts1)[:num]
@@ -80,10 +80,39 @@ def rand(
     one = Tensor.ones_like(bits, device=bits.device, dtype=dtype).bitcast(uint_dtype)
     bits = bits.rshift((dtype.itemsize * 8) - nmant).bitwise_or(one)
     # bitcast back to the original dtype and reshape
-    out = (
-        bits.bitcast(dtype)[:numel]
-        .sub(1)
-        .reshape(shape)
-        .requires_grad_(kwargs.get("requires_grad"))
-    )
+    out = bits.bitcast(dtype)[:numel].sub(1).reshape(shape)
     return out.contiguous() if contiguous else out
+
+
+class RandomNumberGenerator:
+    def __init__(self, seed: Tensor, counter: Tensor):
+        if seed.dtype != dtypes.uint64:
+            raise ValueError("Seed dtype needs to be uint64")
+        self.seed = seed
+        self.counter = counter
+
+    def rand(
+        self,
+        *shape,
+        device: str | None = None,
+        dtype: DTypeLike | None = None,
+        contiguous: bool = True,
+    ) -> Tensor:
+        return rand(
+            *shape,
+            seed=self.seed,
+            counter=self.counter,
+            device=device,
+            dtype=dtype,
+            contiguous=contiguous,
+        )
+
+    def uniform(
+        self, *shape, low=0.0, high=1.0, dtype: DTypeLike | None = None
+    ) -> Tensor:
+        return ((high - low) * self.rand(*shape)).cast(
+            dtype or dtypes.default_float
+        ) + low
+
+    def uniform_like(self, target: Tensor, low=0.0, high=1.0):
+        return self.uniform(*target.shape, low=low, high=high, dtype=target.dtype)
