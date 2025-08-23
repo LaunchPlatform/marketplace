@@ -70,6 +70,24 @@ wheels = [
 ]
 
 [[package]]
+name = "capstone"
+version = "5.0.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d5/b0/1f126035a4cbc6f488b97e4bd57a46a28b6ba29ca8b938cbda840601a18a/capstone-5.0.6.tar.gz", hash = "sha256:b11a87d67751b006b9b44428d59c99512e6d6c89cf7dff8cdd92d9065628b5a0", size = 2945704 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/9a/d9c11e090fa03dfc61a03a57ba44c6a07370f4ac5814f2a5804bfd40ee8b/capstone-5.0.6-py3-none-macosx_10_9_universal2.whl", hash = "sha256:0bca16e1c3ca1b928df6103b3889dcb6df7b05392d75a0b7af3508798148b899", size = 2177082 },
+    { url = "https://files.pythonhosted.org/packages/66/28/72a0be2325e6ee459f27cdcd835d3eee6fed5136321b5f7be41b41dc8656/capstone-5.0.6-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:539191906a34ad1c573ec12b787b2caf154ea41175db6ded9def00aea8151099", size = 1180215 },
+    { url = "https://files.pythonhosted.org/packages/54/93/7b8fb02661d47a2822d5b640df804ef310417144af02e6db3446f174c4b5/capstone-5.0.6-py3-none-macosx_11_0_arm64.whl", hash = "sha256:e0b87b283905e4fc43635ca04cf26f4a5d9e8375852e5464d38938f3a28c207a", size = 1192757 },
+    { url = "https://files.pythonhosted.org/packages/ba/a2/d1bdb7260ade8165182979ea16098ef3a37c01316140511a611e549dbfe3/capstone-5.0.6-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:fa7892f0c89455078c18f07d2d309fb07baa53061b8f9a63db1ea00d41a46726", size = 1458413 },
+    { url = "https://files.pythonhosted.org/packages/78/7f/ec0687bbe8f6b128f1d41d90ec7cedfd1aaaa4ecb1ae8d334acc7dad8013/capstone-5.0.6-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0358855773100bb91ae6681fabce7299df83156945ba943f6211061a592c54a6", size = 1481605 },
+    { url = "https://files.pythonhosted.org/packages/fc/1d/77bb0f79e1dacdfdcc0679c747d9ca24cc621095e09bdb665e7dd0c580ae/capstone-5.0.6-py3-none-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:667d6466dab1522fa5e9659be5cf1aca83e4fc3da7d15d0e5e6047f71fb46c4a", size = 1480730 },
+    { url = "https://files.pythonhosted.org/packages/72/63/07437972f68d0b2ba13e1705a6994404c9c961afbadc342c5b6fcf1de652/capstone-5.0.6-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:45c0e25500dd8d283d3b70f2e10cebfec93ab8bdaf6af9a763a0a999b4705891", size = 1457992 },
+    { url = "https://files.pythonhosted.org/packages/0c/53/f371e86493a2ae659b5a493c3cc23122974e83a1f53d3a5638d7bb7ac371/capstone-5.0.6-py3-none-musllinux_1_2_i686.whl", hash = "sha256:22f1f2f118f8fa1d1c5c90bca90e75864d55e16349b3c03aaea0e86b4a45d2a9", size = 1484184 },
+    { url = "https://files.pythonhosted.org/packages/df/c3/8b842ae32949c3570581164619c2f69001c6d8da566dc2e490372032b0d6/capstone-5.0.6-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:bc23cf634f51d0e53bdd04ea53ccfff7fc9060dfe58dff1e1b260ce40e5538ff", size = 1485357 },
+    { url = "https://files.pythonhosted.org/packages/da/72/ff7894c2fb5716d9a3ce9c27ba34b29d991a11d8442d2ef0fcdc5564ba7e/capstone-5.0.6-py3-none-win_amd64.whl", hash = "sha256:761c3deae00b22ac697081cdae1383bb90659dd0d79387a09cf5bdbb22b17064", size = 1271345 },
+]
+
+[[package]]
 name = "certifi"
 version = "2025.8.3"
 source = { registry = "https://pypi.org/simple" }
@@ -675,6 +693,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "capstone" },
     { name = "matplotlib" },
     { name = "pytest" },
     { name = "seaborn" },
@@ -688,12 +707,13 @@ requires-dist = [
     { name = "mlflow", specifier = ">=3.2.0" },
     { name = "numpy", specifier = ">=2.3.2" },
     { name = "psutil", specifier = ">=7.0.0" },
-    { name = "tinygrad", git = "https://github.com/tinygrad/tinygrad.git?rev=e9e5a08a04accb60242eb82bdba5bad7675636e5" },
+    { name = "tinygrad", git = "https://github.com/tinygrad/tinygrad.git?rev=e39b25cd36ad9bbd59921f36f19dee46b0976089" },
     { name = "tinyloader", specifier = ">=0.1.3" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "capstone", specifier = ">=5.0.6" },
     { name = "matplotlib", specifier = ">=3.10.5" },
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "seaborn", specifier = ">=0.13.2" },
@@ -1714,8 +1734,8 @@ wheels = [
 
 [[package]]
 name = "tinygrad"
-version = "0.10.3"
-source = { git = "https://github.com/tinygrad/tinygrad.git?rev=e9e5a08a04accb60242eb82bdba5bad7675636e5#e9e5a08a04accb60242eb82bdba5bad7675636e5" }
+version = "0.11.0"
+source = { git = "https://github.com/tinygrad/tinygrad.git?rev=e39b25cd36ad9bbd59921f36f19dee46b0976089#e39b25cd36ad9bbd59921f36f19dee46b0976089" }
 
 [[package]]
 name = "tinyloader"

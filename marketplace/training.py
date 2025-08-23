@@ -3,12 +3,13 @@ import dataclasses
 from tinygrad import nn
 from tinygrad import Tensor
 
-from .multi_nn import MultiModelBase
+from .delta_nn import DeltaModelBase
 
 
 @dataclasses.dataclass
 class Spec:
-    model: MultiModelBase
+    model: DeltaModelBase
+    vendor_count: int
     upstream_sampling: int = 0
     evolve: bool = True
     excluded_param_keys: frozenset[str] | None = None

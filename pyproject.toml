@@ -14,10 +14,11 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-tinygrad = { git = "https://github.com/tinygrad/tinygrad.git", rev="e9e5a08a04accb60242eb82bdba5bad7675636e5" }
+tinygrad = { git = "https://github.com/tinygrad/tinygrad.git", rev="e39b25cd36ad9bbd59921f36f19dee46b0976089" }
 
 [dependency-groups]
 dev = [
+    "capstone>=5.0.6",
     "matplotlib>=3.10.5",
     "pytest>=8.4.1",
     "seaborn>=0.13.2",

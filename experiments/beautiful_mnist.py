@@ -18,11 +18,11 @@ from tinygrad.nn.datasets import mnist
 from tinygrad.nn.state import get_state_dict
 
 from .utils import ensure_experiment
-from marketplace.multi_nn import MultiBatchNorm
-from marketplace.multi_nn import MultiConv2d
-from marketplace.multi_nn import MultiInstanceNorm
-from marketplace.multi_nn import MultiLinear
-from marketplace.multi_nn import MultiModel
+from marketplace.delta_nn import DeltaConv2d
+from marketplace.delta_nn import DeltaInstanceNorm
+from marketplace.delta_nn import DeltaLinear
+from marketplace.delta_nn import DeltaModel
+from marketplace.delta_nn import DeltaModelBase
 from marketplace.multi_nn import MultiModelBase
 from marketplace.training import forward
 from marketplace.training import forward_with_path
@@ -41,7 +41,6 @@ def load_data():
 def make_marketplace(
     structure: list[tuple[int, int]] | None = None,
     default_vendor_count: int = 8,
-    norm_cls: typing.Type[MultiModelBase] = MultiInstanceNorm,
 ):
     if structure is None:
         structure = [
@@ -52,41 +51,39 @@ def make_marketplace(
             # layer 2
             (default_vendor_count, 0),
         ]
-    l0_vendor_count = structure[0][0]
-    l1_vendor_count = structure[1][0]
-    l1_upstream_sampling = structure[1][1]
-    l2_vendor_count = structure[2][0]
-    l2_upstream_sampling = structure[2][1]
     return [
         Spec(
-            model=MultiModel(
+            model=DeltaModel(
                 [
-                    MultiConv2d(l0_vendor_count, 1, 32, 5),
+                    DeltaConv2d(1, 32, 5),
                     Tensor.relu,
-                    MultiConv2d(l0_vendor_count, 32, 32, 5),
+                    DeltaConv2d(32, 32, 5),
                     Tensor.relu,
-                    norm_cls(l0_vendor_count, 32),
+                    DeltaInstanceNorm(32),
                     Tensor.max_pool2d,
                 ]
-            )
+            ),
+            vendor_count=structure[0][0],
         ),
         Spec(
-            model=MultiModel(
+            model=DeltaModel(
                 [
-                    MultiConv2d(l1_vendor_count, 32, 64, 3),
+                    DeltaConv2d(32, 64, 3),
                     Tensor.relu,
-                    MultiConv2d(l1_vendor_count, 64, 64, 3),
+                    DeltaConv2d(64, 64, 3),
                     Tensor.relu,
-                    norm_cls(l1_vendor_count, 64),
+                    DeltaInstanceNorm(64),
                     Tensor.max_pool2d,
                     lambda x: x.flatten(1),
                 ]
             ),
-            upstream_sampling=l1_upstream_sampling,
+            vendor_count=structure[1][0],
+            upstream_sampling=structure[1][1],
         ),
         Spec(
-            model=MultiModel([MultiLinear(l2_vendor_count, 576, 10)]),
-            upstream_sampling=l2_upstream_sampling,
+            model=DeltaModel([DeltaLinear(576, 10)]),
+            vendor_count=structure[2][0],
+            upstream_sampling=structure[2][1],
         ),
     ]
 
@@ -144,7 +141,7 @@ def train(
         Y_test.to_(vendor_devices)
 
     @TinyJit
-    @MultiModelBase.train()
+    @DeltaModelBase.train()
     def forward_step() -> tuple[Tensor, Tensor, Tensor]:
         samples = Tensor.randint(batch_size, high=X_train.shape[0])
         x = X_train[samples]
@@ -258,11 +255,6 @@ def train(
 )
 @click.option("--vendor-count", type=int, default=8, help="Vendor count")
 @click.option(
-    "--batch-norm",
-    is_flag=True,
-    help="Use batch norm instead of instance norm (bad performance)",
-)
-@click.option(
     "--gpus",
     type=int,
     help="Distribute vendors to multiple GPUs to speed up the training (not working yet)",
@@ -285,7 +277,6 @@ def main(
     lr_decay: float,
     forward_pass: int,
     vendor_count: int,
-    batch_norm: bool,
     gpus: int,
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
@@ -296,16 +287,11 @@ def main(
     logger.info("Current recursion limit is %s", sys.getrecursionlimit())
     sys.setrecursionlimit(NEW_RECURSION_LIMIT)
     logger.info("Set recursion limit to %s", NEW_RECURSION_LIMIT)
-    norm_cls = MultiInstanceNorm
-    if batch_norm:
-        logger.info("!!!Warning!!! Training with batch norm, performance will be bad")
-        norm_cls = MultiBatchNorm
-    exp_id = ensure_experiment("Marketplace")
     vendor_devices = None
     if gpus:
         vendor_devices = tuple(f"{Device.DEFAULT}:{i}" for i in range(gpus))
     with mlflow.start_run(
-        experiment_id=exp_id,
+        experiment_id=ensure_experiment("Marketplace V2"),
         run_name="beautiful-mnist",
     ):
         train(
@@ -315,7 +301,7 @@ def main(
             lr_decay_rate=lr_decay,
             initial_forward_pass=forward_pass,
             marketplace=make_marketplace(
-                default_vendor_count=vendor_count, norm_cls=norm_cls
+                default_vendor_count=vendor_count,
             ),
             vendor_devices=vendor_devices,
             checkpoint_filepath=pathlib.Path(checkpoint_filepath)
