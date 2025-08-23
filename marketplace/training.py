@@ -50,12 +50,17 @@ def produce(
                                 weight)
     :return: (output_data, seeds)
     """
-    new_seeds = Tensor.randint(
-        spec.vendor_count, low=0, high=SEED_MAX, dtype=dtypes.uint64
-    )
-    if keep_leader:
-        new_seeds = Tensor.zeros(1, dtype=dtypes.uint64).cat(new_seeds[:-1])
 
+    if keep_leader:
+        new_seeds = Tensor.zeros(1, dtype=dtypes.uint64).cat(
+            Tensor.randint(
+                spec.vendor_count - 1, low=0, high=SEED_MAX, dtype=dtypes.uint64
+            )
+        )
+    else:
+        new_seeds = Tensor.randint(
+            spec.vendor_count, low=0, high=SEED_MAX, dtype=dtypes.uint64
+        )
     if seeds is None:
         # this is the first spec for taking in the raw input, let's feed data to all of them
         # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
