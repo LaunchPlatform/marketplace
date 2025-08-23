@@ -10,7 +10,7 @@ from tinygrad.nn import InstanceNorm
 from .random import RandomNumberGenerator
 
 
-class DeltaModelBase:
+class ModelBase:
     training: typing.ClassVar[bool] = False
 
     def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
@@ -24,26 +24,24 @@ class DeltaModelBase:
             self.mode = mode
 
         def __enter__(self):
-            self.prev = DeltaModelBase.training
-            DeltaModelBase.training = self.mode
+            self.prev = ModelBase.training
+            ModelBase.training = self.mode
 
         def __exit__(self, exc_type, exc_value, traceback):
-            DeltaModelBase.training = self.prev
+            ModelBase.training = self.prev
 
 
-class DeltaModel(DeltaModelBase):
+class Model(ModelBase):
     def __init__(
         self,
-        layers: typing.List[DeltaModelBase | typing.Callable[[Tensor], Tensor]],
+        layers: typing.List[ModelBase | typing.Callable[[Tensor], Tensor]],
     ):
-        self.layers: typing.List[DeltaModelBase | typing.Callable[[Tensor], Tensor]] = (
-            layers
-        )
+        self.layers: typing.List[ModelBase | typing.Callable[[Tensor], Tensor]] = layers
 
     def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         value = x
         for model in self.layers:
-            if isinstance(model, DeltaModelBase):
+            if isinstance(model, ModelBase):
                 value = model(rng, value)
             else:
                 value = model(value)
@@ -52,7 +50,7 @@ class DeltaModel(DeltaModelBase):
     def update(self, rng: RandomNumberGenerator) -> OrderedDict[str, Tensor]:
         params = OrderedDict()
         for i, model in enumerate(self.layers):
-            if not isinstance(model, DeltaModelBase):
+            if not isinstance(model, ModelBase):
                 continue
             model_params = model.update(rng)
             params.update(
@@ -66,7 +64,7 @@ class DeltaModel(DeltaModelBase):
         return params
 
 
-class DeltaConv2d(DeltaModelBase, nn.Conv2d):
+class Conv2D(ModelBase, nn.Conv2d):
     def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         weight_delta = rng.delta_like(self.weight)
 
@@ -90,7 +88,7 @@ class DeltaConv2d(DeltaModelBase, nn.Conv2d):
         return params
 
 
-class DeltaLinear(DeltaModelBase, nn.Linear):
+class Linear(ModelBase, nn.Linear):
     def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         weight_delta = rng.delta_like(self.weight)
 
@@ -111,7 +109,7 @@ class DeltaLinear(DeltaModelBase, nn.Linear):
         return params
 
 
-class DeltaInstanceNorm(DeltaModelBase, InstanceNorm):
+class InstanceNorm(ModelBase, InstanceNorm):
     def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         x = (
             x.reshape(x.shape[0], self.num_features, -1)

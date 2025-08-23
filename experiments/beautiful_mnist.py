@@ -18,11 +18,11 @@ from tinygrad.nn.datasets import mnist
 from tinygrad.nn.state import get_state_dict
 
 from .utils import ensure_experiment
-from marketplace.delta_nn import DeltaConv2d
-from marketplace.delta_nn import DeltaInstanceNorm
-from marketplace.delta_nn import DeltaLinear
-from marketplace.delta_nn import DeltaModel
-from marketplace.delta_nn import DeltaModelBase
+from marketplace.delta_nn import Conv2D
+from marketplace.delta_nn import InstanceNorm
+from marketplace.delta_nn import Linear
+from marketplace.delta_nn import Model
+from marketplace.delta_nn import ModelBase
 from marketplace.random import RandomNumberGenerator
 from marketplace.training import forward
 from marketplace.training import forward_with_path
@@ -53,26 +53,26 @@ def make_marketplace(
         ]
     return [
         Spec(
-            model=DeltaModel(
+            model=Model(
                 [
-                    DeltaConv2d(1, 32, 5),
+                    Conv2D(1, 32, 5),
                     Tensor.relu,
-                    DeltaConv2d(32, 32, 5),
+                    Conv2D(32, 32, 5),
                     Tensor.relu,
-                    DeltaInstanceNorm(32),
+                    InstanceNorm(32),
                     Tensor.max_pool2d,
                 ]
             ),
             vendor_count=structure[0][0],
         ),
         Spec(
-            model=DeltaModel(
+            model=Model(
                 [
-                    DeltaConv2d(32, 64, 3),
+                    Conv2D(32, 64, 3),
                     Tensor.relu,
-                    DeltaConv2d(64, 64, 3),
+                    Conv2D(64, 64, 3),
                     Tensor.relu,
-                    DeltaInstanceNorm(64),
+                    InstanceNorm(64),
                     Tensor.max_pool2d,
                     lambda x: x.flatten(1),
                 ]
@@ -81,7 +81,7 @@ def make_marketplace(
             upstream_sampling=structure[1][1],
         ),
         Spec(
-            model=DeltaModel([DeltaLinear(576, 10)]),
+            model=Model([Linear(576, 10)]),
             vendor_count=structure[2][0],
             upstream_sampling=structure[2][1],
         ),
@@ -141,7 +141,7 @@ def train(
         Y_test.to_(vendor_devices)
 
     @TinyJit
-    @DeltaModelBase.train()
+    @ModelBase.train()
     def forward_step() -> tuple[Tensor, Tensor, Tensor]:
         samples = Tensor.randint(batch_size, high=X_train.shape[0])
         x = X_train[samples]

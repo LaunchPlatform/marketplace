@@ -4,7 +4,7 @@ import typing
 from tinygrad import dtypes
 from tinygrad import Tensor
 
-from .delta_nn import DeltaModelBase
+from .delta_nn import ModelBase
 from .multi_nn import MultiModelBase
 from .random import RandomNumberGenerator
 
@@ -13,7 +13,7 @@ SEED_MAX = 2**64
 
 @dataclasses.dataclass
 class Spec:
-    model: DeltaModelBase
+    model: ModelBase
     vendor_count: int
     upstream_sampling: int = 0
     evolve: bool = True
