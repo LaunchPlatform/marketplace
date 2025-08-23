@@ -1,9 +1,14 @@
 import dataclasses
 
+from tinygrad import dtypes
 from tinygrad import nn
 from tinygrad import Tensor
+from tinygrad import UOp
 
 from .delta_nn import DeltaModelBase
+from .random import RandomNumberGenerator
+
+SEED_MAX = 2**64
 
 
 @dataclasses.dataclass
@@ -30,27 +35,30 @@ def randperm_skip(size: int, skip_index: Tensor) -> Tensor:
 
 
 def produce(
-    model: MultiModelBase,
+    model: DeltaModelBase,
+    vendor_count: int,
     x: Tensor,
-    paths: Tensor | None = None,
+    seeds: Tensor | None = None,
     upstream_sampling: int = 0,
 ) -> tuple[Tensor, Tensor]:
     """Produce various of output for the given model and its vendors with upstream sampling
 
     :param model: multi-mmodel used to produce output
     :param x: input data from the previous layer
-    :param paths: paths for each input data from the previous layer
+    :param seeds: paths for each input data from the previous layer
     :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
     :return: (output_data, paths)
     """
-    if paths is None:
+    if seeds is None:
+        seeds = Tensor.randint(vendor_count, low=0, high=SEED_MAX)
+        it_range = UOp.range(dtypes.uint64, vendor_count, -1)
+        counters = Tensor.zeros(vendor_count, dtype=dtypes.int)
+        rng = RandomNumberGenerator(seed=seeds[it_range], counter=counters[it_range])
+
         # this is the first spec for taking in the raw input, let's feed data to all of them
-        output_data = Tensor.stack(
-            *(model(Tensor(i), x) for i in range(model.vendor_count)), dim=0
-        )
-        paths = Tensor.arange(model.vendor_count).unsqueeze(1)
-        return output_data, paths
-    if x.size(0) != paths.size(0):
+        output_data = model(rng=rng, x=x).contiguous(it_range)
+        return output_data, seeds.unsqueeze(1)
+    if x.size(0) != seeds.size(0):
         raise ValueError(
             "Provided input data's first dimension doesn't match with the paths' first dimension"
         )
@@ -60,7 +68,7 @@ def produce(
         upstream_sampling = x.shape[0]
         input_indexes = Tensor.arange(x.shape[0]).repeat(model.vendor_count, 1)
     else:
-        input_count = paths.size(0)
+        input_count = seeds.size(0)
         input_indexes = Tensor.stack(
             *(
                 Tensor.randperm(input_count)[:upstream_sampling]
@@ -84,7 +92,7 @@ def produce(
     # breaking down merged batches back to individual batches
     output_data = output_data.reshape(-1, input_data.shape[2], *output_data.shape[2:])
 
-    prev_paths = paths[input_indexes].flatten(0, 1)
+    prev_paths = seeds[input_indexes].flatten(0, 1)
     new_paths = (
         Tensor.arange(model.vendor_count)
         .unsqueeze(1)
@@ -108,7 +116,7 @@ def forward(
         data, paths = produce(
             model=spec.model,
             x=data,
-            paths=paths,
+            seeds=paths,
             upstream_sampling=spec.upstream_sampling,
         )
     return data, paths
