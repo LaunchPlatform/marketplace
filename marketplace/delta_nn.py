@@ -68,11 +68,11 @@ class DeltaModel(DeltaModelBase):
 
 class DeltaConv2d(DeltaModelBase, nn.Conv2d):
     def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
-        weight_delta = rng.uniform_like(self.weight)
+        weight_delta = rng.delta_like(self.weight)
 
         bias_delta = None
         if self.bias is not None:
-            bias_delta = rng.uniform_like(self.bias)
+            bias_delta = rng.delta_like(self.bias)
         return x.conv2d(
             self.weight + weight_delta,
             self.bias + bias_delta if self.bias is not None else None,
@@ -84,21 +84,19 @@ class DeltaConv2d(DeltaModelBase, nn.Conv2d):
 
     def update(self, rng: RandomNumberGenerator) -> OrderedDict[str, Tensor]:
         params = OrderedDict()
-        params["weight"] = self.weight.assign(
-            self.weight + rng.uniform_like(self.weight)
-        )
+        params["weight"] = self.weight.assign(self.weight + rng.delta_like(self.weight))
         if self.bias is not None:
-            params["bias"] = self.bias.assign(self.bias + rng.uniform_like(self.bias))
+            params["bias"] = self.bias.assign(self.bias + rng.delta_like(self.bias))
         return params
 
 
 class DeltaLinear(DeltaModelBase, nn.Linear):
     def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
-        weight_delta = rng.uniform_like(self.weight)
+        weight_delta = rng.delta_like(self.weight)
 
         bias_delta = None
         if self.bias is not None:
-            bias_delta = rng.uniform_like(self.bias)
+            bias_delta = rng.delta_like(self.bias)
 
         return x.linear(
             (self.weight + weight_delta).transpose(),
@@ -107,11 +105,9 @@ class DeltaLinear(DeltaModelBase, nn.Linear):
 
     def update(self, rng: RandomNumberGenerator) -> OrderedDict[str, Tensor]:
         params = OrderedDict()
-        params["weight"] = self.weight.assign(
-            self.weight + rng.uniform_like(self.weight)
-        )
+        params["weight"] = self.weight.assign(self.weight + rng.delta_like(self.weight))
         if self.bias is not None:
-            params["bias "] = self.bias.assign(self.bias + rng.uniform_like(self.bias))
+            params["bias "] = self.bias.assign(self.bias + rng.delta_like(self.bias))
         return params
 
 
@@ -124,8 +120,8 @@ class DeltaInstanceNorm(DeltaModelBase, InstanceNorm):
         )
         if self.weight is None or self.bias is None:
             return x
-        weight_delta = rng.uniform_like(self.weight)
-        bias_delta = rng.uniform_like(self.bias)
+        weight_delta = rng.delta_like(self.weight)
+        bias_delta = rng.delta_like(self.bias)
         return x * (self.weight + weight_delta).reshape(1, -1, *[1] * (x.ndim - 2)) + (
             self.bias + bias_delta
         ).reshape(1, -1, *[1] * (x.ndim - 2))
@@ -134,8 +130,6 @@ class DeltaInstanceNorm(DeltaModelBase, InstanceNorm):
         params = OrderedDict()
         if self.weight is None or self.bias is None:
             return params
-        params["weight"] = self.weight.assign(
-            self.weight + rng.uniform_like(self.weight)
-        )
-        params["bias"] = self.bias.assign(self.bias + rng.uniform_like(self.bias))
+        params["weight"] = self.weight.assign(self.weight + rng.delta_like(self.weight))
+        params["bias"] = self.bias.assign(self.bias + rng.delta_like(self.bias))
         return params
