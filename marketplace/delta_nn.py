@@ -10,7 +10,7 @@ from .random import RandomNumberGenerator
 class DeltaModelBase:
     training: typing.ClassVar[bool] = False
 
-    def __call__(self, i: Tensor, x: Tensor) -> Tensor:
+    def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         raise NotImplementedError()
 
     class train(contextlib.ContextDecorator):
@@ -23,6 +23,23 @@ class DeltaModelBase:
 
         def __exit__(self, exc_type, exc_value, traceback):
             DeltaModelBase.training = self.prev
+
+
+class DeltaConv2d(DeltaModelBase, nn.Conv2d):
+    def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
+        weight_delta = rng.uniform_like(self.weight)
+
+        bias_delta = None
+        if self.bias is not None:
+            bias_delta = rng.uniform_like(self.bias)
+        return x.conv2d(
+            self.weight + weight_delta,
+            self.bias + bias_delta if self.bias is not None else None,
+            self.groups,
+            self.stride,
+            self.dilation,
+            self.padding,
+        )
 
 
 class DeltaLinear(DeltaModelBase, nn.Linear):
