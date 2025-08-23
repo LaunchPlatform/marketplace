@@ -168,9 +168,9 @@ def train(
     @TinyJit
     def mutate_step(best_seeds: Tensor):
         mutate(
+            make_rng=functools.partial(RandomNumberGenerator, lr),
             marketplace=marketplace,
             best_seeds=best_seeds,
-            jitter=lr,
         )
 
     @TinyJit

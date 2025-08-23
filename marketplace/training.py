@@ -142,10 +142,14 @@ def traverse(model: MultiModelBase, path: list[str]) -> MultiModelBase:
     return current
 
 
-def mutate(marketplace: list[Spec], best_seeds: Tensor, jitter: Tensor):
+def mutate(
+    make_rng: typing.Callable[[Tensor], RandomNumberGenerator],
+    marketplace: list[Spec],
+    best_seeds: Tensor,
+):
     for spec, seed in zip(marketplace, best_seeds):
         if not spec.evolve:
             continue
-        updated_params = spec.model.update(RandomNumberGenerator(seed=seed))
+        updated_params = spec.model.update(make_rng(seed))
         for params in updated_params.values():
             params.realize()
