@@ -1,7 +1,7 @@
 import dataclasses
+import typing
 
 from tinygrad import dtypes
-from tinygrad import nn
 from tinygrad import Tensor
 
 from .delta_nn import DeltaModelBase
@@ -17,7 +17,6 @@ class Spec:
     vendor_count: int
     upstream_sampling: int = 0
     evolve: bool = True
-    excluded_param_keys: frozenset[str] | None = None
 
 
 def randperm_skip(size: int, skip_index: Tensor) -> Tensor:
@@ -35,27 +34,29 @@ def randperm_skip(size: int, skip_index: Tensor) -> Tensor:
 
 
 def produce(
-    model: DeltaModelBase,
-    vendor_count: int,
+    make_rng: typing.Callable[[Tensor], RandomNumberGenerator],
+    spec: Spec,
     x: Tensor,
     seeds: Tensor | None = None,
     upstream_sampling: int = 0,
 ) -> tuple[Tensor, Tensor]:
     """Produce various of output for the given model and its vendors with upstream sampling
 
-    :param model: multi-mmodel used to produce output
+    :param spec: spec of marketplace
     :param x: input data from the previous layer
-    :param seeds: paths for each input data from the previous layer
+    :param seeds: accumulated seeds so far from the previous layers
     :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
     :return: (output_data, paths)
     """
-    new_seeds = Tensor.randint(vendor_count, low=0, high=SEED_MAX, dtype=dtypes.uint64)
+    new_seeds = Tensor.randint(
+        spec.vendor_count, low=0, high=SEED_MAX, dtype=dtypes.uint64
+    )
 
     if seeds is None:
         # this is the first spec for taking in the raw input, let's feed data to all of them
         # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
         output_data = Tensor.stack(
-            *(model(RandomNumberGenerator(seed=seed), x) for seed in new_seeds),
+            *(spec.model(make_rng(seed), x) for seed in new_seeds),
             dim=0,
         )
         return output_data, new_seeds.unsqueeze(1)
@@ -67,14 +68,14 @@ def produce(
     if upstream_sampling == 0:
         # when upstream sampling is zero, it means we sample the full input
         upstream_sampling = x.shape[0]
-        input_indexes = Tensor.arange(x.shape[0]).expand(vendor_count, -1)
+        input_indexes = Tensor.arange(x.shape[0]).expand(spec.vendor_count, -1)
     else:
         input_count = seeds.size(0)
         # TODO: use RANGIFY?
         input_indexes = Tensor.stack(
             *(
                 Tensor.randperm(input_count)[:upstream_sampling]
-                for _ in range(vendor_count)
+                for _ in range(spec.vendor_count)
             ),
             dim=0,
         )
@@ -86,7 +87,7 @@ def produce(
 
     output_data = Tensor.stack(
         *(
-            model(RandomNumberGenerator(seed=seed), merged)
+            spec.model(make_rng(seed), merged)
             for seed, merged in zip(new_seeds, merged_batches)
         ),
         dim=0,
@@ -99,11 +100,11 @@ def produce(
         new_seeds.unsqueeze(1).repeat(1, upstream_sampling).flatten().unsqueeze(1)
     )
     merged_seeds = prev_seeds.cat(current_seeds, dim=1)
-
     return output_data, merged_seeds
 
 
 def forward(
+    make_rng: typing.Callable[[Tensor], RandomNumberGenerator],
     specs: list[Spec],
     x: Tensor,
     initial_seeds: Tensor | None = None,
@@ -112,8 +113,8 @@ def forward(
     seeds = initial_seeds
     for spec in specs:
         data, seeds = produce(
-            model=spec.model,
-            vendor_count=spec.vendor_count,
+            make_rng=make_rng,
+            spec=spec,
             x=data,
             seeds=seeds,
             upstream_sampling=spec.upstream_sampling,

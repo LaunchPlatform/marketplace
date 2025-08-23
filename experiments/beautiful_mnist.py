@@ -24,6 +24,7 @@ from marketplace.delta_nn import DeltaLinear
 from marketplace.delta_nn import DeltaModel
 from marketplace.delta_nn import DeltaModelBase
 from marketplace.multi_nn import MultiModelBase
+from marketplace.random import RandomNumberGenerator
 from marketplace.training import forward
 from marketplace.training import forward_with_path
 from marketplace.training import mutate
@@ -146,7 +147,9 @@ def train(
         samples = Tensor.randint(batch_size, high=X_train.shape[0])
         x = X_train[samples]
         y = Y_train[samples]
-        batch_logits, batch_seeds = forward(marketplace, x)
+        batch_logits, batch_seeds = forward(
+            functools.partial(RandomNumberGenerator, lr), marketplace, x
+        )
         loss = Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
             dim=0,
@@ -210,13 +213,13 @@ def train(
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
-            test_acc = get_test_acc(path).item()
+            # test_acc = get_test_acc(path).item()
             mlflow.log_metric("training/loss", best_loss.item(), step=i)
             mlflow.log_metric("training/accuracy", best_accuracy.item(), step=i)
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
-            mlflow.log_metric("testing/accuracy", test_acc, step=i)
+            # mlflow.log_metric("testing/accuracy", test_acc, step=i)
         if checkpoint_filepath is not None and i % checkpoint_per_steps == (
             checkpoint_per_steps - 1
         ):

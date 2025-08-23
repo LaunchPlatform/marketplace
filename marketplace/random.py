@@ -86,12 +86,12 @@ def rand(
 
 class RandomNumberGenerator:
     def __init__(
-        self, seed: Tensor, learning_rate: Tensor, counter: Tensor | None = None
+        self, learning_rate: Tensor, seed: Tensor, counter: Tensor | None = None
     ):
+        self.learning_rate = learning_rate
         if seed.dtype != dtypes.uint64:
             raise ValueError("Seed dtype needs to be uint64")
         self.seed = seed
-        self.learning_rate = learning_rate
         self.counter = counter
         if self.counter is None:
             self.counter = Tensor.zeros(dtype=dtypes.int)
