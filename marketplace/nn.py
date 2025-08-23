@@ -72,7 +72,7 @@ class Model(ModelBase):
         return params
 
 
-class Conv2D(ModelBase, nn.Conv2d):
+class Conv2D(nn.Conv2d, ModelBase):
     def forward(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         weight_delta = rng.delta_like(self.weight)
 
@@ -96,7 +96,7 @@ class Conv2D(ModelBase, nn.Conv2d):
         return params
 
 
-class Linear(ModelBase, nn.Linear):
+class Linear(nn.Linear, ModelBase):
     def forward(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         weight_delta = rng.delta_like(self.weight)
 
@@ -117,7 +117,7 @@ class Linear(ModelBase, nn.Linear):
         return params
 
 
-class InstanceNorm(ModelBase, nn.InstanceNorm):
+class InstanceNorm(nn.InstanceNorm, ModelBase):
     def forward(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         x = (
             x.reshape(x.shape[0], self.num_features, -1)
