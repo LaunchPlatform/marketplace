@@ -111,7 +111,7 @@ def forward(
     data = x
     seeds = initial_seeds
     for spec in specs:
-        data, paths = produce(
+        data, seeds = produce(
             model=spec.model,
             vendor_count=spec.vendor_count,
             x=data,

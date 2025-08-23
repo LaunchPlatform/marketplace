@@ -146,7 +146,7 @@ def train(
         samples = Tensor.randint(batch_size, high=X_train.shape[0])
         x = X_train[samples]
         y = Y_train[samples]
-        batch_logits, batch_paths = forward(marketplace, x)
+        batch_logits, batch_seeds = forward(marketplace, x)
         loss = Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
             dim=0,
@@ -159,7 +159,7 @@ def train(
         return (
             best_loss.realize(),
             accuracy.realize(),
-            batch_paths[best_index].realize(),
+            batch_seeds[best_index].realize(),
         )
 
     @TinyJit
