@@ -9,6 +9,7 @@ import typing
 import click
 import mlflow
 from tinygrad import Device
+from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
 from tinygrad import TinyJit
@@ -26,6 +27,7 @@ from marketplace.nn import ModelBase
 from marketplace.random import RandomNumberGenerator
 from marketplace.training import forward
 from marketplace.training import mutate
+from marketplace.training import SEED_MAX
 from marketplace.training import Spec
 from marketplace.training import straight_forward
 from marketplace.utils import write_checkpoint
@@ -146,8 +148,19 @@ def train(
         samples = Tensor.randint(batch_size, high=X_train.shape[0])
         x = X_train[samples]
         y = Y_train[samples]
+        vendor_seeds = [
+            Tensor.zeros(1, dtype=dtypes.uint64).cat(
+                Tensor.randint(
+                    spec.vendor_count - 1, low=0, high=SEED_MAX, dtype=dtypes.uint64
+                )
+            )
+            for spec in marketplace
+        ]
         batch_logits, batch_seeds = forward(
-            functools.partial(RandomNumberGenerator, lr), marketplace, x
+            make_rng=functools.partial(RandomNumberGenerator, lr),
+            marketplace=marketplace,
+            vendor_seeds=vendor_seeds,
+            x=x,
         )
         loss = Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),

@@ -48,7 +48,7 @@ def rand(
 
     # if shape has 0, return zero tensor
     if (numel := prod(shape)) == 0:
-        return Tensor.zeros(shape, device=device, dtype=dtype, **kwargs)
+        return Tensor.zeros(shape, device=device, dtype=dtype)
 
     # how many 4 bytes random bits sets we should generate
     num = ceildiv(numel * dtype.itemsize, 4)

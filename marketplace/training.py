@@ -36,40 +36,29 @@ def produce(
     make_rng: typing.Callable[[Tensor], RandomNumberGenerator],
     spec: Spec,
     x: Tensor,
-    seeds: Tensor | None = None,
+    seeds: Tensor,
+    acc_seeds: Tensor | None = None,
     upstream_sampling: int = 0,
-    keep_leader: bool = True,
 ) -> tuple[Tensor, Tensor]:
     """Produce various of output for the given model and its vendors with upstream sampling
 
     :param spec: spec of marketplace
     :param x: input data from the previous layer
-    :param seeds: accumulated seeds so far from the previous layers
+    :param seeds: seeds for each vendors
+    :param acc_seeds: accumulated seeds so far from the previous layers
     :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
-    :param keep_leader: should we keep the leading vendor (by using seed 0 to add zero delta to the current
-                                weight)
+    :param keep_leader: should we keep the leading vendor (by using seed 0 to add zero delta to the current weight)
     :return: (output_data, seeds)
     """
-
-    if keep_leader:
-        new_seeds = Tensor.zeros(1, dtype=dtypes.uint64).cat(
-            Tensor.randint(
-                spec.vendor_count - 1, low=0, high=SEED_MAX, dtype=dtypes.uint64
-            )
-        )
-    else:
-        new_seeds = Tensor.randint(
-            spec.vendor_count, low=0, high=SEED_MAX, dtype=dtypes.uint64
-        )
-    if seeds is None:
+    if acc_seeds is None:
         # this is the first spec for taking in the raw input, let's feed data to all of them
         # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
         output_data = Tensor.stack(
-            *(spec.model.forward(make_rng(seed), x) for seed in new_seeds),
+            *(spec.model.forward(make_rng(seed), x) for seed in seeds),
             dim=0,
         )
-        return output_data, new_seeds.unsqueeze(1)
-    if x.size(0) != seeds.size(0):
+        return output_data, seeds.unsqueeze(1)
+    if x.size(0) != acc_seeds.size(0):
         raise ValueError(
             "Provided input data's first dimension doesn't match with the seeds' first dimension"
         )
@@ -79,7 +68,7 @@ def produce(
         upstream_sampling = x.shape[0]
         input_indexes = Tensor.arange(x.shape[0]).expand(spec.vendor_count, -1)
     else:
-        input_count = seeds.size(0)
+        input_count = acc_seeds.size(0)
         # TODO: use RANGIFY?
         input_indexes = Tensor.stack(
             *(
@@ -97,16 +86,16 @@ def produce(
     output_data = Tensor.stack(
         *(
             spec.model.forward(make_rng(seed), merged)
-            for seed, merged in zip(new_seeds, merged_batches)
+            for seed, merged in zip(seeds, merged_batches)
         ),
         dim=0,
     )
     # breaking down merged batches back to individual batches
     output_data = output_data.reshape(-1, input_data.shape[2], *output_data.shape[2:])
 
-    prev_seeds = seeds[input_indexes].flatten(0, 1)
+    prev_seeds = acc_seeds[input_indexes].flatten(0, 1)
     current_seeds = (
-        new_seeds.unsqueeze(1).repeat(1, upstream_sampling).flatten().unsqueeze(1)
+        seeds.unsqueeze(1).repeat(1, upstream_sampling).flatten().unsqueeze(1)
     )
     merged_seeds = prev_seeds.cat(current_seeds, dim=1)
     return output_data, merged_seeds
@@ -114,21 +103,25 @@ def produce(
 
 def forward(
     make_rng: typing.Callable[[Tensor], RandomNumberGenerator],
-    specs: list[Spec],
+    marketplace: list[Spec],
     x: Tensor,
+    vendor_seeds: list[Tensor],
     initial_seeds: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
+    if len(vendor_seeds) != len(marketplace):
+        raise ValueError("Vendor seeds should be the same size as the marketplace size")
     data = x
-    seeds = initial_seeds
-    for spec in specs:
-        data, seeds = produce(
+    acc_seeds = initial_seeds
+    for spec, seeds in zip(marketplace, vendor_seeds):
+        data, acc_seeds = produce(
             make_rng=make_rng,
             spec=spec,
             x=data,
             seeds=seeds,
+            acc_seeds=acc_seeds,
             upstream_sampling=spec.upstream_sampling,
         )
-    return data, seeds
+    return data, acc_seeds
 
 
 def straight_forward(specs: list[Spec], x: Tensor) -> Tensor:
