@@ -4,8 +4,7 @@ import typing
 from tinygrad import dtypes
 from tinygrad import Tensor
 
-from .delta_nn import ModelBase
-from .multi_nn import MultiModelBase
+from .nn import ModelBase
 from .random import RandomNumberGenerator
 
 SEED_MAX = 2**64
@@ -56,7 +55,7 @@ def produce(
         # this is the first spec for taking in the raw input, let's feed data to all of them
         # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
         output_data = Tensor.stack(
-            *(spec.model(make_rng(seed), x) for seed in new_seeds),
+            *(spec.model.forward(make_rng(seed), x) for seed in new_seeds),
             dim=0,
         )
         return output_data, new_seeds.unsqueeze(1)
@@ -87,7 +86,7 @@ def produce(
 
     output_data = Tensor.stack(
         *(
-            spec.model(make_rng(seed), merged)
+            spec.model.forward(make_rng(seed), merged)
             for seed, merged in zip(new_seeds, merged_batches)
         ),
         dim=0,
@@ -127,19 +126,6 @@ def straight_forward(specs: list[Spec], x: Tensor) -> Tensor:
     for spec in specs:
         data = spec.model(data)
     return data
-
-
-def traverse(model: MultiModelBase, path: list[str]) -> MultiModelBase:
-    current = model
-    while path:
-        key = path.pop(0)
-        if isinstance(current, (list, tuple)):
-            current = current[int(key)]
-        elif isinstance(current, dict):
-            current = current[key]
-        else:
-            current = getattr(current, key)
-    return current
 
 
 def mutate(
