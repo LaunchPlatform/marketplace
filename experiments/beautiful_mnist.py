@@ -146,20 +146,18 @@ def train(
         Tensor.zeros(spec.vendor_count, dtype=dtypes.uint64) for spec in marketplace
     ]
 
-    def update_vendor_seeds():
+    @TinyJit
+    @ModelBase.train()
+    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         for spec_seeds in vendor_seeds:
             spec_seeds.assign(
                 Tensor.zeros(1, dtype=dtypes.uint64).cat(
                     Tensor.randint(
-                        len(spec_seeds) - 1, low=0, high=SEED_MAX, dtype=dtypes.uint64
+                        len(spec_seeds) - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
                     )
                 )
             ).realize()
 
-    @TinyJit
-    @ModelBase.train()
-    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-        update_vendor_seeds()
         batch_logits, batch_seeds = forward(
             make_rng=functools.partial(RandomNumberGenerator, lr),
             marketplace=marketplace,
@@ -217,12 +215,12 @@ def train(
         y = Y_train[samples]
         best_loss, best_accuracy, best_seeds = forward_step(x, y)
         for _ in range(current_forward_pass - 1):
-            batch_loss, batch_accuracy, batch_seeds = forward_step(x, y)
-            if batch_loss.item() >= best_loss.item():
+            candidate_loss, candidate_accuracy, candidate_seeds = forward_step(x, y)
+            if candidate_loss.item() >= best_loss.item():
                 continue
-            best_loss = batch_loss
-            best_accuracy = batch_accuracy
-            best_seeds = batch_seeds
+            best_loss = candidate_loss
+            best_accuracy = candidate_accuracy
+            best_seeds = candidate_seeds
 
         mutate_step(best_seeds)
 
