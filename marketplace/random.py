@@ -103,16 +103,13 @@ class RandomNumberGenerator:
         dtype: DTypeLike | None = None,
         contiguous: bool = True,
     ) -> Tensor:
-        return (self.seed != 0).where(
-            rand(
-                *shape,
-                seed=self.seed,
-                counter=self.counter,
-                device=device,
-                dtype=dtype,
-                contiguous=contiguous,
-            ),
-            Tensor.zeros(*shape, device=device, dtype=dtype),
+        return rand(
+            *shape,
+            seed=self.seed,
+            counter=self.counter,
+            device=device,
+            dtype=dtype,
+            contiguous=contiguous,
         )
 
     def uniform(
@@ -126,8 +123,11 @@ class RandomNumberGenerator:
         return self.uniform(*target.shape, low=low, high=high, dtype=target.dtype)
 
     def delta(self, *shape, dtype: DTypeLike | None = None):
-        return self.uniform(
-            *shape, low=-self.learning_rate, high=self.learning_rate, dtype=dtype
+        return (self.seed != 0).where(
+            self.uniform(
+                *shape, low=-self.learning_rate, high=self.learning_rate, dtype=dtype
+            ),
+            Tensor.zeros(*shape, dtype=dtype),
         )
 
     def delta_like(self, target: Tensor):
