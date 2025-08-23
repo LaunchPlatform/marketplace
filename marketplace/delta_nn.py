@@ -3,6 +3,7 @@ import typing
 
 from tinygrad import nn
 from tinygrad import Tensor
+from tinygrad.nn import InstanceNorm
 
 from .random import RandomNumberGenerator
 
@@ -54,3 +55,19 @@ class DeltaLinear(DeltaModelBase, nn.Linear):
             (self.weight + weight_delta).transpose(),
             (self.bias + bias_delta) if self.bias is not None else None,
         )
+
+
+class DeltaInstanceNorm(DeltaModelBase, InstanceNorm):
+    def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
+        x = (
+            x.reshape(x.shape[0], self.num_features, -1)
+            .layernorm(eps=self.eps)
+            .reshape(x.shape)
+        )
+        if self.weight is None or self.bias is None:
+            return x
+        weight_delta = rng.uniform_like(self.weight)
+        bias_delta = rng.uniform_like(self.bias)
+        return x * (self.weight + weight_delta).reshape(1, -1, *[1] * (x.ndim - 2)) + (
+            self.bias + bias_delta
+        ).reshape(1, -1, *[1] * (x.ndim - 2))
