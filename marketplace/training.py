@@ -3,9 +3,9 @@ import dataclasses
 from tinygrad import dtypes
 from tinygrad import nn
 from tinygrad import Tensor
-from tinygrad import UOp
 
 from .delta_nn import DeltaModelBase
+from .multi_nn import MultiModelBase
 from .random import RandomNumberGenerator
 
 SEED_MAX = 2**64
@@ -50,13 +50,18 @@ def produce(
     :return: (output_data, paths)
     """
     if seeds is None:
-        seeds = Tensor.randint(vendor_count, low=0, high=SEED_MAX)
-        it_range = UOp.range(dtypes.uint64, vendor_count, -1)
+        seeds = Tensor.randint(vendor_count, low=0, high=SEED_MAX, dtype=dtypes.uint64)
         counters = Tensor.zeros(vendor_count, dtype=dtypes.int)
-        rng = RandomNumberGenerator(seed=seeds[it_range], counter=counters[it_range])
 
         # this is the first spec for taking in the raw input, let's feed data to all of them
-        output_data = model(rng=rng, x=x).contiguous(it_range)
+        # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
+        output_data = Tensor.stack(
+            *(
+                model(RandomNumberGenerator(seed=seed, counter=counter), x)
+                for seed, counter in zip(seeds, counters)
+            ),
+            dim=0,
+        )
         return output_data, seeds.unsqueeze(1)
     if x.size(0) != seeds.size(0):
         raise ValueError(
