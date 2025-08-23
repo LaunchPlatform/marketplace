@@ -142,20 +142,24 @@ def train(
         X_test.to_(vendor_devices)
         Y_test.to_(vendor_devices)
 
+    vendor_seeds = [
+        Tensor.zeros(spec.vendor_count, dtype=dtypes.uint64) for spec in marketplace
+    ]
+
+    def update_vendor_seeds():
+        for spec_seeds in vendor_seeds:
+            spec_seeds.assign(
+                Tensor.zeros(1, dtype=dtypes.uint64).cat(
+                    Tensor.randint(
+                        len(spec_seeds) - 1, low=0, high=SEED_MAX, dtype=dtypes.uint64
+                    )
+                )
+            ).realize()
+
     @TinyJit
     @ModelBase.train()
-    def forward_step() -> tuple[Tensor, Tensor, Tensor]:
-        samples = Tensor.randint(batch_size, high=X_train.shape[0])
-        x = X_train[samples]
-        y = Y_train[samples]
-        vendor_seeds = [
-            Tensor.zeros(1, dtype=dtypes.uint64).cat(
-                Tensor.randint(
-                    spec.vendor_count - 1, low=0, high=SEED_MAX, dtype=dtypes.uint64
-                )
-            )
-            for spec in marketplace
-        ]
+    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        update_vendor_seeds()
         batch_logits, batch_seeds = forward(
             make_rng=functools.partial(RandomNumberGenerator, lr),
             marketplace=marketplace,
@@ -192,7 +196,7 @@ def train(
         ).mean() * 100
 
     i = 0
-    seeds = None
+    best_seeds = None
     test_acc = float("nan")
     current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):
@@ -208,16 +212,19 @@ def train(
 
         start_time = time.perf_counter()
 
-        best_loss, best_accuracy, seeds = forward_step()
+        samples = Tensor.randint(batch_size, high=X_train.shape[0])
+        x = X_train[samples]
+        y = Y_train[samples]
+        best_loss, best_accuracy, best_seeds = forward_step(x, y)
         for _ in range(current_forward_pass - 1):
-            batch_loss, batch_accuracy, batch_seeds = forward_step()
+            batch_loss, batch_accuracy, batch_seeds = forward_step(x, y)
             if batch_loss.item() >= best_loss.item():
                 continue
             best_loss = batch_loss
             best_accuracy = batch_accuracy
-            seeds = batch_seeds
+            best_seeds = batch_seeds
 
-        mutate_step(seeds)
+        mutate_step(best_seeds)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
