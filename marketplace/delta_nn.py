@@ -4,10 +4,11 @@ import typing
 from tinygrad import nn
 from tinygrad import Tensor
 
+from .random import RandomNumberGenerator
+
 
 class DeltaModelBase:
     training: typing.ClassVar[bool] = False
-    vendor_count: int
 
     def __call__(self, i: Tensor, x: Tensor) -> Tensor:
         raise NotImplementedError()
@@ -25,13 +26,7 @@ class DeltaModelBase:
 
 
 class DeltaLinear(DeltaModelBase, nn.Linear):
-    def __init__(
-        self, vendor_count: int, in_features: int, out_features: int, bias: bool = True
-    ):
-        super().__init__(in_features=in_features, out_features=out_features, bias=bias)
-        self.vendor_count = vendor_count
-
-    def __call__(self, rng, x: Tensor) -> Tensor:
+    def __call__(self, rng: RandomNumberGenerator, x: Tensor) -> Tensor:
         weight_delta = rng.uniform_like(self.weight)
 
         bias_delta = None

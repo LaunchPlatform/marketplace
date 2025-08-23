@@ -5,6 +5,14 @@ from tinygrad.helpers import ceildiv
 from tinygrad.helpers import prod
 
 from marketplace.random import rand
+from marketplace.random import RandomNumberGenerator
+
+
+@pytest.fixture
+def rng() -> RandomNumberGenerator:
+    return RandomNumberGenerator(
+        seed=Tensor(0, dtype=dtypes.uint64), counter=Tensor(0, dtype=dtypes.uint)
+    )
 
 
 @pytest.mark.parametrize(
@@ -55,3 +63,17 @@ def test_rand(shape: tuple[int, ...], seed: Tensor, counter: int, expected: list
     assert (
         counter_val.item() == ceildiv(prod(shape) * dtypes.float.itemsize, 4) + counter
     )
+
+
+def test_rng_rand(rng: RandomNumberGenerator):
+    random_numbers = rng.rand(512, 768).realize()
+    assert random_numbers.min().item() >= 0.0
+    assert random_numbers.max().item() < 1.0
+    assert random_numbers.mean().item() == pytest.approx(0.5, rel=1e-03)
+
+
+def test_rng_uniform(rng: RandomNumberGenerator):
+    random_numbers = rng.uniform(512, 768, low=0, high=10).realize()
+    assert random_numbers.min().item() >= 0.0
+    assert random_numbers.max().item() < 10.0
+    assert random_numbers.mean().item() == pytest.approx(5, rel=1e-03)
