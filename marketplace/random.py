@@ -1,5 +1,6 @@
 from tinygrad import Device
 from tinygrad import Tensor
+from tinygrad import UOp
 from tinygrad.dtype import DTypeLike
 from tinygrad.dtype import dtypes
 from tinygrad.dtype import to_dtype
@@ -7,6 +8,19 @@ from tinygrad.helpers import all_int
 from tinygrad.helpers import argfix
 from tinygrad.helpers import ceildiv
 from tinygrad.helpers import prod
+
+
+# The original version is taking two unit32 as the key, but we want to use one uint64 as the key. To make the
+# compute graph simpler, let's change it a bit to use uint64 directly
+# ref: https://github.com/tinygrad/tinygrad/blob/b057a90d493664d37558eb6c5447bc5bd5c15009/tinygrad/tensor.py#L496-L500
+def _threefry_random_bits(key: Tensor, counts0: Tensor, counts1: Tensor) -> Tensor:
+    x = (counts1.cast(dtypes.uint64) << 32) | counts0.cast(dtypes.uint64)
+    x = x._apply_uop(UOp.threefry, key._broadcast_to(x.shape))
+    counts0, counts1 = (
+        (x & 0xFFFFFFFF).cast(dtypes.uint32),
+        ((x >> 32) & 0xFFFFFFFF).cast(dtypes.uint32),
+    )
+    return counts0.cat(counts1)
 
 
 # we mostly follow the implementation of Tinygrad's `rand` function, but we use our own given seed value
@@ -28,10 +42,10 @@ def rand(
         raise ValueError(f"rand only supports single device, got {device=}")
     device = Device.canonicalize(device)
 
-    if seed.dtype != dtypes.uint32:
+    if seed.dtype != dtypes.uint64:
         raise ValueError("Seed dtype needs to be uint32")
-    if seed.shape != (2,):
-        raise ValueError("Seed shape needs to be (2, )")
+    if seed.ndim != 0:
+        raise ValueError("Seed must be a scalar")
 
     if not isinstance(base_count, int):
         raise ValueError("Base count needs to be an integer")
@@ -51,7 +65,7 @@ def rand(
         + base_count
     )
     counts1 = counts0 + ceildiv(num, 2)
-    bits = Tensor._threefry_random_bits(seed, counts0, counts1)[:num]
+    bits = _threefry_random_bits(seed, counts0, counts1)[:num]
 
     # bitcast to uint with same number of bits
     _, nmant = dtypes.finfo(dtype)
