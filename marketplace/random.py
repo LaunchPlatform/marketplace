@@ -1,5 +1,3 @@
-import hashlib
-
 from tinygrad import Device
 from tinygrad import Tensor
 from tinygrad.dtype import DTypeLike
@@ -14,8 +12,9 @@ from tinygrad.helpers import prod
 # we mostly follow the implementation of Tinygrad's `rand` function, but we use our own given seed value
 # ref: https://github.com/tinygrad/tinygrad/blob/b057a90d493664d37558eb6c5447bc5bd5c15009/tinygrad/tensor.py#L502-L549
 def rand(
-    seed: Tensor,
     *shape,
+    seed: Tensor,
+    base_count: int | Tensor = 0,
     device: str | None = None,
     dtype: DTypeLike | None = None,
     contiguous: bool = True,
@@ -29,48 +28,30 @@ def rand(
         raise ValueError(f"rand only supports single device, got {device=}")
     device = Device.canonicalize(device)
 
+    if seed.dtype != dtypes.uint32:
+        raise ValueError("Seed dtype needs to be uint32")
+    if seed.shape != (2,):
+        raise ValueError("Seed shape needs to be (2, )")
+
+    if not isinstance(base_count, int):
+        raise ValueError("Base count needs to be an integer")
+
     # if shape has 0, return zero tensor
     if (numel := prod(shape)) == 0:
         return Tensor.zeros(shape, device=device, dtype=dtype, **kwargs)
+
+    # how many 4 bytes random bits sets we should generate
     num = ceildiv(numel * dtype.itemsize, 4)
 
-    # generate per device seeds and rng counter if we haven't seen this device yet
-    if device not in Tensor._device_seeds:
-        Tensor._device_seeds[device] = Tensor(
-            [
-                int.from_bytes(
-                    hashlib.sha256(
-                        len(Tensor._device_seeds).to_bytes(4, "big")
-                    ).digest(),
-                    "big",
-                ),
-                Tensor._seed,
-            ],
-            device=device,
-            dtype=dtypes.uint32,
-            requires_grad=False,
-        )
-        Tensor._device_rng_counters[device] = Tensor(
-            [num], device=device, dtype=dtypes.uint32, requires_grad=False
-        )
-    # increment rng counter for devices
-    else:
-        Tensor._device_rng_counters[device].assign(
-            Tensor._device_rng_counters[device] + num
-        ).contiguous()
-
     # threefry random bits
-    bits_count = Tensor._device_rng_counters[device] - num
     counts0 = (
         Tensor.arange(
             ceildiv(num, 2), device=device, dtype=dtypes.uint32, requires_grad=False
         )
-        + bits_count
+        + base_count
     )
     counts1 = counts0 + ceildiv(num, 2)
-    bits = Tensor._threefry_random_bits(Tensor._device_seeds[device], counts0, counts1)[
-        :num
-    ]
+    bits = Tensor._threefry_random_bits(seed, counts0, counts1)[:num]
 
     # bitcast to uint with same number of bits
     _, nmant = dtypes.finfo(dtype)
