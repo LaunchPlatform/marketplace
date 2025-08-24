@@ -31,7 +31,7 @@ def produce(
         # this is the first spec for taking in the raw input, let's feed data to all of them
         # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
         output_data = Tensor.stack(
-            *(vendor(spec.model)(x) for vendor in vendors),
+            *(vendor(x) for vendor in vendors),
             dim=0,
         )
         paths = Tensor.arange(len(vendors)).unsqueeze(1)
@@ -61,10 +61,7 @@ def produce(
     merged_batches = input_data.reshape(input_data.shape[0], -1, *input_data.shape[3:])
 
     output_data = Tensor.stack(
-        *(
-            vendor(spec.model)(merged)
-            for vendor, merged in zip(vendors, merged_batches)
-        ),
+        *(vendor(merged) for vendor, merged in zip(vendors, merged_batches)),
         dim=0,
     )
     # breaking down merged batches back to individual batches

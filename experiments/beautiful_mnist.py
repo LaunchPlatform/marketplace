@@ -156,8 +156,8 @@ def train(
         )
 
     @TinyJit
-    def mutate_step(best_seeds: Tensor):
-        optimizer.step(best_seeds)
+    def optimize_step(path: Tensor):
+        optimizer.step(path)
 
     @TinyJit
     def get_test_acc() -> Tensor:
@@ -186,12 +186,12 @@ def train(
         x = X_train[samples]
         y = Y_train[samples]
 
-        best_loss, best_accuracy, best_path = Tensor.realize(
-            *(v.clone() for v in forward_step(x, y))
+        best_loss, best_accuracy, best_path = (
+            v.clone().realize() for v in forward_step(x, y)
         )
         for _ in range(marketplace_replica - 1):
-            candidate_loss, candidate_accuracy, candidate_path = Tensor.realize(
-                *(v.clone() for v in forward_step(x, y))
+            candidate_loss, candidate_accuracy, candidate_path = (
+                v.clone().realize() for v in forward_step(x, y)
             )
             if candidate_loss.item() >= best_loss.item():
                 continue
@@ -199,7 +199,7 @@ def train(
             best_accuracy = candidate_accuracy
             best_path = candidate_path
 
-        # mutate_step(best_path)
+        optimize_step(best_path)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time

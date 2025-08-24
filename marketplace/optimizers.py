@@ -14,41 +14,22 @@ from .training import Spec
 SEED_MAX = 2**64
 
 
-class StochasticVendor:
-    def __init__(self, seed: Tensor, learning_rate: Tensor):
-        self.seed = seed
-        self.learning_rate = learning_rate
-        self.delta = None
-        self.counter = Tensor(0, dtype=dtypes.uint).realize()
+class DeltaVendor:
+    def __init__(self, model: typing.Callable, delta: OrderedDict[str, Tensor]):
+        self.model = model
+        self.delta = delta
 
-    def __call__(self, model: typing.Callable) -> typing.Callable:
         params = get_state_dict(model)
-
-        if self.delta is None:
-            self.delta = OrderedDict(
-                [
-                    (key, self.make_delta(param).realize())
-                    for key, param in params.items()
-                ]
-            )
-
-        decorated = copy.deepcopy(model)
+        self.vendored_model = copy.deepcopy(model)
         load_state_dict(
-            decorated,
+            self.vendored_model,
             state_dict={key: param + self.delta[key] for key, param in params.items()},
             verbose=False,
             realize=False,
         )
-        return decorated
 
-    def make_delta(self, params: Tensor) -> Tensor:
-        high = self.learning_rate
-        low = -self.learning_rate
-        # TODO: take RNG from the external to make it possible to use different RNG algorithm?
-        # TODO: deal with zero seed
-        return (
-            (high - low) * rand(*params.shape, seed=self.seed, counter=self.counter)
-        ).cast(params.dtype or dtypes.default_float) + low
+    def __call__(self, *args, **kwargs):
+        return self.vendored_model(*args, **kwargs)
 
     def schedule_delta_update(self) -> list[Tensor]:
         if self.delta is None:
@@ -76,6 +57,7 @@ class StochasticOptimizer:
             Tensor.randint(spec.vendor_count, low=1, high=SEED_MAX, dtype=dtypes.uint64)
             for spec in self.marketplace
         ]
+        self.counters = [Tensor.zeros(spec.vendor_count) for spec in self.marketplace]
         Tensor.realize(
             *(
                 # We need to realize all the parameters so that they are buffer instead of compute graph, otherwise the
@@ -86,13 +68,35 @@ class StochasticOptimizer:
                     for spec in self.marketplace
                     for param in get_parameters(spec.model)
                 ]
-                # also realize seeds so that they are buffer
+                # also realize seeds and counters so that they are buffer
                 + self.seeds
+                + self.counters
+            )
+        )
+
+        # Allocate memory for parameter delta
+        self.delta = [
+            {
+                key: Tensor.empty(*params.shape, dtype=params.dtype)
+                .expand(spec.vendor_count, -1)
+                .contiguous()
+                for key, params in get_state_dict(spec.model).items()
+            }
+            for spec, vendor_seeds, vendor_counters in zip(
+                self.marketplace, self.seeds, self.counters
+            )
+        ]
+        # Realize the delta, making them buffers
+        Tensor.realize(
+            *(
+                vendor_deltas
+                for model_delta in self.delta
+                for vendor_deltas in model_delta.values()
             )
         )
         self.vendors = [
             [
-                StochasticVendor(seed=seed, learning_rate=self.learning_rate)
+                DeltaVendor(seed=seed, learning_rate=self.learning_rate)
                 for seed in vendor_seeds
             ]
             for vendor_seeds in self.seeds
@@ -101,9 +105,28 @@ class StochasticOptimizer:
     def step(self, seeds: Tensor):
         Tensor.realize(*self.schedule_step(seeds))
 
-    def schedule_step(self, seeds: Tensor) -> list[Tensor]:
+    def schedule_step(self, path: Tensor) -> list[Tensor]:
+        return [self.vendors[idx.item()] for spec, idx in zip(self.marketplace, path)]
+
+    def make_delta(self, seed: Tensor, counter: Tensor, params: Tensor) -> Tensor:
+        high = self.learning_rate
+        low = -self.learning_rate
+        # TODO: take RNG from the external to make it possible to use different RNG algorithm?
+        # TODO: deal with zero seed
+        return ((high - low) * rand(*params.shape, seed=seed, counter=counter)).cast(
+            params.dtype or dtypes.default_float
+        ) + low
+
+    def schedule_delta_update(self) -> list[Tensor]:
         return [
-            param
-            for spec, seed in zip(self.marketplace, seeds)
-            for param in spec.model.update(self.make_rng(seed)).values()
+            vendor_counters.assign(Tensor.zeros_like(vendor_counters))
+            for vendor_counters in self.counters
+        ] + [
+            params.assign(self.make_delta(seed, counter, params))
+            for vendor_deltas, vendor_seeds, vendor_counters in zip(
+                self.delta, self.seeds, self.counters
+            )
+            for params, seed, counter in zip(
+                vendor_deltas.values(), vendor_seeds, vendor_counters
+            )
         ]
