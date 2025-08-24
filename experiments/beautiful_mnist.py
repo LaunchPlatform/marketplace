@@ -4,11 +4,9 @@ import logging
 import pathlib
 import sys
 import time
-import typing
 
 import click
 import mlflow
-from tinygrad import Device
 from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
@@ -16,7 +14,6 @@ from tinygrad import TinyJit
 from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
-from tinygrad.nn.state import get_state_dict
 
 from .utils import ensure_experiment
 from marketplace.nn import Conv2D
@@ -26,7 +23,6 @@ from marketplace.nn import Model
 from marketplace.nn import ModelBase
 from marketplace.random import RandomNumberGenerator
 from marketplace.training import forward
-from marketplace.training import mutate
 from marketplace.training import Optimizer
 from marketplace.training import SEED_MAX
 from marketplace.training import Spec
