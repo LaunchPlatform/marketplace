@@ -122,6 +122,7 @@ def train(
 
     mlflow.log_param("step_count", step_count)
     mlflow.log_param("batch_size", batch_size)
+    mlflow.log_param("marketplace_replica", marketplace_replica)
     mlflow.log_param("initial_forward_pass", initial_forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
