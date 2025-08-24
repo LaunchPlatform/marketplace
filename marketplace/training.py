@@ -3,6 +3,7 @@ import typing
 
 from tinygrad import Tensor
 from tinygrad.nn.state import get_parameters
+from tinygrad.nn.state import get_state_dict
 
 from .nn import ModelBase
 from .random import RandomNumberGenerator
@@ -43,6 +44,16 @@ class Optimizer:
             for spec, seed in zip(self.marketplace, seeds)
             for param in spec.model.update(self.make_rng(seed)).values()
         ]
+
+
+class StochasticVendorOptimizer:
+    def __init__(self, seed: Tensor):
+        self._seed = seed
+
+    def __call__(self, model: typing.Callable) -> typing.Callable:
+        params = get_state_dict(model)
+        for key, param in params.items():
+            pass
 
 
 def produce(
