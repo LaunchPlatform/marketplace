@@ -48,32 +48,31 @@ class Optimizer:
 def produce(
     spec: Spec,
     x: Tensor,
-    seeds: Tensor,
-    optimizers: list[typing.Callable],
-    acc_seeds: Tensor | None = None,
+    vendors: list[typing.Callable],
+    paths: Tensor | None = None,
     upstream_sampling: int = 0,
 ) -> tuple[Tensor, Tensor]:
     """Produce various of output for the given model and its vendors with upstream sampling
 
     :param spec: spec of marketplace
     :param x: input data from the previous layer
-    :param seeds: seeds for each vendor
-    :param optimizers: optimizers for each vendor
-    :param acc_seeds: accumulated seeds so far from the previous layers
+    :param vendors: vendors for decorating a model
+    :param paths: accumulated paths so far from the previous layers
     :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
-    :return: (output_data, seeds)
+    :return: (output_data, paths)
     """
-    if acc_seeds is None:
+    if paths is None:
         # this is the first spec for taking in the raw input, let's feed data to all of them
         # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
         output_data = Tensor.stack(
-            *(optimize(spec.model)(x) for optimize in optimizers),
+            *(vendor(spec.model)(x) for vendor in vendors),
             dim=0,
         )
-        return output_data, seeds
-    if x.size(0) != acc_seeds.size(0):
+        paths = Tensor.arange(len(vendors)).unsqueeze(1)
+        return output_data, paths
+    if x.size(0) != paths.size(0):
         raise ValueError(
-            "Provided input data's first dimension doesn't match with the seeds' first dimension"
+            "Provided input data's first dimension doesn't match with the paths' first dimension"
         )
 
     if upstream_sampling == 0:
@@ -81,7 +80,7 @@ def produce(
         upstream_sampling = x.shape[0]
         input_indexes = Tensor.arange(x.shape[0]).expand(spec.vendor_count, -1)
     else:
-        input_count = acc_seeds.size(0)
+        input_count = paths.size(0)
         # TODO: use RANGIFY?
         input_indexes = Tensor.stack(
             *(
@@ -97,20 +96,24 @@ def produce(
 
     output_data = Tensor.stack(
         *(
-            optimize(spec.model)(merged)
-            for optimize, merged in zip(optimizers, merged_batches)
+            vendor(spec.model)(merged)
+            for vendor, merged in zip(vendors, merged_batches)
         ),
         dim=0,
     )
     # breaking down merged batches back to individual batches
     output_data = output_data.reshape(-1, input_data.shape[2], *output_data.shape[2:])
 
-    prev_seeds = acc_seeds[input_indexes].flatten(0, 1)
-    current_seeds = (
-        seeds.unsqueeze(1).repeat(1, upstream_sampling).flatten().unsqueeze(1)
+    prev_paths = paths[input_indexes].flatten(0, 1)
+    current_paths = (
+        Tensor.arange(len(vendors))
+        .unsqueeze(1)
+        .repeat(1, upstream_sampling)
+        .flatten()
+        .unsqueeze(1)
     )
-    merged_seeds = prev_seeds.cat(current_seeds, dim=1)
-    return output_data, merged_seeds
+    merged_paths = prev_paths.cat(current_paths, dim=1)
+    return output_data, merged_paths
 
 
 def forward(
