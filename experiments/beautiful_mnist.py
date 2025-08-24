@@ -20,6 +20,7 @@ from tinygrad.nn.datasets import mnist
 
 from .utils import ensure_experiment
 from marketplace.nn import Model
+from marketplace.optimizers import StochasticOptimizer
 from marketplace.random import RandomNumberGenerator
 from marketplace.training import forward
 from marketplace.training import Optimizer
@@ -117,8 +118,6 @@ def train(
         manual_seed,
     )
 
-    lr = Tensor(initial_lr)
-
     mlflow.log_param("step_count", step_count)
     mlflow.log_param("batch_size", batch_size)
     mlflow.log_param("marketplace_replica", marketplace_replica)
@@ -134,14 +133,14 @@ def train(
         Tensor.manual_seed(manual_seed)
 
     X_train, Y_train, X_test, Y_test = load_data()
-    make_rng = functools.partial(RandomNumberGenerator, lr)
-    optimizer = Optimizer(marketplace=marketplace, make_rng=make_rng)
+    lr = Tensor(initial_lr).realize()
+    optimizer = StochasticOptimizer(marketplace=marketplace, learning_rate=lr)
 
     @TinyJit
     def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-        batch_logits, batch_seeds = forward(
+        batch_logits, batch_paths = forward(
             marketplace=marketplace,
-            optimizer=optimizer,
+            vendors=optimizer.vendors,
             x=x,
         )
         loss = Tensor.stack(
@@ -156,7 +155,7 @@ def train(
         return (
             best_loss.squeeze(0).realize(),
             accuracy.realize(),
-            batch_seeds[best_index].realize(),
+            batch_paths[best_index].realize(),
         )
 
     @TinyJit

@@ -86,12 +86,11 @@ def forward(
     marketplace: list[Spec],
     x: Tensor,
     vendors: list[list[typing.Callable]],
-    seeds: list[Tensor],
     initial_paths: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
     data = x
     acc_paths = initial_paths
-    for spec, spec_vendors in zip(marketplace, seeds, vendors):
+    for spec, spec_vendors in zip(marketplace, vendors):
         data, acc_paths = produce(
             spec=spec,
             x=data,
