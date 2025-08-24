@@ -1,5 +1,6 @@
 import copy
 import typing
+from collections import OrderedDict
 
 from tinygrad import dtypes
 from tinygrad import Tensor
@@ -20,7 +21,9 @@ class StochasticVendor:
         params = get_state_dict(model)
 
         if self.delta is None:
-            self.delta = {key: self.make_delta(param) for key, param in params.items()}
+            self.delta = OrderedDict(
+                [(key, self.make_delta(param)) for key, param in params.items()]
+            )
 
         decorated = copy.deepcopy(model)
         load_state_dict(
@@ -37,6 +40,14 @@ class StochasticVendor:
         return (
             (high - low) * rand(*params.shape, seed=self.seed, counter=self.counter)
         ).cast(params.dtype or dtypes.default_float) + low
+
+    def schedule_seed_update(self, seed: Tensor) -> list[Tensor]:
+        updates = [self.seed.assign(seed)]
+        if self.delta is None:
+            return updates
+        for param in self.delta.values():
+            updates.append(param.assign(self.make_delta(param)))
+        return updates
 
     def persist(self):
         # TODO: persist delta to model params
