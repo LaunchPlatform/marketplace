@@ -15,7 +15,7 @@ SEED_MAX = 2**64
 
 
 class DeltaVendor:
-    def __init__(self, model: typing.Callable, delta: OrderedDict[str, Tensor]):
+    def __init__(self, model: typing.Callable, delta: dict[str, Tensor]):
         self.model = model
         self.delta = delta
 
@@ -30,22 +30,6 @@ class DeltaVendor:
 
     def __call__(self, *args, **kwargs):
         return self.vendored_model(*args, **kwargs)
-
-    def schedule_delta_update(self) -> list[Tensor]:
-        if self.delta is None:
-            return []
-        return [self.counter.assign(Tensor(0, dtype=dtypes.uint))] + [
-            param.assign(self.make_delta(param)) for param in self.delta.values()
-        ]
-
-    def schedule_weight_update(self, model: typing.Callable) -> list[Tensor]:
-        params = get_state_dict(model)
-        return load_state_dict(
-            model,
-            state_dict={key: param + self.delta[key] for key, param in params.items()},
-            verbose=False,
-            realize=False,
-        )
 
 
 class StochasticOptimizer:
@@ -87,19 +71,16 @@ class StochasticOptimizer:
             )
         ]
         # Realize the delta, making them buffers
-        Tensor.realize(
-            *(
-                vendor_deltas
-                for model_delta in self.delta
-                for vendor_deltas in model_delta.values()
-            )
-        )
+        Tensor.realize(*self.schedule_delta_update())
         self.vendors = [
             [
-                DeltaVendor(seed=seed, learning_rate=self.learning_rate)
-                for seed in vendor_seeds
+                DeltaVendor(
+                    model=spec.model,
+                    delta={key: params[i] for key, params in vendor_deltas},
+                )
+                for i in range(spec.vendor_count)
             ]
-            for vendor_seeds in self.seeds
+            for spec, vendor_deltas in zip(self.marketplace, self.delta)
         ]
 
     def step(self, seeds: Tensor):
