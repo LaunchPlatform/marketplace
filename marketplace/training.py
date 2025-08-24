@@ -119,22 +119,21 @@ def produce(
 def forward(
     marketplace: list[Spec],
     x: Tensor,
-    optimizers: list[list[typing.Callable]],
+    vendors: list[list[typing.Callable]],
     seeds: list[Tensor],
-    initial_seeds: Tensor | None = None,
+    initial_paths: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
     data = x
-    acc_seeds = initial_seeds
-    for spec, vendor_seeds, vendor_optimizers in zip(marketplace, seeds, optimizers):
-        data, acc_seeds = produce(
+    acc_paths = initial_paths
+    for spec, spec_vendors in zip(marketplace, seeds, vendors):
+        data, acc_paths = produce(
             spec=spec,
             x=data,
-            seeds=vendor_seeds,
-            optimizers=vendor_optimizers,
-            acc_seeds=acc_seeds,
+            vendors=spec_vendors,
+            paths=acc_paths,
             upstream_sampling=spec.upstream_sampling,
         )
-    return data, acc_seeds
+    return data, acc_paths
 
 
 def straight_forward(specs: list[Spec], x: Tensor) -> Tensor:
