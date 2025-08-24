@@ -54,3 +54,5 @@ def test_stochastic_vendor_delta_update():
     # change lr should also reflect on the delta update
     Tensor.realize(*vendor.schedule_delta_update())
     assert vendor(model)(x).item() == 12.002236366271973
+
+    assert model(x).item() == 12.0
