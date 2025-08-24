@@ -46,10 +46,9 @@ def produce(
 
     :param spec: spec of marketplace
     :param x: input data from the previous layer
-    :param seeds: seeds for each vendors
+    :param seeds: seeds for each vendor
     :param acc_seeds: accumulated seeds so far from the previous layers
     :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
-    :param keep_leader: should we keep the leading vendor (by using seed 0 to add zero delta to the current weight)
     :return: (output_data, seeds)
     """
     if acc_seeds is None:
