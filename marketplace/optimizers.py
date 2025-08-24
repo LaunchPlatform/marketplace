@@ -61,7 +61,7 @@ class StochasticOptimizer:
         self.delta = [
             {
                 key: Tensor.empty(*params.shape, dtype=params.dtype)
-                .expand(spec.vendor_count, -1)
+                .expand(spec.vendor_count, *params.shape)
                 .contiguous()
                 for key, params in get_state_dict(spec.model).items()
             }
@@ -75,7 +75,7 @@ class StochasticOptimizer:
             [
                 DeltaVendor(
                     model=spec.model,
-                    delta={key: params[i] for key, params in vendor_deltas},
+                    delta={key: params[i] for key, params in vendor_deltas.items()},
                 )
                 for i in range(spec.vendor_count)
             ]
