@@ -139,7 +139,10 @@ class StochasticOptimizer:
         high = self.learning_rate
         low = -self.learning_rate
         # TODO: take RNG from the external to make it possible to use different RNG algorithm?
-        # TODO: deal with zero seed
-        return ((high - low) * rand(*params.shape, seed=seed, counter=counter)).cast(
+        uniform = ((high - low) * rand(*params.shape, seed=seed, counter=counter)).cast(
             params.dtype or dtypes.default_float
         ) + low
+        return (seed != 0).where(
+            uniform,
+            Tensor.zeros_like(params),
+        )
