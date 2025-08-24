@@ -72,7 +72,7 @@ def produce(
         # this is the first spec for taking in the raw input, let's feed data to all of them
         # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
         output_data = Tensor.stack(
-            *(decorator(spec.model)(x) for decorator, _ in optimizers),
+            *(optimize(spec.model)(x) for optimize, _ in optimizers),
             dim=0,
         )
         return output_data, seeds
@@ -103,8 +103,8 @@ def produce(
 
     output_data = Tensor.stack(
         *(
-            optimizer(spec.model)(merged)
-            for optimizer, merged in zip(optimizers, merged_batches)
+            optimize(spec.model)(merged)
+            for optimize, merged in zip(optimizers, merged_batches)
         ),
         dim=0,
     )
