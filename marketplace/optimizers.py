@@ -40,7 +40,10 @@ class StochasticOptimizer:
             Tensor.randint(spec.vendor_count, low=1, high=SEED_MAX, dtype=dtypes.uint64)
             for spec in self.marketplace
         ]
-        self.counters = [Tensor.zeros(spec.vendor_count) for spec in self.marketplace]
+        self.counters = [
+            Tensor.zeros(spec.vendor_count, dtype=dtypes.uint)
+            for spec in self.marketplace
+        ]
         Tensor.realize(
             *(
                 # We need to realize all the parameters so that they are buffer instead of compute graph, otherwise the
