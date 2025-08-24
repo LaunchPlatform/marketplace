@@ -51,9 +51,18 @@ class StochasticVendorOptimizer:
         self._seed = seed
 
     def __call__(self, model: typing.Callable) -> typing.Callable:
-        params = get_state_dict(model)
-        for key, param in params.items():
-            pass
+        def callable(*args, **kwargs):
+            params = get_state_dict(model)
+            for key, param in params.items():
+                # TODO: stub the model's param to use param + delta
+                pass
+            try:
+                return model(*args, **kwargs)
+            finally:
+                # TODO: restore original model's param
+                pass
+
+        return callable
 
 
 def produce(
