@@ -103,7 +103,7 @@ class StochasticOptimizer:
         return [
             vendor_seeds.assign(
                 Tensor.cat(
-                    Tensor.zeros(0, dtype=dtypes.uint64),
+                    Tensor.zeros(1, dtype=dtypes.uint64),
                     Tensor.randint(
                         len(vendor_seeds) - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
                     ),
