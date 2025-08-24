@@ -20,9 +20,7 @@ class StochasticVendor:
         params = get_state_dict(model)
 
         if self.delta is None:
-            self.delta = {
-                key: self.make_delta(model, key, param) for key, param in params.items()
-            }
+            self.delta = {key: self.make_delta(param) for key, param in params.items()}
 
         decorated = copy.deepcopy(model)
         load_state_dict(
@@ -33,7 +31,7 @@ class StochasticVendor:
         )
         return decorated
 
-    def make_delta(self, model: typing.Callable, key: str, params: Tensor) -> Tensor:
+    def make_delta(self, params: Tensor) -> Tensor:
         high = self.learning_rate
         low = -self.learning_rate
         return (
