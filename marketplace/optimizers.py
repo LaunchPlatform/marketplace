@@ -15,14 +15,17 @@ class StochasticVendor:
         self.seed = seed
         self.learning_rate = learning_rate
         self.delta = None
-        self.counter = Tensor.zeros(1, dtype=dtypes.uint)
+        self.counter = Tensor(0, dtype=dtypes.uint).realize()
 
     def __call__(self, model: typing.Callable) -> typing.Callable:
         params = get_state_dict(model)
 
         if self.delta is None:
             self.delta = OrderedDict(
-                [(key, self.make_delta(param)) for key, param in params.items()]
+                [
+                    (key, self.make_delta(param).realize())
+                    for key, param in params.items()
+                ]
             )
 
         decorated = copy.deepcopy(model)
@@ -41,13 +44,12 @@ class StochasticVendor:
             (high - low) * rand(*params.shape, seed=self.seed, counter=self.counter)
         ).cast(params.dtype or dtypes.default_float) + low
 
-    def schedule_seed_update(self, seed: Tensor) -> list[Tensor]:
-        updates = [self.seed.assign(seed)]
+    def schedule_delta_update(self) -> list[Tensor]:
         if self.delta is None:
-            return updates
-        for param in self.delta.values():
-            updates.append(param.assign(self.make_delta(param)))
-        return updates
+            return []
+        return [self.counter.assign(Tensor(0, dtype=dtypes.uint))] + [
+            param.assign(self.make_delta(param)) for param in self.delta.values()
+        ]
 
     def persist(self):
         # TODO: persist delta to model params

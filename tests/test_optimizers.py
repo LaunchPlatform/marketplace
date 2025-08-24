@@ -13,15 +13,44 @@ class Multiply:
 
 
 def test_stochastic_vendor():
-    vendor = StochasticVendor(
-        seed=Tensor(42, dtype=dtypes.uint64), learning_rate=Tensor(1e-1)
-    )
+    seed = Tensor(42, dtype=dtypes.uint64).realize()
+    lr = Tensor(1e-1).realize()
+    vendor = StochasticVendor(seed=seed, learning_rate=lr)
+    x = Tensor(4)
 
     model = Multiply(3.0)
-    assert model(Tensor(4)).item() == 12.0
+    assert model(x).item() == 12.0
 
-    vendored = vendor(model)
-    assert vendored(Tensor(4)).item() == 12.321065902709961
+    assert vendor(model)(x).item() == 12.321064949035645
 
     # ensure that we didn't change the weights of original model
-    assert model(Tensor(4)).item() == 12.0
+    assert model(x).item() == 12.0
+
+
+def test_stochastic_vendor_delta_update():
+    seed = Tensor(42, dtype=dtypes.uint64).realize()
+    lr = Tensor(1e-1).realize()
+    vendor = StochasticVendor(seed=seed, learning_rate=lr)
+    x = Tensor(4)
+
+    model = Multiply(3.0)
+    assert model(x).item() == 12.0
+
+    assert vendor(model)(x).item() == 12.321064949035645
+    # ensure counter is reset. with the same seed, the value should be the same
+    for _ in range(10):
+        seed.assign(Tensor(42, dtype=dtypes.uint64)).realize()
+        Tensor.realize(*vendor.schedule_delta_update())
+        assert vendor(model)(x).item() == 12.321064949035645
+
+    seed.assign(Tensor(43, dtype=dtypes.uint64)).realize()
+    # before update, the delta should remain the same
+    assert vendor(model)(x).item() == 12.321064949035645
+    Tensor.realize(*vendor.schedule_delta_update())
+    assert vendor(model)(x).item() == 12.022363662719727
+
+    lr.assign(Tensor(1e-2)).realize()
+    assert vendor(model)(x).item() == 12.022363662719727
+    # change lr should also reflect on the delta update
+    Tensor.realize(*vendor.schedule_delta_update())
+    assert vendor(model)(x).item() == 12.002236366271973
