@@ -19,11 +19,43 @@ class Spec:
     evolve: bool = True
 
 
+class Optimizer:
+    def __init__(self, marketplace: list[Spec], make_rng: RandomNumberGeneratorFactory):
+        self.marketplace = marketplace
+        self.make_rng = make_rng
+        # We need to realize all the parameters so that they are buffer instead of compute graph, otherwise the assign
+        # operation won't work.
+        # ref: https://x.com/fangpenlin/status/1959405151455969607
+        Tensor.realize(
+            *(
+                param
+                for spec in self.marketplace
+                for param in get_parameters(spec.model)
+            )
+        )
+
+    def step(self, seeds: Tensor):
+        Tensor.realize(*self.schedule_step(seeds))
+
+    def schedule_step(self, seeds: Tensor) -> list[Tensor]:
+        return [
+            param
+            for spec, seed in zip(self.marketplace, seeds)
+            for param in spec.model.update(self.make_rng(seed)).values()
+        ]
+
+
+class SpecOptimizer:
+    seeds: Tensor
+
+    def __iter__(self):
+        pass
+
+
 def produce(
-    make_rng: RandomNumberGeneratorFactory,
     spec: Spec,
+    spec_optimizer: SpecOptimizer,
     x: Tensor,
-    seeds: Tensor,
     acc_seeds: Tensor | None = None,
     upstream_sampling: int = 0,
 ) -> tuple[Tensor, Tensor]:
@@ -31,7 +63,6 @@ def produce(
 
     :param spec: spec of marketplace
     :param x: input data from the previous layer
-    :param seeds: seeds for each vendor
     :param acc_seeds: accumulated seeds so far from the previous layers
     :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
     :return: (output_data, seeds)
@@ -40,10 +71,10 @@ def produce(
         # this is the first spec for taking in the raw input, let's feed data to all of them
         # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
         output_data = Tensor.stack(
-            *(spec.model.forward(make_rng(seed), x) for seed in seeds),
+            *(decorator(spec.model)(x) for decorator in spec_optimizer),
             dim=0,
         )
-        return output_data, seeds.unsqueeze(1)
+        return output_data, spec_optimizer.seeds
     if x.size(0) != acc_seeds.size(0):
         raise ValueError(
             "Provided input data's first dimension doesn't match with the seeds' first dimension"
@@ -71,8 +102,8 @@ def produce(
 
     output_data = Tensor.stack(
         *(
-            spec.model.forward(make_rng(seed), merged)
-            for seed, merged in zip(seeds, merged_batches)
+            decorator(spec.model)(merged)
+            for decorator, merged in zip(spec_optimizer, merged_batches)
         ),
         dim=0,
     )
@@ -81,21 +112,21 @@ def produce(
 
     prev_seeds = acc_seeds[input_indexes].flatten(0, 1)
     current_seeds = (
-        seeds.unsqueeze(1).repeat(1, upstream_sampling).flatten().unsqueeze(1)
+        spec_optimizer.seeds.unsqueeze(1)
+        .repeat(1, upstream_sampling)
+        .flatten()
+        .unsqueeze(1)
     )
     merged_seeds = prev_seeds.cat(current_seeds, dim=1)
     return output_data, merged_seeds
 
 
 def forward(
-    make_rng: typing.Callable[[Tensor], RandomNumberGenerator],
     marketplace: list[Spec],
     x: Tensor,
-    vendor_seeds: list[Tensor],
+    optimizer: Optimizer,
     initial_seeds: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
-    if len(vendor_seeds) != len(marketplace):
-        raise ValueError("Vendor seeds should be the same size as the marketplace size")
     data = x
     acc_seeds = initial_seeds
     for spec, seeds in zip(marketplace, vendor_seeds):
@@ -115,29 +146,3 @@ def straight_forward(specs: list[Spec], x: Tensor) -> Tensor:
     for spec in specs:
         data = spec.model(data)
     return data
-
-
-class Optimizer:
-    def __init__(self, marketplace: list[Spec], make_rng: RandomNumberGeneratorFactory):
-        self.marketplace = marketplace
-        self.make_rng = make_rng
-        # We need to realize all the parameters so that they are buffer instead of compute graph, otherwise the assign
-        # operation won't work.
-        # ref: https://x.com/fangpenlin/status/1959405151455969607
-        Tensor.realize(
-            *(
-                param
-                for spec in self.marketplace
-                for param in get_parameters(spec.model)
-            )
-        )
-
-    def step(self, seeds: Tensor):
-        Tensor.realize(*self.schedule_step(seeds))
-
-    def schedule_step(self, seeds: Tensor) -> list[Tensor]:
-        return [
-            param
-            for spec, seed in zip(self.marketplace, seeds)
-            for param in spec.model.update(self.make_rng(seed)).values()
-        ]
