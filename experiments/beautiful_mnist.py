@@ -196,7 +196,9 @@ def train(
             lambda v: v.clone().realize(), forward_step(x, y)
         )
         for _ in range(current_forward_pass - 1):
-            candidate_loss, candidate_accuracy, candidate_seeds = forward_step(x, y)
+            candidate_loss, candidate_accuracy, candidate_seeds = map(
+                lambda v: v.clone().realize(), forward_step(x, y)
+            )
             if candidate_loss.item() >= best_loss.item():
                 continue
             best_loss = candidate_loss
