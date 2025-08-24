@@ -57,8 +57,8 @@ def produce(
 
     :param spec: spec of marketplace
     :param x: input data from the previous layer
-    :param optimizers: optimizers for each vendor
     :param seeds: seeds for each vendor
+    :param optimizers: optimizers for each vendor
     :param acc_seeds: accumulated seeds so far from the previous layers
     :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
     :return: (output_data, seeds)
