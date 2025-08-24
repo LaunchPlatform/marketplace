@@ -118,8 +118,8 @@ class StochasticOptimizer:
         ) + low
 
     def schedule_delta_update(self) -> list[Tensor]:
-        # reset the rng counters
         return (
+            # reset the rng counters
             [
                 vendor_counters.assign(Tensor.zeros_like(vendor_counters))
                 for vendor_counters in self.counters
