@@ -18,8 +18,8 @@ class DeltaVendor:
         self.model = model
         self.delta = delta
 
-        params = get_state_dict(model)
         self.vendored_model = copy.deepcopy(model)
+        params = get_state_dict(self.vendored_model)
         load_state_dict(
             self.vendored_model,
             state_dict={key: param + self.delta[key] for key, param in params.items()},
@@ -37,11 +37,13 @@ class StochasticOptimizer:
         self.learning_rate = learning_rate
 
         self.seeds = [
-            Tensor.randint(spec.vendor_count, low=1, high=SEED_MAX, dtype=dtypes.uint64)
+            Tensor.randint(
+                spec.vendor_count, low=1, high=SEED_MAX, dtype=dtypes.uint64
+            ).contiguous()
             for spec in self.marketplace
         ]
         self.counters = [
-            Tensor.zeros(spec.vendor_count, dtype=dtypes.uint)
+            Tensor.zeros(spec.vendor_count, dtype=dtypes.uint).contiguous()
             for spec in self.marketplace
         ]
         Tensor.realize(
