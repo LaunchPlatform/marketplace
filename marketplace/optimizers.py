@@ -89,7 +89,7 @@ class StochasticOptimizer:
         return [
             param.assign(param + vendor_deltas[key][index])
             for spec, vendor_deltas, index in zip(self.marketplace, self.delta, path)
-            for key, param in get_state_dict(spec.model)
+            for key, param in get_state_dict(spec.model).items()
         ]
 
     def make_delta(self, seed: Tensor, counter: Tensor, params: Tensor) -> Tensor:
