@@ -82,8 +82,8 @@ class StochasticOptimizer:
             for spec, vendor_deltas in zip(self.marketplace, self.delta)
         ]
 
-    def step(self, seeds: Tensor):
-        Tensor.realize(*self.schedule_step(seeds))
+    def step(self, path: Tensor, keep_leader: bool = True):
+        Tensor.realize(*self.schedule_step(path))
 
     def schedule_step(self, path: Tensor) -> list[Tensor]:
         return [
@@ -92,14 +92,22 @@ class StochasticOptimizer:
             for key, param in get_state_dict(spec.model).items()
         ]
 
-    def make_delta(self, seed: Tensor, counter: Tensor, params: Tensor) -> Tensor:
-        high = self.learning_rate
-        low = -self.learning_rate
-        # TODO: take RNG from the external to make it possible to use different RNG algorithm?
-        # TODO: deal with zero seed
-        return ((high - low) * rand(*params.shape, seed=seed, counter=counter)).cast(
-            params.dtype or dtypes.default_float
-        ) + low
+    def schedule_seeds_update(self, keep_leader: bool = True):
+        return [
+            vendor_seeds.assign(
+                Tensor.cat(
+                    Tensor.zeros(0, dtype=dtypes.uint64),
+                    Tensor.randint(
+                        len(vendor_seeds) - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
+                    ),
+                )
+                if keep_leader
+                else Tensor.randint(
+                    *vendor_seeds.shape, low=1, high=SEED_MAX, dtype=dtypes.uint64
+                )
+            )
+            for vendor_seeds in self.seeds
+        ]
 
     def schedule_delta_update(self) -> list[Tensor]:
         return (
@@ -119,3 +127,12 @@ class StochasticOptimizer:
                 )
             ]
         )
+
+    def make_delta(self, seed: Tensor, counter: Tensor, params: Tensor) -> Tensor:
+        high = self.learning_rate
+        low = -self.learning_rate
+        # TODO: take RNG from the external to make it possible to use different RNG algorithm?
+        # TODO: deal with zero seed
+        return ((high - low) * rand(*params.shape, seed=seed, counter=counter)).cast(
+            params.dtype or dtypes.default_float
+        ) + low
