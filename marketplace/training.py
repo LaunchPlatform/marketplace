@@ -136,9 +136,10 @@ def mutate(
     marketplace: list[Spec],
     best_seeds: Tensor,
 ):
-    for spec, seed in zip(marketplace, best_seeds):
+    params = []
+    for i, (spec, seed) in enumerate(zip(marketplace, best_seeds)):
         if not spec.evolve:
             continue
         updated_params = spec.model.update(make_rng(seed))
-        for params in updated_params.values():
-            params.realize()
+        params.extend(updated_params.values())
+    Tensor.realize(*params)

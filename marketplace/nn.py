@@ -110,7 +110,7 @@ class Linear(nn.Linear, ModelBase):
         params = OrderedDict()
         params["weight"] = self.weight.assign(self.weight + rng.delta_like(self.weight))
         if self.bias is not None:
-            params["bias "] = self.bias.assign(self.bias + rng.delta_like(self.bias))
+            params["bias"] = self.bias.assign(self.bias + rng.delta_like(self.bias))
         return params
 
 
