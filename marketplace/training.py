@@ -137,7 +137,8 @@ class Optimizer:
     def __init__(self, marketplace: list[Spec], make_rng: RandomNumberGeneratorFactory):
         self.marketplace = marketplace
         self.make_rng = make_rng
-        # We need to realize all the parameters otherwise the assign operation won't work.
+        # We need to realize all the parameters so that they are buffer instead of compute graph, otherwise the assign
+        # operation won't work.
         # ref: https://x.com/fangpenlin/status/1959405151455969607
         Tensor.realize(
             *(
