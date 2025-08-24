@@ -1,9 +1,8 @@
 import dataclasses
 import typing
 
-from tinygrad import dtypes
 from tinygrad import Tensor
-from tinygrad.nn.state import get_state_dict
+from tinygrad.nn.state import get_parameters
 
 from .nn import ModelBase
 from .random import RandomNumberGenerator
@@ -18,20 +17,6 @@ class Spec:
     vendor_count: int
     upstream_sampling: int = 0
     evolve: bool = True
-
-
-def randperm_skip(size: int, skip_index: Tensor) -> Tensor:
-    """The same as randperm but skip given index `skip_index`
-
-    :param size: size of randperm
-    :param skip_index: index to skip
-    :return: A tensor of random permutation from 0 to N-1 without the skip_index in it
-    """
-    indexes = Tensor.arange(size - 1)
-    offsets = (indexes >= skip_index).cast(indexes.dtype)
-    shifted_indexes = indexes + offsets
-    perm = Tensor.randperm(size - 1)
-    return shifted_indexes[perm]
 
 
 def produce(
@@ -143,7 +128,7 @@ class Optimizer:
             *(
                 param
                 for spec in self.marketplace
-                for param in get_state_dict(spec.model).values()
+                for param in get_parameters(spec.model)
             )
         )
 
@@ -154,5 +139,5 @@ class Optimizer:
         return [
             param
             for spec, seed in zip(self.marketplace, seeds)
-            for param in spec.model.update(self.make_rng(seed))
+            for param in spec.model.update(self.make_rng(seed)).values()
         ]
