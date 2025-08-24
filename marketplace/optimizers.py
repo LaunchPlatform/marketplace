@@ -1,6 +1,5 @@
 import copy
 import typing
-from collections import OrderedDict
 
 from tinygrad import dtypes
 from tinygrad import Tensor
@@ -87,7 +86,11 @@ class StochasticOptimizer:
         Tensor.realize(*self.schedule_step(seeds))
 
     def schedule_step(self, path: Tensor) -> list[Tensor]:
-        return [self.vendors[idx.item()] for spec, idx in zip(self.marketplace, path)]
+        return [
+            param.assign(param + vendor_deltas[key][index])
+            for spec, vendor_deltas, index in zip(self.marketplace, self.delta, path)
+            for key, param in get_state_dict(spec.model)
+        ]
 
     def make_delta(self, seed: Tensor, counter: Tensor, params: Tensor) -> Tensor:
         high = self.learning_rate
