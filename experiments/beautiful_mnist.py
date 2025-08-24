@@ -156,7 +156,7 @@ def train(
             (batch_logits[best_index].sigmoid().argmax(axis=1) == y).sum() / batch_size
         ) * 100
         return (
-            best_loss.realize(),
+            best_loss.squeeze(0).realize(),
             accuracy.realize(),
             batch_seeds[best_index].realize(),
         )
