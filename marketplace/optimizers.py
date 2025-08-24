@@ -14,25 +14,21 @@ class StochasticVendor:
         self._counter = Tensor.zeros(1, dtype=dtypes.uint)
 
     def __call__(self, model: typing.Callable) -> typing.Callable:
-        def callee(*args, **kwargs):
-            params = get_state_dict(model)
+        params = get_state_dict(model)
 
-            if self._deltas is None:
-                self._deltas = {key: delta_like(param) for key, param in params.items()}
+        if self._deltas is None:
+            self._deltas = {key: delta_like(param) for key, param in params.items()}
 
-            decorated = copy.deepcopy(model)
-            load_state_dict(
-                decorated,
-                state_dict={
-                    key: param + self._deltas[key] for key, param in params.items()
-                },
-                verbose=False,
-                realize=False,
-            )
-
-            return decorated(*args, **kwargs)
-
-        return callee
+        decorated = copy.deepcopy(model)
+        load_state_dict(
+            decorated,
+            state_dict={
+                key: param + self._deltas[key] for key, param in params.items()
+            },
+            verbose=False,
+            realize=False,
+        )
+        return decorated
 
     def persist(self):
         # TODO: persist delta to model params
