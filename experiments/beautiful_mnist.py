@@ -93,6 +93,7 @@ def train(
     initial_lr: float,
     lr_decay_rate: float,
     marketplace: list[Spec],
+    marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
     metrics_per_steps: int = 10,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
@@ -102,12 +103,13 @@ def train(
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "initial_forward_pass=%s, metrics_per_steps=%s, forward_pass_schedule=%s, "
+        "marketplace_replica=%s, initial_forward_pass=%s, metrics_per_steps=%s, forward_pass_schedule=%s, "
         "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
+        marketplace_replica,
         initial_forward_pass,
         metrics_per_steps,
         forward_pass_schedule,
@@ -201,7 +203,7 @@ def train(
         best_loss, best_accuracy, best_seeds = map(
             lambda v: v.clone().realize(), forward_step(x, y)
         )
-        for _ in range(current_forward_pass - 1):
+        for _ in range(marketplace_replica - 1):
             candidate_loss, candidate_accuracy, candidate_seeds = map(
                 lambda v: v.clone().realize(), forward_step(x, y)
             )
