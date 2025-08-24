@@ -45,17 +45,16 @@ class Optimizer:
         ]
 
 
-class SpecOptimizer:
-    seeds: Tensor
-
-    def __iter__(self):
+class VendorOptimizer:
+    def __call__(self, *args, **kwargs):
         pass
 
 
 def produce(
     spec: Spec,
-    spec_optimizer: SpecOptimizer,
     x: Tensor,
+    optimizers: list,
+    seeds: Tensor,
     acc_seeds: Tensor | None = None,
     upstream_sampling: int = 0,
 ) -> tuple[Tensor, Tensor]:
@@ -63,6 +62,8 @@ def produce(
 
     :param spec: spec of marketplace
     :param x: input data from the previous layer
+    :param optimizers: optimizers for each vendor
+    :param seeds: seeds for each vendor
     :param acc_seeds: accumulated seeds so far from the previous layers
     :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
     :return: (output_data, seeds)
@@ -71,10 +72,10 @@ def produce(
         # this is the first spec for taking in the raw input, let's feed data to all of them
         # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
         output_data = Tensor.stack(
-            *(decorator(spec.model)(x) for decorator in spec_optimizer),
+            *(decorator(spec.model)(x) for decorator, _ in optimizers),
             dim=0,
         )
-        return output_data, spec_optimizer.seeds
+        return output_data, seeds
     if x.size(0) != acc_seeds.size(0):
         raise ValueError(
             "Provided input data's first dimension doesn't match with the seeds' first dimension"
@@ -102,8 +103,8 @@ def produce(
 
     output_data = Tensor.stack(
         *(
-            decorator(spec.model)(merged)
-            for decorator, merged in zip(spec_optimizer, merged_batches)
+            optimizer(spec.model)(merged)
+            for optimizer, merged in zip(optimizers, merged_batches)
         ),
         dim=0,
     )
@@ -112,10 +113,7 @@ def produce(
 
     prev_seeds = acc_seeds[input_indexes].flatten(0, 1)
     current_seeds = (
-        spec_optimizer.seeds.unsqueeze(1)
-        .repeat(1, upstream_sampling)
-        .flatten()
-        .unsqueeze(1)
+        seeds.unsqueeze(1).repeat(1, upstream_sampling).flatten().unsqueeze(1)
     )
     merged_seeds = prev_seeds.cat(current_seeds, dim=1)
     return output_data, merged_seeds
