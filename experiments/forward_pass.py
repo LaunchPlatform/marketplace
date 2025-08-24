@@ -11,11 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Forward Pass V2")
     for forward_pass in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]:
         with mlflow.start_run(
             run_name=f"forward-pass-{forward_pass}",
-            experiment_id=exp_id,
+            experiment_id=ensure_experiment("Forward Pass V3"),
             log_system_metrics=True,
         ):
             marketplace = make_marketplace(default_vendor_count=8)
