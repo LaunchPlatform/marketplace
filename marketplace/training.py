@@ -72,7 +72,7 @@ def produce(
         # this is the first spec for taking in the raw input, let's feed data to all of them
         # TODO: use RANGIFY feature when it's ready to make JIT's job much easier
         output_data = Tensor.stack(
-            *(optimize(spec.model)(x) for optimize, _ in optimizers),
+            *(optimize(spec.model)(x) for optimize in optimizers),
             dim=0,
         )
         return output_data, seeds
@@ -97,8 +97,7 @@ def produce(
         )
 
     input_data = x[input_indexes]
-    # merge different batches for the same vendor into one. not sure if this is needed, but at least it saves us
-    # from calling the model multiple times and making the graph more complex
+    # merge different batches for the same vendor into one.
     merged_batches = input_data.reshape(input_data.shape[0], -1, *input_data.shape[3:])
 
     output_data = Tensor.stack(
