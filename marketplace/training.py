@@ -55,7 +55,7 @@ def produce(
     """Produce various of output for the given model and its vendors with upstream sampling
 
     :param spec: spec of marketplace
-    :param x: input data from the previous layer
+    :param x: raw input data or intermediate products from the previous layer
     :param vendors: vendors for decorating a model
     :param paths: accumulated paths so far from the previous layers
     :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
