@@ -118,15 +118,20 @@ class StochasticOptimizer:
         ) + low
 
     def schedule_delta_update(self) -> list[Tensor]:
-        return [
-            vendor_counters.assign(Tensor.zeros_like(vendor_counters))
-            for vendor_counters in self.counters
-        ] + [
-            params.assign(self.make_delta(seed, counter, params))
-            for vendor_deltas, vendor_seeds, vendor_counters in zip(
-                self.delta, self.seeds, self.counters
-            )
-            for params, seed, counter in zip(
-                vendor_deltas.values(), vendor_seeds, vendor_counters
-            )
-        ]
+        # reset the rng counters
+        return (
+            [
+                vendor_counters.assign(Tensor.zeros_like(vendor_counters))
+                for vendor_counters in self.counters
+            ]
+            # generate new delta based on the current seed and lr
+            + [
+                params.assign(self.make_delta(seed, counter, params))
+                for vendor_deltas, vendor_seeds, vendor_counters in zip(
+                    self.delta, self.seeds, self.counters
+                )
+                for params, seed, counter in zip(
+                    vendor_deltas.values(), vendor_seeds, vendor_counters
+                )
+            ]
+        )
