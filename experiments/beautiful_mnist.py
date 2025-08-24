@@ -13,14 +13,13 @@ from tinygrad import Tensor
 from tinygrad import TinyJit
 from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
+from tinygrad.nn import Conv2d
+from tinygrad.nn import InstanceNorm
+from tinygrad.nn import Linear
 from tinygrad.nn.datasets import mnist
 
 from .utils import ensure_experiment
-from marketplace.nn import Conv2D
-from marketplace.nn import InstanceNorm
-from marketplace.nn import Linear
 from marketplace.nn import Model
-from marketplace.nn import ModelBase
 from marketplace.random import RandomNumberGenerator
 from marketplace.training import forward
 from marketplace.training import Optimizer
@@ -54,9 +53,9 @@ def make_marketplace(
         Spec(
             model=Model(
                 [
-                    Conv2D(1, 32, 5),
+                    Conv2d(1, 32, 5),
                     Tensor.relu,
-                    Conv2D(32, 32, 5),
+                    Conv2d(32, 32, 5),
                     Tensor.relu,
                     InstanceNorm(32),
                     Tensor.max_pool2d,
@@ -67,9 +66,9 @@ def make_marketplace(
         Spec(
             model=Model(
                 [
-                    Conv2D(32, 64, 3),
+                    Conv2d(32, 64, 3),
                     Tensor.relu,
-                    Conv2D(64, 64, 3),
+                    Conv2d(64, 64, 3),
                     Tensor.relu,
                     InstanceNorm(64),
                     Tensor.max_pool2d,
@@ -139,20 +138,10 @@ def train(
     optimizer = Optimizer(marketplace=marketplace, make_rng=make_rng)
 
     @TinyJit
-    @ModelBase.train()
     def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         batch_logits, batch_seeds = forward(
-            make_rng=make_rng,
             marketplace=marketplace,
-            vendor_seeds=[
-                Tensor.cat(
-                    Tensor.zeros(1, dtype=dtypes.uint64),
-                    Tensor.randint(
-                        spec.vendor_count - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
-                    ),
-                )
-                for spec in marketplace
-            ],
+            optimizer=optimizer,
             x=x,
         )
         loss = Tensor.stack(
