@@ -21,10 +21,7 @@ from tinygrad.nn.datasets import mnist
 from .utils import ensure_experiment
 from marketplace.nn import Model
 from marketplace.optimizers import StochasticOptimizer
-from marketplace.random import RandomNumberGenerator
 from marketplace.training import forward
-from marketplace.training import Optimizer
-from marketplace.training import SEED_MAX
 from marketplace.training import Spec
 from marketplace.training import straight_forward
 from marketplace.utils import write_checkpoint
@@ -169,7 +166,7 @@ def train(
         ).mean() * 100
 
     i = 0
-    best_seeds = None
+    best_path = None
     test_acc = float("nan")
     current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):
@@ -189,20 +186,20 @@ def train(
         x = X_train[samples]
         y = Y_train[samples]
 
-        best_loss, best_accuracy, best_seeds = map(
-            lambda v: v.clone().realize(), forward_step(x, y)
+        best_loss, best_accuracy, best_path = Tensor.realize(
+            *(v.clone() for v in forward_step(x, y))
         )
         for _ in range(marketplace_replica - 1):
-            candidate_loss, candidate_accuracy, candidate_seeds = map(
-                lambda v: v.clone().realize(), forward_step(x, y)
+            candidate_loss, candidate_accuracy, candidate_path = Tensor.realize(
+                *(v.clone() for v in forward_step(x, y))
             )
             if candidate_loss.item() >= best_loss.item():
                 continue
             best_loss = candidate_loss
             best_accuracy = candidate_accuracy
-            best_seeds = candidate_seeds
+            best_path = candidate_path
 
-        mutate_step(best_seeds)
+        # mutate_step(best_path)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
