@@ -83,9 +83,16 @@ class StochasticOptimizer:
         ]
 
     def step(self, path: Tensor, keep_leader: bool = True):
-        Tensor.realize(*self.schedule_step(path))
+        Tensor.realize(*self.schedule_step(path, keep_leader))
 
-    def schedule_step(self, path: Tensor) -> list[Tensor]:
+    def schedule_step(self, path: Tensor, keep_leader: bool = True) -> list[Tensor]:
+        return (
+            self.schedule_weight_update(path)
+            + self.schedule_seeds_update(keep_leader)
+            + self.schedule_delta_update()
+        )
+
+    def schedule_weight_update(self, path: Tensor) -> list[Tensor]:
         return [
             param.assign(param + vendor_deltas[key][index])
             for spec, vendor_deltas, index in zip(self.marketplace, self.delta, path)
