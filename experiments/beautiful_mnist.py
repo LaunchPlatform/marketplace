@@ -27,6 +27,7 @@ from marketplace.nn import ModelBase
 from marketplace.random import RandomNumberGenerator
 from marketplace.training import forward
 from marketplace.training import mutate
+from marketplace.training import Optimizer
 from marketplace.training import SEED_MAX
 from marketplace.training import Spec
 from marketplace.training import straight_forward
@@ -129,28 +130,24 @@ def train(
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
 
     X_train, Y_train, X_test, Y_test = load_data()
-
-    vendor_seeds = [
-        Tensor.zeros(spec.vendor_count, dtype=dtypes.uint64) for spec in marketplace
-    ]
+    make_rng = functools.partial(RandomNumberGenerator, lr)
+    optimizer = Optimizer(marketplace=marketplace, make_rng=make_rng)
 
     @TinyJit
     @ModelBase.train()
     def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-        for spec_seeds in vendor_seeds:
-            spec_seeds.assign(
-                Tensor.cat(
-                    Tensor.zeros(1, dtype=dtypes.uint64),
-                    Tensor.randint(
-                        len(spec_seeds) - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
-                    ),
-                )
-            ).realize()
-
         batch_logits, batch_seeds = forward(
             make_rng=functools.partial(RandomNumberGenerator, lr),
             marketplace=marketplace,
-            vendor_seeds=vendor_seeds,
+            vendor_seeds=[
+                Tensor.cat(
+                    Tensor.zeros(1, dtype=dtypes.uint64),
+                    Tensor.randint(
+                        spec.vendor_count - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
+                    ),
+                )
+                for spec in marketplace
+            ],
             x=x,
         )
         loss = Tensor.stack(
@@ -170,11 +167,7 @@ def train(
 
     @TinyJit
     def mutate_step(best_seeds: Tensor):
-        mutate(
-            make_rng=functools.partial(RandomNumberGenerator, lr),
-            marketplace=marketplace,
-            best_seeds=best_seeds,
-        )
+        optimizer.step(best_seeds)
 
     @TinyJit
     def get_test_acc() -> Tensor:
@@ -199,10 +192,13 @@ def train(
 
         start_time = time.perf_counter()
 
-        samples = Tensor.randint(batch_size, high=X_train.shape[0])
+        samples = Tensor.randint(batch_size, high=X_train.shape[0]).realize()
         x = X_train[samples]
         y = Y_train[samples]
-        best_loss, best_accuracy, best_seeds = forward_step(x, y)
+
+        best_loss, best_accuracy, best_seeds = map(
+            lambda v: v.clone().realize(), forward_step(x, y)
+        )
         for _ in range(current_forward_pass - 1):
             candidate_loss, candidate_accuracy, candidate_seeds = forward_step(x, y)
             if candidate_loss.item() >= best_loss.item():
