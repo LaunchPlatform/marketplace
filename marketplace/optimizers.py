@@ -52,7 +52,7 @@ class StochasticOptimizer:
                 # update weights assign operation won't work.
                 # ref: https://x.com/fangpenlin/status/1959405151455969607
                 [
-                    param
+                    param.contiguous()
                     for spec in self.marketplace
                     for param in get_parameters(spec.model)
                 ]
@@ -65,9 +65,9 @@ class StochasticOptimizer:
         # Allocate memory for parameter delta
         self.delta = [
             {
-                key: Tensor.empty(*params.shape, dtype=params.dtype)
-                .expand(spec.vendor_count, *params.shape)
-                .contiguous()
+                key: Tensor.empty(
+                    spec.vendor_count, *params.shape, dtype=params.dtype
+                ).contiguous()
                 for key, params in get_state_dict(spec.model).items()
             }
             for spec, vendor_seeds, vendor_counters in zip(
