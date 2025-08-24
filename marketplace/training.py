@@ -3,11 +3,13 @@ import typing
 
 from tinygrad import dtypes
 from tinygrad import Tensor
+from tinygrad.nn.state import get_state_dict
 
 from .nn import ModelBase
 from .random import RandomNumberGenerator
 
 SEED_MAX = 2**64
+RandomNumberGeneratorFactory = typing.Callable[[Tensor], RandomNumberGenerator]
 
 
 @dataclasses.dataclass
@@ -33,7 +35,7 @@ def randperm_skip(size: int, skip_index: Tensor) -> Tensor:
 
 
 def produce(
-    make_rng: typing.Callable[[Tensor], RandomNumberGenerator],
+    make_rng: RandomNumberGeneratorFactory,
     spec: Spec,
     x: Tensor,
     seeds: Tensor,
@@ -131,15 +133,26 @@ def straight_forward(specs: list[Spec], x: Tensor) -> Tensor:
     return data
 
 
-def mutate(
-    make_rng: typing.Callable[[Tensor], RandomNumberGenerator],
-    marketplace: list[Spec],
-    best_seeds: Tensor,
-):
-    params = []
-    for i, (spec, seed) in enumerate(zip(marketplace, best_seeds)):
-        if not spec.evolve:
-            continue
-        updated_params = spec.model.update(make_rng(seed))
-        params.extend(updated_params.values())
-    Tensor.realize(*params)
+class Optimizer:
+    def __init__(self, marketplace: list[Spec], make_rng: RandomNumberGeneratorFactory):
+        self.marketplace = marketplace
+        self.make_rng = make_rng
+        # We need to realize all the parameters otherwise the assign operation won't work.
+        # ref: https://x.com/fangpenlin/status/1959405151455969607
+        Tensor.realize(
+            *(
+                param
+                for spec in self.marketplace
+                for param in get_state_dict(spec.model).values()
+            )
+        )
+
+    def step(self, seeds: Tensor):
+        Tensor.realize(*self.schedule_step(seeds))
+
+    def schedule_step(self, seeds: Tensor) -> list[Tensor]:
+        return [
+            param
+            for spec, seed in zip(self.marketplace, seeds)
+            for param in spec.model.update(self.make_rng(seed))
+        ]
