@@ -64,6 +64,10 @@ class StochasticVendorOptimizer:
 
         return callable
 
+    def persist(self):
+        # TODO: persist delta to model params
+        pass
+
 
 def produce(
     spec: Spec,
