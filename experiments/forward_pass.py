@@ -14,7 +14,7 @@ def main():
     for forward_pass in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]:
         with mlflow.start_run(
             run_name=f"forward-pass-{forward_pass}",
-            experiment_id=ensure_experiment("Forward Pass V3"),
+            experiment_id=ensure_experiment("Forward Pass V4"),
             log_system_metrics=True,
         ):
             marketplace = make_marketplace(default_vendor_count=8)
@@ -25,6 +25,8 @@ def main():
                 lr_decay_rate=1e-4,
                 initial_forward_pass=forward_pass,
                 marketplace=marketplace,
+                # Make initial weights the same so that the exp is less noisy
+                manual_seed=42,
             )
 
 

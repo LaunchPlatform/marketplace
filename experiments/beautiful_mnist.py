@@ -98,11 +98,12 @@ def train(
     forward_pass_schedule: list[tuple[int, int]] | None = None,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
+    manual_seed: int | None = None,
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
         "initial_forward_pass=%s, metrics_per_steps=%s, forward_pass_schedule=%s, "
-        "checkpoint_filepath=%s, checkpoint_per_steps=%s",
+        "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
@@ -112,6 +113,7 @@ def train(
         forward_pass_schedule,
         checkpoint_filepath,
         checkpoint_per_steps,
+        manual_seed,
     )
 
     lr = Tensor(initial_lr)
@@ -124,6 +126,10 @@ def train(
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
+    mlflow.log_param("manual_seed", manual_seed)
+
+    if manual_seed is not None:
+        Tensor.manual_seed(manual_seed)
 
     X_train, Y_train, X_test, Y_test = load_data()
     make_rng = functools.partial(RandomNumberGenerator, lr)
