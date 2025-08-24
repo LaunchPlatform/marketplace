@@ -17,7 +17,9 @@ class StochasticVendor:
         params = get_state_dict(model)
 
         if self._deltas is None:
-            self._deltas = {key: delta_like(param) for key, param in params.items()}
+            self._deltas = {
+                key: self.make_delta(model, key, param) for key, param in params.items()
+            }
 
         decorated = copy.deepcopy(model)
         load_state_dict(
@@ -29,6 +31,10 @@ class StochasticVendor:
             realize=False,
         )
         return decorated
+
+    def make_delta(self, model: typing.Callable, key: str, params: Tensor) -> Tensor:
+        # TODO:
+        pass
 
     def persist(self):
         # TODO: persist delta to model params
