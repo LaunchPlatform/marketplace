@@ -142,7 +142,7 @@ def train(
     @ModelBase.train()
     def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         batch_logits, batch_seeds = forward(
-            make_rng=functools.partial(RandomNumberGenerator, lr),
+            make_rng=make_rng,
             marketplace=marketplace,
             vendor_seeds=[
                 Tensor.cat(
