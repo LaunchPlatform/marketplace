@@ -45,16 +45,11 @@ class Optimizer:
         ]
 
 
-class VendorOptimizer:
-    def __call__(self, *args, **kwargs):
-        pass
-
-
 def produce(
     spec: Spec,
     x: Tensor,
-    optimizers: list,
     seeds: Tensor,
+    optimizers: list[typing.Callable],
     acc_seeds: Tensor | None = None,
     upstream_sampling: int = 0,
 ) -> tuple[Tensor, Tensor]:
@@ -121,17 +116,18 @@ def produce(
 def forward(
     marketplace: list[Spec],
     x: Tensor,
-    optimizer: Optimizer,
+    optimizers: list[list[typing.Callable]],
+    seeds: list[Tensor],
     initial_seeds: Tensor | None = None,
 ) -> tuple[Tensor, Tensor]:
     data = x
     acc_seeds = initial_seeds
-    for spec, seeds in zip(marketplace, vendor_seeds):
+    for spec, vendor_seeds, vendor_optimizers in zip(marketplace, seeds, optimizers):
         data, acc_seeds = produce(
-            make_rng=make_rng,
             spec=spec,
             x=data,
-            seeds=seeds,
+            seeds=vendor_seeds,
+            optimizers=vendor_optimizers,
             acc_seeds=acc_seeds,
             upstream_sampling=spec.upstream_sampling,
         )
