@@ -11,7 +11,7 @@ class StochasticVendor:
         self._seed = seed
 
     def __call__(self, model: typing.Callable) -> typing.Callable:
-        def callable(*args, **kwargs):
+        def callee(*args, **kwargs):
             params = get_state_dict(model)
 
             # TODO: if deltas not defined
@@ -29,7 +29,7 @@ class StochasticVendor:
 
             return decorated(*args, **kwargs)
 
-        return callable
+        return callee
 
     def persist(self):
         # TODO: persist delta to model params
