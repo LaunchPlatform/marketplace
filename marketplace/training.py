@@ -2,47 +2,13 @@ import dataclasses
 import typing
 
 from tinygrad import Tensor
-from tinygrad.nn.state import get_parameters
-
-from .nn import ModelBase
-from .random import RandomNumberGenerator
-
-SEED_MAX = 2**64
-RandomNumberGeneratorFactory = typing.Callable[[Tensor], RandomNumberGenerator]
 
 
 @dataclasses.dataclass
 class Spec:
-    model: ModelBase
+    model: typing.Callable
     vendor_count: int
     upstream_sampling: int = 0
-    evolve: bool = True
-
-
-class Optimizer:
-    def __init__(self, marketplace: list[Spec], make_rng: RandomNumberGeneratorFactory):
-        self.marketplace = marketplace
-        self.make_rng = make_rng
-        # We need to realize all the parameters so that they are buffer instead of compute graph, otherwise the assign
-        # operation won't work.
-        # ref: https://x.com/fangpenlin/status/1959405151455969607
-        Tensor.realize(
-            *(
-                param
-                for spec in self.marketplace
-                for param in get_parameters(spec.model)
-            )
-        )
-
-    def step(self, seeds: Tensor):
-        Tensor.realize(*self.schedule_step(seeds))
-
-    def schedule_step(self, seeds: Tensor) -> list[Tensor]:
-        return [
-            param
-            for spec, seed in zip(self.marketplace, seeds)
-            for param in spec.model.update(self.make_rng(seed)).values()
-        ]
 
 
 def produce(
