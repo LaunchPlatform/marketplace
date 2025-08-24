@@ -57,9 +57,14 @@ class StochasticVendor:
             param.assign(self.make_delta(param)) for param in self.delta.values()
         ]
 
-    def persist(self):
-        # TODO: persist delta to model params
-        pass
+    def schedule_weight_update(self, model: typing.Callable) -> list[Tensor]:
+        params = get_state_dict(model)
+        return load_state_dict(
+            model,
+            state_dict={key: param + self.delta[key] for key, param in params.items()},
+            verbose=False,
+            realize=False,
+        )
 
 
 class StochasticOptimizer:
