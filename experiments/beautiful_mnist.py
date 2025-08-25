@@ -131,27 +131,26 @@ def train(
     optimizer = Optimizer(marketplace=marketplace, learning_rate=lr)
 
     @TinyJit
-    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
+    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         batch_logits, batch_paths = forward(
             marketplace=marketplace,
             vendors=optimizer.vendors,
             x=x,
         )
-        loss_accuracy = Tensor.stack(
+        loss = Tensor.stack(
+            *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
+            dim=0,
+        )
+        accuracy = Tensor.stack(
             *(
-                Tensor.stack(
-                    # loss
-                    logits.sparse_categorical_crossentropy(y),
-                    # accuracy
-                    ((logits.sigmoid().argmax(axis=1) == y).sum() / batch_size) * 100,
-                    dim=0,
-                )
+                ((logits.sigmoid().argmax(axis=1) == y).sum() / batch_size) * 100
                 for logits in batch_logits
             ),
             dim=0,
         )
         return (
-            loss_accuracy.realize(),
+            loss.realize(),
+            accuracy.realize(),
             batch_paths.realize(),
         )
 
@@ -160,13 +159,18 @@ def train(
         for i, samples in enumerate(sample_batches):
             x = X_train[samples]
             y = Y_train[samples]
-            loss_accuracy, paths = (v.numpy() for v in forward_step(x, y))
+            loss, accuracy, paths = (v.numpy() for v in forward_step(x, y))
 
-            unique_paths, indices = np.unique(paths, axis=0, return_inverse=True)
+            unique_paths, indices = np.unique(paths, return_inverse=True)
             counts = np.bincount(indices)
 
-            loss_accuracy_sums = np.bincount(indices, weights=loss_accuracy)
-            loss_accuracy_means = loss_accuracy_sums / counts
+            loss_sums = np.bincount(indices, weights=loss)
+            loss_means = loss_sums / counts
+
+            accuracy_sums = np.bincount(indices, weights=accuracy)
+            accuracy_means = accuracy_sums / counts
+
+            print(loss_means, accuracy_means)
 
     @TinyJit
     def optimize_step(seeds: Tensor):
@@ -196,8 +200,6 @@ def train(
         sample_batches = Tensor.randint(
             current_forward_pass, batch_size, high=X_train.shape[0]
         ).realize()
-        multi_forward_step(sample_batches)
-        return
 
         best_loss, best_accuracy, best_seeds = (
             v.clone().realize() for v in forward_step(x, y)
