@@ -161,7 +161,7 @@ def train(
             y = Y_train[samples]
             loss, accuracy, paths = (v.numpy() for v in forward_step(x, y))
 
-            unique_paths, indices = np.unique(paths, return_inverse=True)
+            unique_paths, indices = np.unique(paths, axis=1, return_inverse=True)
             counts = np.bincount(indices)
 
             loss_sums = np.bincount(indices, weights=loss)
