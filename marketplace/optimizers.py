@@ -8,6 +8,7 @@ from tinygrad.nn.state import get_parameters
 from tinygrad.nn.state import get_state_dict
 from tinygrad.nn.state import load_state_dict
 
+from .random import counter_advance_for
 from .random import RandomNumberGenerator
 from .training import Spec
 
@@ -63,10 +64,6 @@ class StochasticOptimizer:
                 )
                 for spec in self.marketplace
             ]
-        self.counters = [
-            Tensor.zeros(spec.vendor_count, dtype=dtypes.uint).contiguous()
-            for spec in self.marketplace
-        ]
         Tensor.realize(
             *(
                 # We need to realize all the parameters so that they are buffer instead of compute graph, otherwise the
@@ -77,9 +74,8 @@ class StochasticOptimizer:
                     for spec in self.marketplace
                     for param in get_parameters(spec.model)
                 ]
-                # also realize seeds and counters so that they are buffer
+                # also realize seeds so that they are buffer
                 + self.seeds
-                + self.counters
             )
         )
 
@@ -133,15 +129,19 @@ class StochasticOptimizer:
     def schedule_weight_update(self, best_seeds: Tensor) -> list[Tensor]:
         weight_updates = []
         for spec, deltas, seed in zip(self.marketplace, self.delta, best_seeds):
-            counter = Tensor.zeros(dtype=dtypes.uint).contiguous()
-            # TODO: ensure the order?
-            for key, params in get_state_dict(spec.model).items():
+            model_params = get_state_dict(spec.model)
+            counter = Tensor.zeros(dtype=dtypes.uint)
+            # Notice: we use deltas because it's an ordered dict, we want to have the same order for making random
+            #         numbers
+            for key in deltas:
+                params = model_params[key]
                 weight_updates.append(
                     params.assign(
                         params
                         + self.make_delta(seed=seed, counter=counter, params=params)
                     )
                 )
+                counter += counter_advance_for(params)
         return weight_updates
 
     def schedule_seeds_update(self, keep_leader: bool = True):
@@ -162,23 +162,22 @@ class StochasticOptimizer:
         ]
 
     def schedule_delta_update(self) -> list[Tensor]:
-        counter_resets = [
-            counters.assign(Tensor.zeros_like(counters)) for counters in self.counters
-        ]
         delta_updates = []
-        for deltas, seeds, counters in zip(self.delta, self.seeds, self.counters):
+        for deltas, seeds in zip(self.delta, self.seeds):
+            counter = Tensor.zeros(dtype=dtypes.uint)
             for params_delta in deltas.values():
                 updated_params = Tensor.stack(
                     *(
                         self.make_delta(
                             seed=seed, counter=counter, params=params_delta[i]
                         )
-                        for i, (seed, counter) in enumerate(zip(seeds, counters))
+                        for i, seed in enumerate(seeds)
                     ),
                     dim=0,
                 )
+                counter += counter_advance_for(params_delta[0])
                 delta_updates.append(params_delta.assign(updated_params))
-        return counter_resets + delta_updates
+        return delta_updates
 
     def make_delta(self, seed: Tensor, counter: Tensor, params: Tensor) -> Tensor:
         return (seed != 0).where(
