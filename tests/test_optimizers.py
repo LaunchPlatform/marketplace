@@ -80,19 +80,19 @@ def test_stochastic_optimizer():
     assert optimizer.vendors[0][0](x).item() == (x * (3.0 + delta0)).item()
     assert (
         optimizer.vendors[0][1](x).item()
-        == (x * (3.0 + optimizer.delta[0]["number"][1])).item()
+        == (x * (3.0 + delta0 + optimizer.delta[0]["number"][1])).item()
     )
     assert (
         optimizer.vendors[0][2](x).item()
-        == (x * (3.0 + optimizer.delta[0]["number"][2])).item()
+        == (x * (3.0 + delta0 + optimizer.delta[0]["number"][2])).item()
     )
     assert (
         optimizer.vendors[0][3](x).item()
-        == (x * (3.0 + optimizer.delta[0]["number"][3])).item()
+        == (x * (3.0 + delta0 + optimizer.delta[0]["number"][3])).item()
     )
 
     assert optimizer.vendors[1][0](x).item() == (x * (5.0 + delta1)).item()
     assert (
         optimizer.vendors[1][1](x).item()
-        == (x * (3.0 + optimizer.delta[1]["number"][1])).item()
+        == (x * (5.0 + delta1 + optimizer.delta[1]["number"][1])).item()
     )
