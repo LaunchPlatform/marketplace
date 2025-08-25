@@ -153,7 +153,8 @@ def test_optimizer_schedule_weight_update(optimizer: Optimizer):
     assert new_weights[1] == initial_weights[1]
     assert new_weights[2] != initial_weights[2]
 
-    assert {
-        key: init_params + initial_deltas[0][key][path[0].item()]
-        for key, init_params in initial_weights[0].items()
-    } == new_weights[0]
+    for i in range(3):
+        assert {
+            key: init_params + initial_deltas[i][key][path[i].item()]
+            for key, init_params in initial_weights[i].items()
+        } == new_weights[i]
