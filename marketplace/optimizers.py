@@ -120,21 +120,19 @@ class Optimizer:
             dim=0,
         )
 
-    def step(self, best_seeds: Tensor, keep_leader: bool = True):
-        Tensor.realize(*self.schedule_step(best_seeds, keep_leader))
+    def step(self, seeds: Tensor, keep_leader: bool = True):
+        Tensor.realize(*self.schedule_step(seeds, keep_leader))
 
-    def schedule_step(
-        self, best_seeds: Tensor, keep_leader: bool = True
-    ) -> list[Tensor]:
+    def schedule_step(self, seeds: Tensor, keep_leader: bool = True) -> list[Tensor]:
         return (
-            self.schedule_weight_update(best_seeds)
+            self.schedule_weight_update(seeds)
             + self.schedule_seeds_update(keep_leader)
             + self.schedule_delta_update()
         )
 
-    def schedule_weight_update(self, best_seeds: Tensor) -> list[Tensor]:
+    def schedule_weight_update(self, seeds: Tensor) -> list[Tensor]:
         weight_updates = []
-        for spec, seed in zip(self.marketplace, best_seeds):
+        for spec, seed in zip(self.marketplace, seeds):
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
             counter = 0
