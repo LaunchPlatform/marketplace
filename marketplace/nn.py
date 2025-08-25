@@ -4,11 +4,8 @@ from tinygrad import Tensor
 
 
 class Model:
-    def __init__(
-        self,
-        layers: typing.List[typing.Callable],
-    ):
-        self.layers: typing.List[typing.Callable] = layers
+    def __init__(self, *layers):
+        self.layers: tuple[typing.Callable, ...] = layers
 
     def __call__(self, x: Tensor) -> Tensor:
         value = x

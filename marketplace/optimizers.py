@@ -34,7 +34,7 @@ class DeltaVendor:
         return vendored_model(*args, **kwargs)
 
 
-class StochasticOptimizer:
+class Optimizer:
     def __init__(
         self,
         marketplace: list[Spec],

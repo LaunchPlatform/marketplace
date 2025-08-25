@@ -20,7 +20,7 @@ from tinygrad.nn.datasets import mnist
 
 from .utils import ensure_experiment
 from marketplace.nn import Model
-from marketplace.optimizers import StochasticOptimizer
+from marketplace.optimizers import Optimizer
 from marketplace.training import forward
 from marketplace.training import Spec
 from marketplace.training import straight_forward
@@ -50,34 +50,30 @@ def make_marketplace(
     return [
         Spec(
             model=Model(
-                [
-                    Conv2d(1, 32, 5),
-                    Tensor.relu,
-                    Conv2d(32, 32, 5),
-                    Tensor.relu,
-                    InstanceNorm(32),
-                    Tensor.max_pool2d,
-                ]
+                Conv2d(1, 32, 5),
+                Tensor.relu,
+                Conv2d(32, 32, 5),
+                Tensor.relu,
+                InstanceNorm(32),
+                Tensor.max_pool2d,
             ),
             vendor_count=structure[0][0],
         ),
         Spec(
             model=Model(
-                [
-                    Conv2d(32, 64, 3),
-                    Tensor.relu,
-                    Conv2d(64, 64, 3),
-                    Tensor.relu,
-                    InstanceNorm(64),
-                    Tensor.max_pool2d,
-                    lambda x: x.flatten(1),
-                ]
+                Conv2d(32, 64, 3),
+                Tensor.relu,
+                Conv2d(64, 64, 3),
+                Tensor.relu,
+                InstanceNorm(64),
+                Tensor.max_pool2d,
+                lambda x: x.flatten(1),
             ),
             vendor_count=structure[1][0],
             upstream_sampling=structure[1][1],
         ),
         Spec(
-            model=Model([Linear(576, 10)]),
+            model=Model(Linear(576, 10)),
             vendor_count=structure[2][0],
             upstream_sampling=structure[2][1],
         ),
@@ -131,7 +127,7 @@ def train(
 
     X_train, Y_train, X_test, Y_test = load_data()
     lr = Tensor(initial_lr).contiguous().realize()
-    optimizer = StochasticOptimizer(marketplace=marketplace, learning_rate=lr)
+    optimizer = Optimizer(marketplace=marketplace, learning_rate=lr)
 
     @TinyJit
     def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:

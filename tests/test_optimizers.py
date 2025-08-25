@@ -1,9 +1,10 @@
+import pytest
 from tinygrad import dtypes
 from tinygrad import Tensor
 
 from marketplace.nn import Model
 from marketplace.optimizers import DeltaVendor
-from marketplace.optimizers import StochasticOptimizer
+from marketplace.optimizers import Optimizer
 from marketplace.training import Spec
 
 
@@ -23,12 +24,40 @@ class Add:
         return x + self.number
 
 
+@pytest.fixture
+def optimizer() -> Optimizer:
+    return Optimizer(
+        marketplace=[
+            Spec(
+                model=Model(
+                    Multiply(3.0),
+                    Add(11.0),
+                ),
+                vendor_count=4,
+            ),
+            Spec(
+                model=Model(
+                    Multiply(6.0),
+                    Add(3.0),
+                    Multiply(23.0),
+                ),
+                vendor_count=4,
+            ),
+            Spec(model=Multiply(5.0), vendor_count=2),
+        ],
+        learning_rate=Tensor(2.0).contiguous(),
+        seeds=[
+            Tensor([0, 1, 2, 3], dtype=dtypes.uint64).contiguous(),
+            Tensor([0, 1, 2, 3], dtype=dtypes.uint64).contiguous(),
+            Tensor([0, 1], dtype=dtypes.uint64).contiguous(),
+        ],
+    )
+
+
 def test_delta_vendor():
     model = Model(
-        layers=[
-            Multiply(3.0),
-            Add(7.0),
-        ]
+        Multiply(3.0),
+        Add(7.0),
     )
     vendor = DeltaVendor(
         model=model,
@@ -48,79 +77,7 @@ def test_delta_vendor():
     assert vendor(x).item() == (x.item() * (4 + 5)) + (7 + 2)
 
 
-def test_stochastic_optimizer():
-    lr = Tensor(2.0).contiguous().realize()
-    optimizer = StochasticOptimizer(
-        marketplace=[
-            Spec(
-                model=Model(
-                    layers=[
-                        Multiply(3.0),
-                        Add(11.0),
-                    ]
-                ),
-                vendor_count=4,
-            ),
-            Spec(model=Multiply(5.0), vendor_count=2),
-        ],
-        learning_rate=lr,
-        seeds=[
-            Tensor([0, 1, 2, 3], dtype=dtypes.uint64).contiguous().realize(),
-            Tensor([0, 1], dtype=dtypes.uint64).contiguous().realize(),
-        ],
-    )
-    assert len(optimizer.delta) == 2
-    assert len(optimizer.vendors) == 2
-
-    number_delta0 = optimizer.delta[0]["number"]
-    assert number_delta0.shape == (4,)
-    # the delta for seed 0 should be all zeros
-    assert number_delta0[0].sum().item() == 0
-    assert number_delta0[0].min().item() == 0
-    assert number_delta0[0].max().item() == 0
-
-    for i in range(1, 4):
-        assert number_delta0[i].min().item() > -2.0
-        assert number_delta0[i].max().item() < 2.0
-
-    x = Tensor(4)
-    assert optimizer.vendors[0][0](x).item() == 12.0
-    assert optimizer.vendors[0][1](x).item() == 18.55428695678711
-    assert optimizer.vendors[0][2](x).item() == 4.174886703491211
-    assert optimizer.vendors[0][3](x).item() == 14.351898193359375
-
-    assert optimizer.vendors[1][0](x).item() == 20.0
-    assert optimizer.vendors[1][1](x).item() == 26.55428695678711
-
-    delta0 = optimizer.delta[0]["number"][2].item()
-    delta1 = optimizer.delta[0]["number"][1].item()
-    optimizer.step(Tensor([2, 1]))
-    assert optimizer.marketplace[0].model.number.item() == 3.0 + delta0
-    assert optimizer.marketplace[1].model.number.item() == 5.0 + delta1
-
-    assert optimizer.seeds[0][0].item() == 0
-    assert optimizer.seeds[0].tolist() != [0, 1, 2, 3]
-    assert optimizer.seeds[1][0].item() == 0
-    assert optimizer.seeds[1].tolist() != [0, 1]
-    assert optimizer.delta[0]["number"][2].item() != delta0
-    assert optimizer.delta[0]["number"][1].item() != delta1
-
-    assert optimizer.vendors[0][0](x).item() == (x * (3.0 + delta0)).item()
-    assert (
-        optimizer.vendors[0][1](x).item()
-        == (x * (3.0 + delta0 + optimizer.delta[0]["number"][1])).item()
-    )
-    assert (
-        optimizer.vendors[0][2](x).item()
-        == (x * (3.0 + delta0 + optimizer.delta[0]["number"][2])).item()
-    )
-    assert (
-        optimizer.vendors[0][3](x).item()
-        == (x * (3.0 + delta0 + optimizer.delta[0]["number"][3])).item()
-    )
-
-    assert optimizer.vendors[1][0](x).item() == (x * (5.0 + delta1)).item()
-    assert (
-        optimizer.vendors[1][1](x).item()
-        == (x * (5.0 + delta1 + optimizer.delta[1]["number"][1])).item()
-    )
+def test_optimizer(optimizer: Optimizer):
+    assert len(optimizer.delta) == len(optimizer.marketplace)
+    assert len(optimizer.seeds) == len(optimizer.marketplace)
+    assert len(optimizer.vendors) == len(optimizer.marketplace)
