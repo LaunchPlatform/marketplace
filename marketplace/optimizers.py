@@ -52,9 +52,12 @@ class StochasticOptimizer:
             self.seeds = seeds
         else:
             self.seeds = [
-                Tensor.randint(
-                    spec.vendor_count, low=1, high=SEED_MAX, dtype=dtypes.uint64
-                ).contiguous()
+                Tensor.cat(
+                    Tensor.zeros(1, dtype=dtypes.uint64),
+                    Tensor.randint(
+                        spec.vendor_count - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
+                    ),
+                )
                 for spec in self.marketplace
             ]
         self.counters = [
