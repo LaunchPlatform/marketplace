@@ -1,3 +1,4 @@
+from tinygrad import dtypes
 from tinygrad import Tensor
 
 from marketplace.optimizers import DeltaVendor
@@ -31,8 +32,14 @@ def test_stochastic_optimizer():
     model = Multiply(3.0)
     lr = Tensor(2.0).contiguous().realize()
     optimizer = StochasticOptimizer(
-        marketplace=[Spec(model=model, vendor_count=4)], learning_rate=lr
+        marketplace=[Spec(model=model, vendor_count=4)],
+        learning_rate=lr,
+        seeds=[Tensor([0, 1, 2, 3], dtype=dtypes.uint64).contiguous().realize()],
     )
     assert len(optimizer.delta) == 1
     assert len(optimizer.vendors) == 1
     assert len(optimizer.vendors[0]) == 4
+    # the delta for seed 0 should be all zeros
+    assert optimizer.delta[0]["number"].sum().item() == 0
+    assert optimizer.delta[0]["number"].min().item() == 0
+    assert optimizer.delta[0]["number"].max().item() == 0
