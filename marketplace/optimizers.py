@@ -87,12 +87,17 @@ class StochasticOptimizer:
         self.delta = [
             # Use order dict to keep the order, so that we can use the same order to generate random numbers in the
             # same sequence. Otherwise, if the sequence is wrong, we will end up with the wrong random numbers
-            OrderedDict([
-                (key, Tensor.empty(
-                    spec.vendor_count, *params.shape, dtype=params.dtype
-                ).contiguous())
-                for key, params in get_state_dict(spec.model).items()
-            ])
+            OrderedDict(
+                [
+                    (
+                        key,
+                        Tensor.empty(
+                            spec.vendor_count, *params.shape, dtype=params.dtype
+                        ).contiguous(),
+                    )
+                    for key, params in get_state_dict(spec.model).items()
+                ]
+            )
             for spec in self.marketplace
         ]
         # Realize the delta, making them buffers
@@ -128,9 +133,15 @@ class StochasticOptimizer:
     def schedule_weight_update(self, best_seeds: Tensor) -> list[Tensor]:
         weight_updates = []
         for spec, deltas, seed in zip(self.marketplace, self.delta, best_seeds):
-            rng = self.make_rng(seed=seed)
+            counter = Tensor.zeros(dtype=dtypes.uint).contiguous()
+            # TODO: ensure the order?
             for key, params in get_state_dict(spec.model).items():
-                weight_updates.append(params.assign(params + rng.uniform_like(params, low=-self.learning_rate, high=self.learning_rate)))
+                weight_updates.append(
+                    params.assign(
+                        params
+                        + self.make_delta(seed=seed, counter=counter, params=params)
+                    )
+                )
         return weight_updates
 
     def schedule_seeds_update(self, keep_leader: bool = True):
