@@ -1,6 +1,5 @@
 import copy
 import typing
-from collections import OrderedDict
 
 from tinygrad import dtypes
 from tinygrad import Tensor
@@ -81,19 +80,12 @@ class Optimizer:
 
         # Allocate memory for parameter delta
         self.delta = [
-            # Use order dict to keep the order, so that we can use the same order to generate random numbers in the
-            # same sequence. Otherwise, if the sequence is wrong, we will end up with the wrong random numbers
-            OrderedDict(
-                [
-                    (
-                        key,
-                        Tensor.empty(
-                            spec.vendor_count, *params.shape, dtype=params.dtype
-                        ).contiguous(),
-                    )
-                    for key, params in get_state_dict(spec.model).items()
-                ]
-            )
+            {
+                key: Tensor.empty(
+                    spec.vendor_count, *params.shape, dtype=params.dtype
+                ).contiguous()
+                for key, params in get_state_dict(spec.model).items()
+            }
             for spec in self.marketplace
         ]
         # Realize the delta, making them buffers
