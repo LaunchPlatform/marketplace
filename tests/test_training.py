@@ -116,7 +116,6 @@ def test_produce_with_input_data(
 )
 def test_produce(spec: Spec, vendors: list[typing.Callable], x: Tensor, paths: Tensor):
     output, out_paths = produce(spec=spec, vendors=vendors, x=x, paths=paths)
-
     assert all(v >= 0 and v < len(x) for v in out_paths[:, :1].flatten().tolist())
     assert (
         out_paths[:, 1:].tolist()
@@ -128,6 +127,5 @@ def test_produce(spec: Spec, vendors: list[typing.Callable], x: Tensor, paths: T
             .unsqueeze(1)
         ).tolist()
     )
-
     expected_output = [vendors[j.item()](x[i]).tolist() for i, j in out_paths]
     assert output.tolist() == expected_output
