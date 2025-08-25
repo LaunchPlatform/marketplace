@@ -152,12 +152,12 @@ def train(
         return (
             best_loss.squeeze(0).realize(),
             accuracy.realize(),
-            batch_paths[best_index].realize(),
+            optimizer.get_seeds(batch_paths[best_index]).realize(),
         )
 
     @TinyJit
-    def optimize_step(path: Tensor):
-        optimizer.step(path)
+    def optimize_step(seeds: Tensor):
+        optimizer.step(seeds)
 
     @TinyJit
     def get_test_acc() -> Tensor:
@@ -166,7 +166,7 @@ def train(
         ).mean() * 100
 
     i = 0
-    best_path = None
+    best_seeds = None
     test_acc = float("nan")
     current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):
@@ -186,20 +186,20 @@ def train(
         x = X_train[samples]
         y = Y_train[samples]
 
-        best_loss, best_accuracy, best_path = (
+        best_loss, best_accuracy, best_seeds = (
             v.clone().realize() for v in forward_step(x, y)
         )
         for _ in range(marketplace_replica - 1):
-            candidate_loss, candidate_accuracy, candidate_path = (
+            candidate_loss, candidate_accuracy, candidate_seeds = (
                 v.clone().realize() for v in forward_step(x, y)
             )
             if candidate_loss.item() >= best_loss.item():
                 continue
             best_loss = candidate_loss
             best_accuracy = candidate_accuracy
-            best_path = candidate_path
+            best_seeds = candidate_seeds
 
-        optimize_step(best_path)
+        optimize_step(best_seeds)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time

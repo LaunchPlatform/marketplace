@@ -1,5 +1,6 @@
 import copy
 import typing
+from collections import OrderedDict
 
 from tinygrad import dtypes
 from tinygrad import Tensor
@@ -84,12 +85,14 @@ class StochasticOptimizer:
 
         # Allocate memory for parameter delta
         self.delta = [
-            {
-                key: Tensor.empty(
+            # Use order dict to keep the order, so that we can use the same order to generate random numbers in the
+            # same sequence. Otherwise, if the sequence is wrong, we will end up with the wrong random numbers
+            OrderedDict([
+                (key, Tensor.empty(
                     spec.vendor_count, *params.shape, dtype=params.dtype
-                ).contiguous()
+                ).contiguous())
                 for key, params in get_state_dict(spec.model).items()
-            }
+            ])
             for spec in self.marketplace
         ]
         # Realize the delta, making them buffers
@@ -105,21 +108,29 @@ class StochasticOptimizer:
             for spec, deltas in zip(self.marketplace, self.delta)
         ]
 
-    def step(self, path: Tensor, keep_leader: bool = True):
-        Tensor.realize(*self.schedule_step(path, keep_leader))
+    def get_seeds(self, path: Tensor) -> Tensor:
+        return Tensor.cat(
+            *(seeds[index].unsqueeze(0) for index, seeds in zip(path, self.seeds))
+        )
 
-    def schedule_step(self, path: Tensor, keep_leader: bool = True) -> list[Tensor]:
+    def step(self, best_seeds: Tensor, keep_leader: bool = True):
+        Tensor.realize(*self.schedule_step(best_seeds, keep_leader))
+
+    def schedule_step(
+        self, best_seeds: Tensor, keep_leader: bool = True
+    ) -> list[Tensor]:
         return (
-            self.schedule_weight_update(path)
+            self.schedule_weight_update(best_seeds)
             + self.schedule_seeds_update(keep_leader)
             + self.schedule_delta_update()
         )
 
-    def schedule_weight_update(self, path: Tensor) -> list[Tensor]:
+    def schedule_weight_update(self, best_seeds: Tensor) -> list[Tensor]:
         weight_updates = []
-        for spec, deltas, index in zip(self.marketplace, self.delta, path):
-            for key, param in get_state_dict(spec.model).items():
-                weight_updates.append(param.assign(param + deltas[key][index]))
+        for spec, deltas, seed in zip(self.marketplace, self.delta, best_seeds):
+            rng = self.make_rng(seed=seed)
+            for key, params in get_state_dict(spec.model).items():
+                weight_updates.append(params.assign(params + rng.uniform_like(params, low=-self.learning_rate, high=self.learning_rate)))
         return weight_updates
 
     def schedule_seeds_update(self, keep_leader: bool = True):
