@@ -1,29 +1,26 @@
+import typing
+
 import pytest
 from tinygrad import Tensor
 
-from marketplace.multi_nn import MultiModelBase
 from marketplace.training import produce
-from marketplace.training import randperm_skip
+from marketplace.training import Spec
 
 
-class MultiMultiplyModel(MultiModelBase):
-    def __init__(self, values: list[float]):
-        super().__init__()
-        self.vendor_count = len(values)
-        self.weights = Tensor(values)
+class Multiply:
+    def __init__(self, value: float):
+        self.weight = Tensor(value).contiguous().realize()
 
-    def __call__(self, i: Tensor, x: Tensor):
-        return x * self.weights[i]
+    def __call__(self, x: Tensor) -> Tensor:
+        return x * self.weight
 
 
-class MultiMultiplySumModel(MultiModelBase):
-    def __init__(self, values: list[float]):
-        super().__init__()
-        self.vendor_count = len(values)
-        self.weights = Tensor(values)
+class MultiplySum:
+    def __init__(self, value: float):
+        self.weight = Tensor(value).contiguous().realize()
 
-    def __call__(self, i: Tensor, x: Tensor):
-        return x.sum(axis=1) * self.weights[i]
+    def __call__(self, x: Tensor):
+        return x.sum(axis=1) * self.weight
 
 
 def realize(x: Tensor) -> list:
@@ -31,27 +28,14 @@ def realize(x: Tensor) -> list:
 
 
 @pytest.mark.parametrize(
-    "size, skip_index, repeat",
-    [
-        (10, 0, 100),
-    ],
-)
-def test_randperm_skip(size: int, skip_index: int, repeat: int):
-    result = Tensor.stack(
-        *[randperm_skip(size, Tensor(skip_index)) for _ in range(repeat)], dim=0
-    ).realize()
-    assert result.size() == (repeat, size - 1)
-    for row in result:
-        assert frozenset(row.tolist()) == (
-            frozenset(range(size)) - frozenset([skip_index])
-        )
-
-
-@pytest.mark.parametrize(
-    "model, x, expected",
+    "spec, vendors, x, expected",
     [
         (
-            MultiMultiplyModel([0.0, 1.0, 2.0]),
+            Spec(
+                model=lambda: None,
+                vendor_count=3,
+            ),
+            [Multiply(v) for v in [0.0, 1.0, 2.0]],
             Tensor([1.0, 2.0, 3.0]),
             (
                 Tensor(
@@ -63,21 +47,30 @@ def test_randperm_skip(size: int, skip_index: int, repeat: int):
                 ),
                 Tensor([[0], [1], [2]]),
             ),
-        )
+        ),
     ],
 )
 def test_produce_with_input_data(
-    model: MultiModelBase, x: Tensor, expected: tuple[Tensor, Tensor]
+    spec: Spec,
+    vendors: list[typing.Callable],
+    x: Tensor,
+    expected: tuple[Tensor, Tensor],
 ):
-    assert list(map(realize, produce(model=model, x=x))) == list(map(realize, expected))
+    assert list(map(realize, produce(spec=spec, vendors=vendors, x=x))) == list(
+        map(realize, expected)
+    )
 
 
 @pytest.mark.parametrize(
-    "model, upstream_sampling, x, paths",
+    "spec, vendors, x, paths",
     [
         (
-            MultiMultiplyModel([1.0, 3.0, 5.0]),
-            2,
+            Spec(
+                model=lambda: None,
+                vendor_count=3,
+                upstream_sampling=2,
+            ),
+            [Multiply(v) for v in [1.0, 3.0, 5.0]],
             Tensor(
                 [
                     [1.0, 2.0, 3.0],
@@ -88,8 +81,12 @@ def test_produce_with_input_data(
             Tensor([[0], [1], [2]]),
         ),
         (
-            MultiMultiplySumModel([1.0, 3.0, 5.0]),
-            2,
+            Spec(
+                model=lambda: None,
+                vendor_count=3,
+                upstream_sampling=2,
+            ),
+            [MultiplySum(v) for v in [1.0, 3.0, 5.0]],
             Tensor(
                 [
                     [[1.0, 2.0, 3.0]],
@@ -100,8 +97,12 @@ def test_produce_with_input_data(
             Tensor([[0], [1], [2]]),
         ),
         (
-            MultiMultiplyModel([1.0, 3.0, 5.0]),
-            0,
+            Spec(
+                model=lambda: None,
+                vendor_count=3,
+                upstream_sampling=0,
+            ),
+            [MultiplySum(v) for v in [1.0, 3.0, 5.0]],
             Tensor(
                 [
                     [1.0, 2.0, 3.0],
@@ -113,24 +114,20 @@ def test_produce_with_input_data(
         ),
     ],
 )
-def test_produce(
-    model: MultiModelBase, upstream_sampling: int, x: Tensor, paths: Tensor
-):
-    output, out_paths = produce(
-        model=model, x=x, paths=paths, upstream_sampling=upstream_sampling
-    )
+def test_produce(spec: Spec, vendors: list[typing.Callable], x: Tensor, paths: Tensor):
+    output, out_paths = produce(spec=spec, vendors=vendors, x=x, paths=paths)
 
     assert all(v >= 0 and v < len(x) for v in out_paths[:, :1].flatten().tolist())
     assert (
         out_paths[:, 1:].tolist()
         == (
-            Tensor.arange(model.vendor_count)
+            Tensor.arange(spec.vendor_count)
             .unsqueeze(1)
-            .repeat(1, upstream_sampling if upstream_sampling > 0 else len(x))
+            .repeat(1, spec.upstream_sampling if spec.upstream_sampling > 0 else len(x))
             .flatten()
             .unsqueeze(1)
         ).tolist()
     )
 
-    expected_output = [model(j, x[i]).tolist() for i, j in out_paths]
+    expected_output = [vendors[j.item()](x[i]).tolist() for i, j in out_paths]
     assert output.tolist() == expected_output

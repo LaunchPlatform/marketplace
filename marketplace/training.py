@@ -16,7 +16,6 @@ def produce(
     x: Tensor,
     vendors: list[typing.Callable],
     paths: Tensor | None = None,
-    upstream_sampling: int = 0,
 ) -> tuple[Tensor, Tensor]:
     """Produce various of output for the given model and its vendors with upstream sampling
 
@@ -24,7 +23,6 @@ def produce(
     :param x: raw input data or intermediate products from the previous layer
     :param vendors: vendors for decorating a model
     :param paths: accumulated paths so far from the previous layers
-    :param upstream_sampling: the count of upstream samping from the previous layer. zero means sampling all
     :return: (output_data, paths)
     """
     if paths is None:
@@ -41,11 +39,12 @@ def produce(
             "Provided input data's first dimension doesn't match with the paths' first dimension"
         )
 
-    if upstream_sampling == 0:
+    if spec.upstream_sampling == 0:
         # when upstream sampling is zero, it means we sample the full input
         upstream_sampling = x.shape[0]
         input_indexes = Tensor.arange(x.shape[0]).expand(spec.vendor_count, -1)
     else:
+        upstream_sampling = spec.upstream_sampling
         input_count = paths.size(0)
         # TODO: use RANGIFY?
         input_indexes = Tensor.stack(
@@ -93,7 +92,6 @@ def forward(
             x=data,
             vendors=spec_vendors,
             paths=acc_paths,
-            upstream_sampling=spec.upstream_sampling,
         )
     return data, acc_paths
 
