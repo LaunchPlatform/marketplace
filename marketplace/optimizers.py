@@ -122,10 +122,9 @@ class Optimizer:
         weight_updates = []
         for spec, deltas, seed in zip(self.marketplace, self.delta, best_seeds):
             model_params = get_state_dict(spec.model)
+            keys = sorted(list(model_params.keys()))
             counter = Tensor.zeros(dtype=dtypes.uint)
-            # Notice: we use deltas because it's an ordered dict, we want to have the same order for making random
-            #         numbers
-            for key in deltas:
+            for key in keys:
                 params = model_params[key]
                 weight_updates.append(
                     params.assign(
