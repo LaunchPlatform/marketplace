@@ -7,6 +7,7 @@ import time
 
 import click
 import mlflow
+import numpy as np
 from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
@@ -136,20 +137,37 @@ def train(
             vendors=optimizer.vendors,
             x=x,
         )
-        loss = Tensor.stack(
-            *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
-            dim=0,
+        loss_accuracy = Tensor.stack(
+            Tensor.stack(
+                *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
+                dim=0,
+            ),
+            Tensor.stack(
+                *(
+                    ((logits.sigmoid().argmax(axis=1) == y).sum() / batch_size) * 100
+                    for logits in batch_logits
+                ),
+                dim=0,
+            ),
+            dim=1,
         )
-        best_loss, best_index = loss.topk(1, largest=False)
-        best_index = best_index.squeeze(0)
-        accuracy = (
-            (batch_logits[best_index].sigmoid().argmax(axis=1) == y).sum() / batch_size
-        ) * 100
         return (
-            best_loss.squeeze(0).realize(),
-            accuracy.realize(),
-            optimizer.get_seeds(batch_paths[best_index]).realize(),
+            loss_accuracy.realize(),
+            batch_paths.realize(),
         )
+
+    def multi_forward_step(sample_batches: Tensor):
+        path_stats = {}
+        for i, samples in enumerate(sample_batches):
+            x = X_train[samples]
+            y = Y_train[samples]
+            loss_accuracy, paths = (v.numpy() for v in forward_step(x, y))
+
+            unique_paths, indices = np.unique(paths, return_inverse=True)
+            counts = np.bincount(indices)
+
+            loss_accuracy_sums = np.bincount(indices, weights=loss_accuracy)
+            loss_accuracy_means = loss_accuracy_sums / counts
 
     @TinyJit
     def optimize_step(seeds: Tensor):
@@ -176,9 +194,9 @@ def train(
 
         start_time = time.perf_counter()
 
-        samples = Tensor.randint(batch_size, high=X_train.shape[0]).realize()
-        x = X_train[samples]
-        y = Y_train[samples]
+        sample_batches = Tensor.randint(
+            current_forward_pass, batch_size, high=X_train.shape[0]
+        ).realize()
 
         best_loss, best_accuracy, best_seeds = (
             v.clone().realize() for v in forward_step(x, y)
