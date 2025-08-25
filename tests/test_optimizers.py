@@ -81,3 +81,17 @@ def test_optimizer(optimizer: Optimizer):
     assert len(optimizer.delta) == len(optimizer.marketplace)
     assert len(optimizer.seeds) == len(optimizer.marketplace)
     assert len(optimizer.vendors) == len(optimizer.marketplace)
+
+
+def test_optimizer_schedule_delta_update(optimizer: Optimizer):
+    materialized_deltas = [
+        {key: params.tolist() for key, params in deltas.items()}
+        for deltas in optimizer.delta
+    ]
+    for _ in range(10):
+        Tensor.realize(*optimizer.schedule_delta_update())
+        new_delta = [
+            {key: params.tolist() for key, params in deltas.items()}
+            for deltas in optimizer.delta
+        ]
+        assert materialized_deltas == new_delta

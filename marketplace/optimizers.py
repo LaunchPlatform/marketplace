@@ -157,18 +157,18 @@ class Optimizer:
         delta_updates = []
         for deltas, seeds in zip(self.delta, self.seeds):
             counter = Tensor.zeros(dtype=dtypes.uint)
-            for params_delta in deltas.values():
+            keys = sorted(list(deltas.keys()))
+            for key in keys:
+                params = deltas[key]
                 updated_params = Tensor.stack(
                     *(
-                        self.make_delta(
-                            seed=seed, counter=counter, params=params_delta[i]
-                        )
+                        self.make_delta(seed=seed, counter=counter, params=params[i])
                         for i, seed in enumerate(seeds)
                     ),
                     dim=0,
                 )
-                counter += counter_advance_for(params_delta[0])
-                delta_updates.append(params_delta.assign(updated_params))
+                counter += counter_advance_for(params[0])
+                delta_updates.append(params.assign(updated_params))
         return delta_updates
 
     def make_delta(self, seed: Tensor, counter: Tensor, params: Tensor) -> Tensor:
