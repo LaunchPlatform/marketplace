@@ -111,27 +111,27 @@ class StochasticOptimizer:
         )
 
     def schedule_weight_update(self, path: Tensor) -> list[Tensor]:
-        return [
-            param.assign(param + vendor_deltas[key][index])
-            for spec, vendor_deltas, index in zip(self.marketplace, self.delta, path)
-            for key, param in get_state_dict(spec.model).items()
-        ]
+        weight_updates = []
+        for spec, deltas, index in zip(self.marketplace, self.delta, path):
+            for key, param in get_state_dict(spec.model).items():
+                weight_updates.append(param.assign(param + deltas[key][index]))
+        return weight_updates
 
     def schedule_seeds_update(self, keep_leader: bool = True):
         return [
-            vendor_seeds.assign(
+            seeds.assign(
                 Tensor.cat(
                     Tensor.zeros(1, dtype=dtypes.uint64),
                     Tensor.randint(
-                        len(vendor_seeds) - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
+                        len(seeds) - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
                     ),
                 )
                 if keep_leader
                 else Tensor.randint(
-                    *vendor_seeds.shape, low=1, high=SEED_MAX, dtype=dtypes.uint64
+                    *seeds.shape, low=1, high=SEED_MAX, dtype=dtypes.uint64
                 )
             )
-            for vendor_seeds in self.seeds
+            for seeds in self.seeds
         ]
 
     def schedule_delta_update(self) -> list[Tensor]:
