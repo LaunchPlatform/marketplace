@@ -176,7 +176,7 @@ def train(
             (
                 loss[i : i + product_count],
                 accuracy[i : i + product_count],
-                paths[i + product_count],
+                paths[i : i + product_count],
             ) = (v.numpy() for v in forward_step(x, y))
 
         unique_paths, indices = np.unique(paths, axis=0, return_inverse=True)
