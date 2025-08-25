@@ -86,7 +86,7 @@ def test_optimizer(optimizer: Optimizer):
 
 def test_optimizer_schedule_delta_update(optimizer: Optimizer):
     init_seeds = [ctx.seeds.tolist() for ctx in optimizer.spec_context]
-    materialized_deltas = [
+    initial_deltas = [
         {key: params.tolist() for key, params in ctx.delta.items()}
         for ctx in optimizer.spec_context
     ]
@@ -96,7 +96,7 @@ def test_optimizer_schedule_delta_update(optimizer: Optimizer):
             {key: params.tolist() for key, params in ctx.delta.items()}
             for ctx in optimizer.spec_context
         ]
-        assert materialized_deltas == new_delta
+        assert initial_deltas == new_delta
     for _ in range(5):
         for ctx in optimizer.spec_context:
             ctx.seeds.assign(
@@ -112,21 +112,41 @@ def test_optimizer_schedule_delta_update(optimizer: Optimizer):
                 {key: params.tolist() for key, params in ctx.delta.items()}
                 for ctx in optimizer.spec_context
             ]
-            assert new_delta != materialized_deltas
+            assert new_delta != initial_deltas
             if last_delta is not None:
                 assert new_delta == last_delta
             last_delta = new_delta
 
 
 def test_optimizer_schedule_weight_update(optimizer: Optimizer):
-    materialized_deltas = [
-        {key: params.numpy() for key, params in deltas.items()}
-        for deltas in optimizer.delta
+    initial_deltas = [
+        {key: params.numpy() for key, params in ctx.delta.items()}
+        for ctx in optimizer.spec_context
     ]
-    materialized_weights = [
+    initial_weights = [
         {key: params.numpy() for key, params in get_state_dict(spec.model).items()}
         for spec in optimizer.marketplace
     ]
+
+    # Update with zero seeds, nothing should change
     Tensor.realize(
-        *optimizer.schedule_weight_update(Tensor([0, 0, 0], dtype=dtypes.uint64))
+        *optimizer.schedule_weight_update(
+            Tensor.zeros(len(optimizer.marketplace), dtype=dtypes.uint64)
+        )
     )
+    assert initial_weights == [
+        {key: params.numpy() for key, params in get_state_dict(spec.model).items()}
+        for spec in optimizer.marketplace
+    ]
+
+    # Now the weight should change, but the second should remain the ame
+    Tensor.realize(
+        *optimizer.schedule_weight_update(Tensor([123, 0, 456], dtype=dtypes.uint64))
+    )
+    new_weights = [
+        {key: params.numpy() for key, params in get_state_dict(spec.model).items()}
+        for spec in optimizer.marketplace
+    ]
+    assert initial_weights[0] != new_weights[0]
+    assert initial_weights[1] == new_weights[1]
+    assert initial_weights[2] != new_weights[2]

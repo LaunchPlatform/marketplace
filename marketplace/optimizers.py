@@ -15,7 +15,7 @@ from .training import Spec
 SEED_MAX = 2**64
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class SpecContext:
     seeds: Tensor
     delta: dict[str, Tensor]
@@ -100,16 +100,16 @@ class Optimizer:
         )
         # Realize the delta, making them buffers
         Tensor.realize(*self.schedule_delta_update())
-        # self.vendors = [
-        #     [
-        #         DeltaVendor(
-        #             model=spec.model,
-        #             delta={key: params[i] for key, params in deltas.items()},
-        #         )
-        #         for i in range(spec.vendor_count)
-        #     ]
-        #     for spec, deltas in zip(self.marketplace, self.delta)
-        # ]
+        self.vendors = [
+            [
+                DeltaVendor(
+                    model=spec.model,
+                    delta={key: params[i] for key, params in ctx.delta.items()},
+                )
+                for i in range(spec.vendor_count)
+            ]
+            for spec, ctx in zip(self.marketplace, self.spec_context)
+        ]
 
     def get_seeds(self, path: Tensor) -> Tensor:
         return Tensor.cat(
@@ -130,7 +130,7 @@ class Optimizer:
 
     def schedule_weight_update(self, best_seeds: Tensor) -> list[Tensor]:
         weight_updates = []
-        for spec, deltas, seed in zip(self.marketplace, self.delta, best_seeds):
+        for spec, seed in zip(self.marketplace, best_seeds):
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
             counter = Tensor.zeros(dtype=dtypes.uint)
