@@ -69,3 +69,10 @@ def test_stochastic_optimizer():
     optimizer.step(Tensor([2, 1]))
     assert optimizer.marketplace[0].model.number.item() == 3.0 + delta0
     assert optimizer.marketplace[1].model.number.item() == 5.0 + delta1
+
+    assert optimizer.seeds[0][0].item() == 0
+    assert optimizer.seeds[0].tolist() != [0, 1, 2, 3]
+    assert optimizer.seeds[1][0].item() == 0
+    assert optimizer.seeds[1].tolist() != [0, 1]
+    assert optimizer.delta[0]["number"][2].item() != delta0
+    assert optimizer.delta[0]["number"][1].item() != delta1
