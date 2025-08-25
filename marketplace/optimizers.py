@@ -15,14 +15,13 @@ SEED_MAX = 2**64
 
 class DeltaVendor:
     def __init__(self, model: typing.Callable, delta: dict[str, Tensor]):
-        self.model = model
-        self.delta = delta
-
         self.vendored_model = copy.deepcopy(model)
-        params = get_state_dict(self.vendored_model)
         load_state_dict(
             self.vendored_model,
-            state_dict={key: param + self.delta[key] for key, param in params.items()},
+            state_dict={
+                key: param + delta[key]
+                for key, param in get_state_dict(self.vendored_model).items()
+            },
             verbose=False,
             realize=False,
         )
