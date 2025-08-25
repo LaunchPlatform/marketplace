@@ -1,9 +1,11 @@
 import pytest
 from tinygrad import dtypes
 from tinygrad import Tensor
+from tinygrad.dtype import DTypeLike
 from tinygrad.helpers import ceildiv
 from tinygrad.helpers import prod
 
+from marketplace.random import counter_advance
 from marketplace.random import rand
 from marketplace.random import RandomNumberGenerator
 
@@ -88,3 +90,18 @@ def test_rng_uniform(rng: RandomNumberGenerator):
     assert random_numbers.min().item() >= 0.0
     assert random_numbers.max().item() < 10.0
     assert random_numbers.mean().item() == pytest.approx(5, rel=1e-03)
+
+
+@pytest.mark.parametrize(
+    "shape, dtype, expected",
+    [
+        ((0,), dtypes.float, 0),
+        ((1, 2, 3), dtypes.float, 6),
+        ((1, 2, 3), dtypes.float16, 3),
+        ((5,), dtypes.float16, 3),
+    ],
+)
+def test_counter_advance(
+    shape: tuple[int, ...], dtype: DTypeLike | None, expected: int
+):
+    assert counter_advance(*shape, dtype=dtype) == expected
