@@ -85,6 +85,7 @@ def test_optimizer(optimizer: Optimizer):
 
 
 def test_optimizer_schedule_delta_update(optimizer: Optimizer):
+    init_seeds = [seeds.tolist() for seeds in optimizer.seeds]
     materialized_deltas = [
         {key: params.tolist() for key, params in deltas.items()}
         for deltas in optimizer.delta
@@ -101,6 +102,7 @@ def test_optimizer_schedule_delta_update(optimizer: Optimizer):
             seed.assign(
                 Tensor.randint(*seed.shape, low=0, high=SEED_MAX, dtype=dtypes.uint64)
             ).realize()
+        assert [seeds.tolist() for seeds in optimizer.seeds] != init_seeds
         last_delta = None
         for _ in range(10):
             Tensor.realize(*optimizer.schedule_delta_update())
