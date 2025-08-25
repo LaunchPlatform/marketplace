@@ -86,9 +86,7 @@ class StochasticOptimizer:
                 ).contiguous()
                 for key, params in get_state_dict(spec.model).items()
             }
-            for spec, vendor_seeds, vendor_counters in zip(
-                self.marketplace, self.seeds, self.counters
-            )
+            for spec in self.marketplace
         ]
         # Realize the delta, making them buffers
         Tensor.realize(*self.schedule_delta_update())
@@ -96,11 +94,11 @@ class StochasticOptimizer:
             [
                 DeltaVendor(
                     model=spec.model,
-                    delta={key: params[i] for key, params in vendor_deltas.items()},
+                    delta={key: params[i] for key, params in deltas.items()},
                 )
                 for i in range(spec.vendor_count)
             ]
-            for spec, vendor_deltas in zip(self.marketplace, self.delta)
+            for spec, deltas in zip(self.marketplace, self.delta)
         ]
 
     def step(self, path: Tensor, keep_leader: bool = True):
@@ -138,23 +136,16 @@ class StochasticOptimizer:
         ]
 
     def schedule_delta_update(self) -> list[Tensor]:
-        return (
-            # reset the rng counters
-            [
-                vendor_counters.assign(Tensor.zeros_like(vendor_counters))
-                for vendor_counters in self.counters
-            ]
-            # generate new delta based on the current seed and lr
-            + [
-                params.assign(self.make_delta(seed, counter, params))
-                for vendor_deltas, vendor_seeds, vendor_counters in zip(
-                    self.delta, self.seeds, self.counters
+        counter_resets = [
+            counters.assign(Tensor.zeros_like(counters)) for counters in self.counters
+        ]
+        delta_updates = []
+        for deltas, seeds, counters in zip(self.delta, self.seeds, self.counters):
+            for params, seed, counter in zip(deltas.values(), seeds, counters):
+                delta_updates.append(
+                    params.assign(self.make_delta(seed, counter, params))
                 )
-                for params, seed, counter in zip(
-                    vendor_deltas.values(), vendor_seeds, vendor_counters
-                )
-            ]
-        )
+        return counter_resets + delta_updates
 
     def make_delta(self, seed: Tensor, counter: Tensor, params: Tensor) -> Tensor:
         return (seed != 0).where(
