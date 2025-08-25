@@ -5,6 +5,7 @@ from tinygrad import Tensor
 from marketplace.nn import Model
 from marketplace.optimizers import DeltaVendor
 from marketplace.optimizers import Optimizer
+from marketplace.optimizers import SEED_MAX
 from marketplace.training import Spec
 
 
@@ -95,3 +96,19 @@ def test_optimizer_schedule_delta_update(optimizer: Optimizer):
             for deltas in optimizer.delta
         ]
         assert materialized_deltas == new_delta
+    for _ in range(5):
+        for seed in optimizer.seeds:
+            seed.assign(
+                Tensor.randint(*seed.shape, low=0, high=SEED_MAX, dtype=dtypes.uint64)
+            ).realize()
+        last_delta = None
+        for _ in range(10):
+            Tensor.realize(*optimizer.schedule_delta_update())
+            new_delta = [
+                {key: params.tolist() for key, params in deltas.items()}
+                for deltas in optimizer.delta
+            ]
+            assert new_delta != materialized_deltas
+            if last_delta is not None:
+                assert new_delta == last_delta
+            last_delta = new_delta
