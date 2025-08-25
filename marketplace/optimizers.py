@@ -155,19 +155,19 @@ class Optimizer:
 
     def schedule_seeds_update(self, keep_leader: bool = True):
         return [
-            seeds.assign(
+            ctx.seeds.assign(
                 Tensor.cat(
                     Tensor.zeros(1, dtype=dtypes.uint64),
                     Tensor.randint(
-                        len(seeds) - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
+                        len(ctx.seeds) - 1, low=1, high=SEED_MAX, dtype=dtypes.uint64
                     ),
                 )
                 if keep_leader
                 else Tensor.randint(
-                    *seeds.shape, low=1, high=SEED_MAX, dtype=dtypes.uint64
+                    *ctx.seeds.shape, low=1, high=SEED_MAX, dtype=dtypes.uint64
                 )
             )
-            for seeds in self.seeds
+            for ctx in self.spec_context
         ]
 
     def schedule_delta_update(self) -> list[Tensor]:
