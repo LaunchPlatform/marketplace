@@ -19,6 +19,12 @@ def rng() -> RandomNumberGenerator:
     "shape, seed, counter, expected",
     [
         (
+            (),
+            Tensor(123456, dtype=dtypes.uint64),
+            0,
+            0.5452135801315308,
+        ),
+        (
             (6,),
             Tensor(123456, dtype=dtypes.uint64),
             0,
