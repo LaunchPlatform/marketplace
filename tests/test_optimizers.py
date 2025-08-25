@@ -140,9 +140,18 @@ def test_optimizer_schedule_weight_update(optimizer: Optimizer):
     ]
 
     # Now the weight should change, but the second should remain the ame
-    Tensor.realize(
-        *optimizer.schedule_weight_update(Tensor([123, 0, 456], dtype=dtypes.uint64))
+    path = Tensor([1, 0, 3], dtype=dtypes.uint)
+    seeds = Tensor(
+        [
+            optimizer.spec_context[0].seeds[path[0]].item(),
+            optimizer.spec_context[1].seeds[path[1]].item(),
+            optimizer.spec_context[2].seeds[path[2]].item(),
+        ],
+        dtype=dtypes.uint64,
     )
+    # the second seed should be zero
+    assert seeds[1].item() == 0
+    Tensor.realize(*optimizer.schedule_weight_update(seeds))
     new_weights = [
         {key: params.numpy() for key, params in get_state_dict(spec.model).items()}
         for spec in optimizer.marketplace
@@ -150,3 +159,8 @@ def test_optimizer_schedule_weight_update(optimizer: Optimizer):
     assert initial_weights[0] != new_weights[0]
     assert initial_weights[1] == new_weights[1]
     assert initial_weights[2] != new_weights[2]
+
+    assert {
+        key: init_params + initial_deltas[0][key][path[0]]
+        for key, init_params in initial_weights[0].items()
+    } == new_weights[0]
