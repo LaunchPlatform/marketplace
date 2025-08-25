@@ -130,7 +130,7 @@ def train(
         Tensor.manual_seed(manual_seed)
 
     X_train, Y_train, X_test, Y_test = load_data()
-    lr = Tensor(initial_lr).realize()
+    lr = Tensor(initial_lr).contiguous().realize()
     optimizer = StochasticOptimizer(marketplace=marketplace, learning_rate=lr)
 
     @TinyJit
