@@ -23,6 +23,24 @@ def _threefry_random_bits(key: Tensor, counts0: Tensor, counts1: Tensor) -> Tens
     return counts0.cat(counts1)
 
 
+def counter_advance(*shape, dtype: DTypeLike | None = None) -> int:
+    """Calculate counter advance for a given shape
+
+    :param shape: Shape of tensor
+    :param dtype: dtype of tensor
+    :return: the number we will advance when generate random numbers in the given shape
+    """
+    if not dtypes.is_float(dtype := to_dtype(dtype or dtypes.default_float)):
+        raise ValueError(f"rand only supports float dtypes, got {dtype}")
+    if (numel := prod(shape)) == 0:
+        return 0
+    return ceildiv(numel * dtype.itemsize, 4)
+
+
+def counter_advance_for(target: Tensor) -> int:
+    return counter_advance(*target.shape, dtype=target.dtype)
+
+
 # we mostly follow the implementation of Tinygrad's `rand` function, but we use our own given seed value
 # ref: https://github.com/tinygrad/tinygrad/blob/b057a90d493664d37558eb6c5447bc5bd5c15009/tinygrad/tensor.py#L502-L549
 def rand(
