@@ -15,19 +15,21 @@ SEED_MAX = 2**64
 
 class DeltaVendor:
     def __init__(self, model: typing.Callable, delta: dict[str, Tensor]):
-        self.vendored_model = copy.deepcopy(model)
+        self.model = model
+        self.delta = delta
+
+    def __call__(self, *args, **kwargs):
+        vendored_model = copy.deepcopy(self.model)
         load_state_dict(
-            self.vendored_model,
+            vendored_model,
             state_dict={
-                key: param + delta[key]
-                for key, param in get_state_dict(self.vendored_model).items()
+                key: param + self.delta[key]
+                for key, param in get_state_dict(vendored_model).items()
             },
             verbose=False,
             realize=False,
         )
-
-    def __call__(self, *args, **kwargs):
-        return self.vendored_model(*args, **kwargs)
+        return vendored_model(*args, **kwargs)
 
 
 class StochasticOptimizer:
