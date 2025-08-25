@@ -1,4 +1,5 @@
 import copy
+import dataclasses
 import typing
 
 from tinygrad import dtypes
@@ -12,6 +13,12 @@ from .random import RandomNumberGenerator
 from .training import Spec
 
 SEED_MAX = 2**64
+
+
+@dataclasses.dataclass(frozen=True)
+class SpecContext:
+    seeds: Tensor
+    delta: dict[str, Tensor]
 
 
 class DeltaVendor:
@@ -52,9 +59,8 @@ class Optimizer:
                 raise ValueError(
                     f"Provided seeds should the same shape {market_shape} as the depth of market but got {seeds_shape}"
                 )
-            self.seeds = seeds
         else:
-            self.seeds = [
+            seeds = [
                 Tensor.cat(
                     Tensor.zeros(1, dtype=dtypes.uint64),
                     Tensor.randint(
@@ -63,6 +69,21 @@ class Optimizer:
                 )
                 for spec in self.marketplace
             ]
+
+        self.spec_context: list[SpecContext] = [
+            SpecContext(
+                seeds=seeds[i].contiguous(),
+                # allocate memory for delta
+                delta={
+                    key: Tensor.empty(
+                        spec.vendor_count, *params.shape, dtype=params.dtype
+                    ).contiguous()
+                    for key, params in get_state_dict(spec.model).items()
+                },
+            )
+            for i, spec in enumerate(self.marketplace)
+        ]
+
         Tensor.realize(
             *(
                 # We need to realize all the parameters so that they are buffer instead of compute graph, otherwise the
@@ -74,32 +95,21 @@ class Optimizer:
                     for param in get_parameters(spec.model)
                 ]
                 # also realize seeds so that they are buffer
-                + self.seeds
+                + [ctx.seeds for ctx in self.spec_context]
             )
         )
-
-        # Allocate memory for parameter delta
-        self.delta = [
-            {
-                key: Tensor.empty(
-                    spec.vendor_count, *params.shape, dtype=params.dtype
-                ).contiguous()
-                for key, params in get_state_dict(spec.model).items()
-            }
-            for spec in self.marketplace
-        ]
         # Realize the delta, making them buffers
         Tensor.realize(*self.schedule_delta_update())
-        self.vendors = [
-            [
-                DeltaVendor(
-                    model=spec.model,
-                    delta={key: params[i] for key, params in deltas.items()},
-                )
-                for i in range(spec.vendor_count)
-            ]
-            for spec, deltas in zip(self.marketplace, self.delta)
-        ]
+        # self.vendors = [
+        #     [
+        #         DeltaVendor(
+        #             model=spec.model,
+        #             delta={key: params[i] for key, params in deltas.items()},
+        #         )
+        #         for i in range(spec.vendor_count)
+        #     ]
+        #     for spec, deltas in zip(self.marketplace, self.delta)
+        # ]
 
     def get_seeds(self, path: Tensor) -> Tensor:
         return Tensor.cat(
@@ -154,15 +164,15 @@ class Optimizer:
 
     def schedule_delta_update(self) -> list[Tensor]:
         delta_updates = []
-        for deltas, seeds in zip(self.delta, self.seeds):
+        for ctx in self.spec_context:
             counter = Tensor.zeros(dtype=dtypes.uint)
-            keys = sorted(list(deltas.keys()))
+            keys = sorted(list(ctx.delta.keys()))
             for key in keys:
-                params = deltas[key]
+                params = ctx.delta[key]
                 updated_params = Tensor.stack(
                     *(
                         self.make_delta(seed=seed, counter=counter, params=params[i])
-                        for i, seed in enumerate(seeds)
+                        for i, seed in enumerate(ctx.seeds)
                     ),
                     dim=0,
                 )

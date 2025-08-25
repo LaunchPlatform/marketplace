@@ -1,6 +1,7 @@
 import pytest
 from tinygrad import dtypes
 from tinygrad import Tensor
+from tinygrad.nn.state import get_state_dict
 
 from marketplace.nn import Model
 from marketplace.optimizers import DeltaVendor
@@ -79,38 +80,53 @@ def test_delta_vendor():
 
 
 def test_optimizer(optimizer: Optimizer):
-    assert len(optimizer.delta) == len(optimizer.marketplace)
-    assert len(optimizer.seeds) == len(optimizer.marketplace)
-    assert len(optimizer.vendors) == len(optimizer.marketplace)
+    assert len(optimizer.spec_context) == len(optimizer.marketplace)
+    # assert len(optimizer.vendors) == len(optimizer.marketplace)
 
 
 def test_optimizer_schedule_delta_update(optimizer: Optimizer):
-    init_seeds = [seeds.tolist() for seeds in optimizer.seeds]
+    init_seeds = [ctx.seeds.tolist() for ctx in optimizer.spec_context]
     materialized_deltas = [
-        {key: params.tolist() for key, params in deltas.items()}
-        for deltas in optimizer.delta
+        {key: params.tolist() for key, params in ctx.delta.items()}
+        for ctx in optimizer.spec_context
     ]
     for _ in range(10):
         Tensor.realize(*optimizer.schedule_delta_update())
         new_delta = [
-            {key: params.tolist() for key, params in deltas.items()}
-            for deltas in optimizer.delta
+            {key: params.tolist() for key, params in ctx.delta.items()}
+            for ctx in optimizer.spec_context
         ]
         assert materialized_deltas == new_delta
     for _ in range(5):
-        for seed in optimizer.seeds:
-            seed.assign(
-                Tensor.randint(*seed.shape, low=0, high=SEED_MAX, dtype=dtypes.uint64)
+        for ctx in optimizer.spec_context:
+            ctx.seeds.assign(
+                Tensor.randint(
+                    *ctx.seeds.shape, low=0, high=SEED_MAX, dtype=dtypes.uint64
+                )
             ).realize()
-        assert [seeds.tolist() for seeds in optimizer.seeds] != init_seeds
+        assert [ctx.seeds.tolist() for ctx in optimizer.spec_context] != init_seeds
         last_delta = None
         for _ in range(10):
             Tensor.realize(*optimizer.schedule_delta_update())
             new_delta = [
-                {key: params.tolist() for key, params in deltas.items()}
-                for deltas in optimizer.delta
+                {key: params.tolist() for key, params in ctx.delta.items()}
+                for ctx in optimizer.spec_context
             ]
             assert new_delta != materialized_deltas
             if last_delta is not None:
                 assert new_delta == last_delta
             last_delta = new_delta
+
+
+def test_optimizer_schedule_weight_update(optimizer: Optimizer):
+    materialized_deltas = [
+        {key: params.numpy() for key, params in deltas.items()}
+        for deltas in optimizer.delta
+    ]
+    materialized_weights = [
+        {key: params.numpy() for key, params in get_state_dict(spec.model).items()}
+        for spec in optimizer.marketplace
+    ]
+    Tensor.realize(
+        *optimizer.schedule_weight_update(Tensor([0, 0, 0], dtype=dtypes.uint64))
+    )
