@@ -131,25 +131,24 @@ def train(
     optimizer = Optimizer(marketplace=marketplace, learning_rate=lr)
 
     @TinyJit
-    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         batch_logits, batch_paths = forward(
             marketplace=marketplace,
             vendors=optimizer.vendors,
             x=x,
         )
         loss_accuracy = Tensor.stack(
-            Tensor.stack(
-                *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
-                dim=0,
+            *(
+                Tensor.stack(
+                    # loss
+                    logits.sparse_categorical_crossentropy(y),
+                    # accuracy
+                    ((logits.sigmoid().argmax(axis=1) == y).sum() / batch_size) * 100,
+                    dim=0,
+                )
+                for logits in batch_logits
             ),
-            Tensor.stack(
-                *(
-                    ((logits.sigmoid().argmax(axis=1) == y).sum() / batch_size) * 100
-                    for logits in batch_logits
-                ),
-                dim=0,
-            ),
-            dim=1,
+            dim=0,
         )
         return (
             loss_accuracy.realize(),
@@ -163,7 +162,7 @@ def train(
             y = Y_train[samples]
             loss_accuracy, paths = (v.numpy() for v in forward_step(x, y))
 
-            unique_paths, indices = np.unique(paths, return_inverse=True)
+            unique_paths, indices = np.unique(paths, axis=0, return_inverse=True)
             counts = np.bincount(indices)
 
             loss_accuracy_sums = np.bincount(indices, weights=loss_accuracy)
@@ -197,6 +196,8 @@ def train(
         sample_batches = Tensor.randint(
             current_forward_pass, batch_size, high=X_train.shape[0]
         ).realize()
+        multi_forward_step(sample_batches)
+        return
 
         best_loss, best_accuracy, best_seeds = (
             v.clone().realize() for v in forward_step(x, y)
