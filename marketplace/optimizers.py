@@ -113,7 +113,11 @@ class Optimizer:
 
     def get_seeds(self, path: Tensor) -> Tensor:
         return Tensor.cat(
-            *(seeds[index].unsqueeze(0) for index, seeds in zip(path, self.seeds))
+            *(
+                ctx.seeds[index].unsqueeze(0)
+                for index, ctx in zip(path, self.spec_context)
+            ),
+            dim=0,
         )
 
     def step(self, best_seeds: Tensor, keep_leader: bool = True):
@@ -133,13 +137,17 @@ class Optimizer:
         for spec, seed in zip(self.marketplace, best_seeds):
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
-            counter = Tensor.zeros(dtype=dtypes.uint)
+            counter = 0
             for key in keys:
                 params = model_params[key]
                 weight_updates.append(
                     params.assign(
                         params
-                        + self.make_delta(seed=seed, counter=counter, params=params)
+                        + self.make_delta(
+                            seed=seed,
+                            counter=Tensor(counter, dtype=dtypes.uint),
+                            params=params,
+                        )
                     )
                 )
                 counter += counter_advance_for(params)
@@ -165,13 +173,17 @@ class Optimizer:
     def schedule_delta_update(self) -> list[Tensor]:
         delta_updates = []
         for ctx in self.spec_context:
-            counter = Tensor.zeros(dtype=dtypes.uint)
+            counter = 0
             keys = sorted(list(ctx.delta.keys()))
             for key in keys:
                 params = ctx.delta[key]
                 updated_params = Tensor.stack(
                     *(
-                        self.make_delta(seed=seed, counter=counter, params=params[i])
+                        self.make_delta(
+                            seed=seed,
+                            counter=Tensor(counter, dtype=dtypes.uint),
+                            params=params[i],
+                        )
                         for i, seed in enumerate(ctx.seeds)
                     ),
                     dim=0,
