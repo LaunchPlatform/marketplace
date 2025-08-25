@@ -156,27 +156,27 @@ def train(
 
     def multi_forward_step(sample_batches: Tensor):
         # TODO: extract this
-        final_product_count = 1
+        product_count = 1
         for spec in reversed(marketplace):
-            final_product_count *= spec.vendor_count
+            product_count *= spec.vendor_count
             if spec.upstream_sampling != 0:
-                final_product_count *= spec.upstream_sampling
+                product_count *= spec.upstream_sampling
                 break
         # TODO: ideally, if we want to save some memory, we should apply online algorithm here instead so that we don't
         #       need to accumulate all the data in each forward pass
-        loss = np.empty([len(sample_batches) * final_product_count])
-        accuracy = np.empty([len(sample_batches) * final_product_count])
+        loss = np.empty([len(sample_batches) * product_count])
+        accuracy = np.empty([len(sample_batches) * product_count])
         paths = np.empty(
-            [len(sample_batches) * final_product_count, len(marketplace)], dtype=int
+            [len(sample_batches) * product_count, len(marketplace)], dtype=int
         )
 
         for i, samples in enumerate(sample_batches):
             x = X_train[samples]
             y = Y_train[samples]
             (
-                loss[i : i + len(sample_batches)],
-                accuracy[i : i + len(sample_batches)],
-                paths[i + len(sample_batches)],
+                loss[i : i + product_count],
+                accuracy[i : i + product_count],
+                paths[i + product_count],
             ) = (v.numpy() for v in forward_step(x, y))
 
         unique_paths, indices = np.unique(paths, axis=0, return_inverse=True)
