@@ -38,8 +38,14 @@ def test_stochastic_optimizer():
     )
     assert len(optimizer.delta) == 1
     assert len(optimizer.vendors) == 1
-    assert len(optimizer.vendors[0]) == 4
+
+    number_delta = optimizer.delta[0]["number"]
+    assert number_delta.shape == (4,)
     # the delta for seed 0 should be all zeros
-    assert optimizer.delta[0]["number"].sum().item() == 0
-    assert optimizer.delta[0]["number"].min().item() == 0
-    assert optimizer.delta[0]["number"].max().item() == 0
+    assert number_delta[0].sum().item() == 0
+    assert number_delta[0].min().item() == 0
+    assert number_delta[0].max().item() == 0
+
+    for i in range(1, 4):
+        assert number_delta[i].min().item() > -2.0
+        assert number_delta[i].max().item() < 2.0
