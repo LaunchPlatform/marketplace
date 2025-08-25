@@ -41,6 +41,12 @@ class StochasticOptimizer:
         self.learning_rate = learning_rate
 
         if seeds is not None:
+            market_shape = tuple(spec.vendor_count for spec in marketplace)
+            seeds_shape = tuple(len(vendor_seeds) for vendor_seeds in seeds)
+            if seeds_shape != market_shape:
+                raise ValueError(
+                    f"Provided seeds should the same shape {market_shape} as the depth of market but got {seeds_shape}"
+                )
             self.seeds = seeds
         else:
             self.seeds = [
