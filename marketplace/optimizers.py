@@ -8,6 +8,7 @@ from tinygrad.nn.state import get_state_dict
 from tinygrad.nn.state import load_state_dict
 
 from .random import rand
+from .random import RandomNumberGenerator
 from .training import Spec
 
 SEED_MAX = 2**64
@@ -36,9 +37,11 @@ class StochasticOptimizer:
         marketplace: list[Spec],
         learning_rate: Tensor,
         seeds: list[Tensor] | None = None,
+        make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
     ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
+        self.make_rng = make_rng
 
         if seeds is not None:
             market_shape = tuple(spec.vendor_count for spec in marketplace)
@@ -154,13 +157,9 @@ class StochasticOptimizer:
         )
 
     def make_delta(self, seed: Tensor, counter: Tensor, params: Tensor) -> Tensor:
-        high = self.learning_rate
-        low = -self.learning_rate
-        # TODO: take RNG from the external to make it possible to use different RNG algorithm?
-        uniform = ((high - low) * rand(*params.shape, seed=seed, counter=counter)).cast(
-            params.dtype or dtypes.default_float
-        ) + low
         return (seed != 0).where(
-            uniform,
+            self.make_rng(seed=seed, counter=counter).uniform_like(
+                params, low=-self.learning_rate, high=self.learning_rate
+            ),
             Tensor.zeros_like(params),
         )
