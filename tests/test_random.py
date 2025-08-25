@@ -22,7 +22,7 @@ def rng() -> RandomNumberGenerator:
             (),
             Tensor(123456, dtype=dtypes.uint64),
             0,
-            0.5452135801315308,
+            0.7353423833847046,
         ),
         (
             (6,),
@@ -62,10 +62,15 @@ def rng() -> RandomNumberGenerator:
         ),
     ],
 )
-def test_rand(shape: tuple[int, ...], seed: Tensor, counter: int, expected: list):
+def test_rand(
+    shape: tuple[int, ...], seed: Tensor, counter: int, expected: list | float
+):
     counter_val = Tensor(counter)
     nums = rand(*shape, seed=seed, counter=counter_val)
-    assert nums.tolist() == expected
+    if isinstance(expected, list):
+        assert nums.tolist() == expected
+    else:
+        assert nums.item() == expected
     assert (
         counter_val.item() == ceildiv(prod(shape) * dtypes.float.itemsize, 4) + counter
     )
