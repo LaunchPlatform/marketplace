@@ -88,15 +88,15 @@ def train(
     marketplace: list[Spec],
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
-    metrics_per_steps: int = 10,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
+    metrics_per_steps: int = 10,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
     manual_seed: int | None = None,
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "marketplace_replica=%s, initial_forward_pass=%s, metrics_per_steps=%s, forward_pass_schedule=%s, "
+        "marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, "
         "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
@@ -171,8 +171,6 @@ def train(
         if forward_pass_schedule is not None:
             for threshold, forward_pass in reversed(forward_pass_schedule):
                 if i >= threshold:
-                    if forward_pass != current_forward_pass:
-                        mutate_step.reset()
                     current_forward_pass = forward_pass
                     break
 
