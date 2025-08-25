@@ -52,7 +52,15 @@ def test_stochastic_optimizer():
     lr = Tensor(2.0).contiguous().realize()
     optimizer = StochasticOptimizer(
         marketplace=[
-            Spec(model=Multiply(3.0), vendor_count=4),
+            Spec(
+                model=Model(
+                    layers=[
+                        Multiply(3.0),
+                        Add(11.0),
+                    ]
+                ),
+                vendor_count=4,
+            ),
             Spec(model=Multiply(5.0), vendor_count=2),
         ],
         learning_rate=lr,
