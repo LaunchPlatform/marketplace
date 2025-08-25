@@ -7,7 +7,6 @@ from tinygrad.nn.state import get_parameters
 from tinygrad.nn.state import get_state_dict
 from tinygrad.nn.state import load_state_dict
 
-from .random import rand
 from .random import RandomNumberGenerator
 from .training import Spec
 
@@ -141,15 +140,17 @@ class StochasticOptimizer:
         ]
         delta_updates = []
         for deltas, seeds, counters in zip(self.delta, self.seeds, self.counters):
-            for params in deltas.values():
+            for params_delta in deltas.values():
                 updated_params = Tensor.stack(
                     *(
-                        self.make_delta(seed=seed, counter=counter, params=params[i])
+                        self.make_delta(
+                            seed=seed, counter=counter, params=params_delta[i]
+                        )
                         for i, (seed, counter) in enumerate(zip(seeds, counters))
                     ),
                     dim=0,
                 )
-                delta_updates.append(params.assign(updated_params))
+                delta_updates.append(params_delta.assign(updated_params))
         return counter_resets + delta_updates
 
     def make_delta(self, seed: Tensor, counter: Tensor, params: Tensor) -> Tensor:

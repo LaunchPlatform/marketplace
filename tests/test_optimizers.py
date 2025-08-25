@@ -36,7 +36,10 @@ def test_stochastic_optimizer():
             Spec(model=Multiply(5.0), vendor_count=2),
         ],
         learning_rate=lr,
-        seeds=[Tensor([0, 1, 2, 3], dtype=dtypes.uint64).contiguous().realize()],
+        seeds=[
+            Tensor([0, 1, 2, 3], dtype=dtypes.uint64).contiguous().realize(),
+            Tensor([0, 1], dtype=dtypes.uint64).contiguous().realize(),
+        ],
     )
     assert len(optimizer.delta) == 2
     assert len(optimizer.vendors) == 2
@@ -51,3 +54,12 @@ def test_stochastic_optimizer():
     for i in range(1, 4):
         assert number_delta0[i].min().item() > -2.0
         assert number_delta0[i].max().item() < 2.0
+
+    x = Tensor(4)
+    assert optimizer.vendors[0][0](x).item() == 12.0
+    assert optimizer.vendors[0][1](x).item() == 18.55428695678711
+    assert optimizer.vendors[0][2](x).item() == 4.174886703491211
+    assert optimizer.vendors[0][3](x).item() == 14.351898193359375
+
+    assert optimizer.vendors[1][0](x).item() == 20.0
+    assert optimizer.vendors[1][1](x).item() == 26.55428695678711
