@@ -141,9 +141,21 @@ class StochasticOptimizer:
         ]
         delta_updates = []
         for deltas, seeds, counters in zip(self.delta, self.seeds, self.counters):
-            for params, seed, counter in zip(deltas.values(), seeds, counters):
+            for params in deltas.values():
                 delta_updates.append(
-                    params.assign(self.make_delta(seed, counter, params))
+                    params.assign(
+                        Tensor.stack(
+                            *(
+                                self.make_delta(
+                                    seed=seed, counter=counter, params=params[i]
+                                )
+                                for i, (seed, counter) in enumerate(
+                                    zip(seeds, counters)
+                                )
+                            ),
+                            dim=0,
+                        )
+                    )
                 )
         return counter_resets + delta_updates
 
