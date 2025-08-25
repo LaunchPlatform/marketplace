@@ -155,22 +155,39 @@ def train(
         )
 
     def multi_forward_step(sample_batches: Tensor):
-        path_stats = {}
+        # TODO: extract this
+        final_product_count = 1
+        for spec in reversed(marketplace):
+            final_product_count *= spec.vendor_count
+            if spec.upstream_sampling != 0:
+                final_product_count *= spec.upstream_sampling
+                break
+        # TODO: ideally, if we want to save some memory, we should apply online algorithm here instead so that we don't
+        #       need to accumulate all the data in each forward pass
+        loss = np.empty([len(sample_batches) * final_product_count])
+        accuracy = np.empty([len(sample_batches) * final_product_count])
+        paths = np.empty(
+            [len(sample_batches) * final_product_count, len(marketplace)], dtype=int
+        )
+
         for i, samples in enumerate(sample_batches):
             x = X_train[samples]
             y = Y_train[samples]
-            loss, accuracy, paths = (v.numpy() for v in forward_step(x, y))
+            (
+                loss[i : i + len(sample_batches)],
+                accuracy[i : i + len(sample_batches)],
+                paths[i + len(sample_batches)],
+            ) = (v.numpy() for v in forward_step(x, y))
 
-            unique_paths, indices = np.unique(paths, axis=0, return_inverse=True)
-            counts = np.bincount(indices)
+        unique_paths, indices = np.unique(paths, axis=0, return_inverse=True)
+        counts = np.bincount(indices)
 
-            loss_sums = np.bincount(indices, weights=loss)
-            loss_means = loss_sums / counts
+        loss_sums = np.bincount(indices, weights=loss)
+        loss_means = loss_sums / counts
+        accuracy_sums = np.bincount(indices, weights=accuracy)
+        accuracy_means = accuracy_sums / counts
 
-            accuracy_sums = np.bincount(indices, weights=accuracy)
-            accuracy_means = accuracy_sums / counts
-
-            print(loss_means, accuracy_means)
+        print(loss_means, accuracy_means)
 
     @TinyJit
     def optimize_step(seeds: Tensor):
