@@ -29,23 +29,25 @@ def test_delta_vendor():
 
 
 def test_stochastic_optimizer():
-    model = Multiply(3.0)
     lr = Tensor(2.0).contiguous().realize()
     optimizer = StochasticOptimizer(
-        marketplace=[Spec(model=model, vendor_count=4)],
+        marketplace=[
+            Spec(model=Multiply(3.0), vendor_count=4),
+            Spec(model=Multiply(5.0), vendor_count=2),
+        ],
         learning_rate=lr,
         seeds=[Tensor([0, 1, 2, 3], dtype=dtypes.uint64).contiguous().realize()],
     )
-    assert len(optimizer.delta) == 1
-    assert len(optimizer.vendors) == 1
+    assert len(optimizer.delta) == 2
+    assert len(optimizer.vendors) == 2
 
-    number_delta = optimizer.delta[0]["number"]
-    assert number_delta.shape == (4,)
+    number_delta0 = optimizer.delta[0]["number"]
+    assert number_delta0.shape == (4,)
     # the delta for seed 0 should be all zeros
-    assert number_delta[0].sum().item() == 0
-    assert number_delta[0].min().item() == 0
-    assert number_delta[0].max().item() == 0
+    assert number_delta0[0].sum().item() == 0
+    assert number_delta0[0].min().item() == 0
+    assert number_delta0[0].max().item() == 0
 
     for i in range(1, 4):
-        assert number_delta[i].min().item() > -2.0
-        assert number_delta[i].max().item() < 2.0
+        assert number_delta0[i].min().item() > -2.0
+        assert number_delta0[i].max().item() < 2.0
