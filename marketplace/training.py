@@ -58,6 +58,10 @@ def produce(
     input_data = x[input_indexes]
     # merge different batches for the same vendor into one.
     merged_batches = input_data.reshape(input_data.shape[0], -1, *input_data.shape[3:])
+    if len(merged_batches) != len(vendors):
+        raise ValueError(
+            f"Unexpected size of merged batches {len(merged_batches)} and vendors {len(vendors)}"
+        )
 
     output_data = Tensor.stack(
         *(vendor(merged) for vendor, merged in zip(vendors, merged_batches)),
