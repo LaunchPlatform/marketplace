@@ -85,16 +85,13 @@ def rand(
 
 
 class RandomNumberGenerator:
-    def __init__(
-        self, learning_rate: Tensor, seed: Tensor, counter: Tensor | None = None
-    ):
-        self.learning_rate = learning_rate
+    def __init__(self, seed: Tensor, counter: Tensor | None = None):
         if seed.dtype != dtypes.uint64:
             raise ValueError("Seed dtype needs to be uint64")
         self.seed = seed
         self.counter = counter
         if self.counter is None:
-            self.counter = Tensor.zeros(dtype=dtypes.int)
+            self.counter = Tensor.zeros(dtype=dtypes.uint).contiguous().realize()
 
     def rand(
         self,
@@ -121,14 +118,3 @@ class RandomNumberGenerator:
 
     def uniform_like(self, target: Tensor, low=0.0, high=1.0):
         return self.uniform(*target.shape, low=low, high=high, dtype=target.dtype)
-
-    def delta(self, *shape, dtype: DTypeLike | None = None):
-        return (self.seed != 0).where(
-            self.uniform(
-                *shape, low=-self.learning_rate, high=self.learning_rate, dtype=dtype
-            ),
-            Tensor.zeros(*shape, dtype=dtype),
-        )
-
-    def delta_like(self, target: Tensor):
-        return self.delta(*target.shape, dtype=target.dtype)
