@@ -1,6 +1,7 @@
 from tinygrad import dtypes
 from tinygrad import Tensor
 
+from marketplace.nn import Model
 from marketplace.optimizers import DeltaVendor
 from marketplace.optimizers import StochasticOptimizer
 from marketplace.training import Spec
@@ -14,18 +15,37 @@ class Multiply:
         return x * self.number
 
 
-def test_delta_vendor():
-    model = Multiply(3.0)
-    vendor = DeltaVendor(model=model, delta=dict(number=Tensor(5.0)))
-    x = Tensor(4)
-    assert model(x).item() == 12.0
-    assert vendor(x).item() == 32.0
-    # ensure that we didn't change the weights of original model
-    assert model(x).item() == 12.0
+class Add:
+    def __init__(self, number: float):
+        self.number = Tensor(number).contiguous().realize()
 
-    model.number.assign(4.0)
-    assert model(x).item() == 16.0
-    assert vendor(x).item() == 36.0
+    def __call__(self, x: Tensor) -> Tensor:
+        return x + self.number
+
+
+def test_delta_vendor():
+    model = Model(
+        layers=[
+            Multiply(3.0),
+            Add(7.0),
+        ]
+    )
+    vendor = DeltaVendor(
+        model=model,
+        delta={
+            "layers.0.number": Tensor(5.0),
+            "layers.1.number": Tensor(2.0),
+        },
+    )
+    x = Tensor(4)
+    assert model(x).item() == (x.item() * 3) + 7
+    assert vendor(x).item() == (x.item() * (3 + 5)) + (7 + 2)
+    # ensure that we didn't change the weights of original model
+    assert model(x).item() == (x.item() * 3) + 7
+
+    model.layers[0].number.assign(4.0)
+    assert model(x).item() == (x.item() * 4) + 7
+    assert vendor(x).item() == (x.item() * (4 + 5)) + (7 + 2)
 
 
 def test_stochastic_optimizer():
