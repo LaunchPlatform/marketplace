@@ -31,16 +31,24 @@ class DeltaVendor:
 
 
 class StochasticOptimizer:
-    def __init__(self, marketplace: list[Spec], learning_rate: Tensor):
+    def __init__(
+        self,
+        marketplace: list[Spec],
+        learning_rate: Tensor,
+        seeds: list[Tensor] | None = None,
+    ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
 
-        self.seeds = [
-            Tensor.randint(
-                spec.vendor_count, low=1, high=SEED_MAX, dtype=dtypes.uint64
-            ).contiguous()
-            for spec in self.marketplace
-        ]
+        if seeds is not None:
+            self.seeds = seeds
+        else:
+            self.seeds = [
+                Tensor.randint(
+                    spec.vendor_count, low=1, high=SEED_MAX, dtype=dtypes.uint64
+                ).contiguous()
+                for spec in self.marketplace
+            ]
         self.counters = [
             Tensor.zeros(spec.vendor_count, dtype=dtypes.uint).contiguous()
             for spec in self.marketplace
