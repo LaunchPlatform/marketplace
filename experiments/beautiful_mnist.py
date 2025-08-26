@@ -224,18 +224,17 @@ def train(
             current_forward_pass, batch_size, high=X_train.shape[0]
         ).realize()
 
-        best_loss, best_accuracy, best_seeds = (
-            v.clone().realize() for v in forward_step(x, y)
-        )
+        best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
+        best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
         for _ in range(marketplace_replica - 1):
-            candidate_loss, candidate_accuracy, candidate_seeds = (
-                v.clone().realize() for v in forward_step(x, y)
+            candidate_loss, candidate_accuracy, candidate_path = multi_forward_step(
+                sample_batches
             )
             if candidate_loss.item() >= best_loss.item():
                 continue
             best_loss = candidate_loss
             best_accuracy = candidate_accuracy
-            best_seeds = candidate_seeds
+            best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
 
         optimize_step(best_seeds)
 
