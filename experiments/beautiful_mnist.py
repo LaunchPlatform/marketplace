@@ -229,6 +229,8 @@ def train(
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
         for _ in range(marketplace_replica - 1):
+            # Update seeds
+            Tensor.realize(optimizer.schedule_seeds_update())
             candidate_loss, candidate_accuracy, candidate_path = multi_forward_step(
                 sample_batches
             )
