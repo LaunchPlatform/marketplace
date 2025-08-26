@@ -239,6 +239,7 @@ class Optimizer:
                         self.make_delta(
                             seed=seed,
                             counter=Tensor(counter, dtype=dtypes.uint),
+                            lr=self.meta_learning_rate,
                             params=lr,
                         )
                     )
@@ -252,6 +253,11 @@ class Optimizer:
                         self.make_delta(
                             seed=seed,
                             counter=Tensor(counter, dtype=dtypes.uint),
+                            lr=(
+                                self.learning_rate
+                                if self.meta_learning_rate is None
+                                else ctx.learning_rate + ctx.delta_learning_rates[i]
+                            ),
                             params=params[i],
                         )
                         for i, seed in enumerate(ctx.seeds)
@@ -262,10 +268,14 @@ class Optimizer:
                 delta_updates.append(params.assign(updated_params))
         return delta_updates
 
-    def make_delta(self, seed: Tensor, counter: Tensor, params: Tensor) -> Tensor:
+    def make_delta(
+        self, seed: Tensor, counter: Tensor, lr: Tensor, params: Tensor
+    ) -> Tensor:
         return (seed != 0).where(
             self.make_rng(seed=seed, counter=counter).uniform_like(
-                params, low=-self.learning_rate, high=self.learning_rate
+                params,
+                low=-lr,
+                high=lr,
             ),
             Tensor.zeros_like(params),
         )
