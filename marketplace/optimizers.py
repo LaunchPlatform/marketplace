@@ -123,7 +123,7 @@ class Optimizer:
                     else None
                 ),
                 delta_learning_rates=(
-                    Tensor.empty(spec.vendor_count)
+                    Tensor.empty(spec.vendor_count).contiguous()
                     if self.meta_learning_rate is not None
                     else None
                 ),
@@ -213,18 +213,18 @@ class Optimizer:
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
             counter = 0
+            effective_lr = self.learning_rate
             if self.meta_learning_rate is not None:
-                ctx.learning_rate.assign(
-                    (
-                        ctx.learning_rate
-                        + self.make_delta(
-                            seed=seed,
-                            counter=Tensor(counter, dtype=dtypes.uint),
-                            lr=self.meta_learning_rate,
-                            params=ctx.learning_rate,
-                        )
-                    ).abs()
-                )
+                effective_lr = (
+                    ctx.learning_rate
+                    + self.make_delta(
+                        seed=seed,
+                        counter=Tensor(counter, dtype=dtypes.uint),
+                        lr=self.meta_learning_rate,
+                        params=ctx.learning_rate,
+                    )
+                ).abs()
+                ctx.learning_rate.assign(effective_lr)
                 counter += counter_advance_for(ctx.learning_rate)
 
             for key in keys:
@@ -234,11 +234,7 @@ class Optimizer:
                         params
                         + self.make_delta(
                             seed=seed,
-                            lr=(
-                                self.learning_rate
-                                if self.meta_learning_rate is None
-                                else ctx.learning_rate
-                            ),
+                            lr=effective_lr,
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params,
                         )

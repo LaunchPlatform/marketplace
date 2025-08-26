@@ -300,6 +300,7 @@ def train(
     "--initial-lr", type=float, default=1e-3, help="Initial learning rate value"
 )
 @click.option("--lr-decay", type=float, default=1e-4, help="Learning rate decay rate")
+@click.option("--meta-lr", type=float, help="Meta learning rate")
 @click.option(
     "--forward-pass",
     type=int,
@@ -330,6 +331,7 @@ def main(
     batch_size: int,
     initial_lr: float,
     lr_decay: float,
+    meta_lr: float | None,
     forward_pass: int,
     marketplace_replica: int,
     vendor_count: int,
@@ -353,6 +355,7 @@ def main(
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
             initial_forward_pass=forward_pass,
+            meta_lr=meta_lr,
             manual_seed=seed,
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count,
