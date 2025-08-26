@@ -174,10 +174,14 @@ def train(
         for i, samples in enumerate(sample_batches):
             x = X_train[samples]
             y = Y_train[samples]
+            start = i * product_count
+            end = start + product_count
+            current_slice = slice(start, end)
+
             (
-                loss[i : i + product_count],
-                accuracy[i : i + product_count],
-                paths[i : i + product_count],
+                loss[current_slice],
+                accuracy[current_slice],
+                paths[current_slice],
             ) = (v.numpy() for v in forward_step(x, y))
 
         unique_paths, indices = np.unique(paths, axis=0, return_inverse=True)
