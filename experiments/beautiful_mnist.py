@@ -290,6 +290,7 @@ def train(
     help="How many forward pass to run (simulate distributed computing)",
 )
 @click.option("--vendor-count", type=int, default=8, help="Vendor count")
+@click.option("--seed", type=int, help="Set the random seed")
 @click.option(
     "--checkpoint-filepath",
     type=click.Path(dir_okay=False, writable=True),
@@ -308,6 +309,7 @@ def main(
     lr_decay: float,
     forward_pass: int,
     vendor_count: int,
+    seed: int | None,
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
 ):
@@ -327,6 +329,7 @@ def main(
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
             initial_forward_pass=forward_pass,
+            manual_seed=seed,
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count,
             ),
