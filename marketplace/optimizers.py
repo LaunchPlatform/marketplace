@@ -121,7 +121,7 @@ class Optimizer:
                 # update weights assign operation won't work.
                 # ref: https://x.com/fangpenlin/status/1959405151455969607
                 [
-                    param.contiguous()
+                    param.assign(param.contiguous())
                     for spec in self.marketplace
                     for param in get_parameters(spec.model)
                 ]
