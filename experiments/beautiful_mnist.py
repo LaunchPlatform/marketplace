@@ -132,7 +132,9 @@ def train(
     optimizer = Optimizer(marketplace=marketplace, learning_rate=lr)
 
     @TinyJit
-    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+    def forward_step(samples: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        x = X_train[samples]
+        y = Y_train[samples]
         batch_logits, batch_paths = forward(
             marketplace=marketplace,
             vendors=optimizer.vendors,
@@ -172,8 +174,6 @@ def train(
         )
 
         for i, samples in enumerate(sample_batches):
-            x = X_train[samples]
-            y = Y_train[samples]
             start = i * product_count
             end = start + product_count
             current_slice = slice(start, end)
@@ -181,7 +181,7 @@ def train(
                 loss[current_slice],
                 accuracy[current_slice],
                 paths[current_slice],
-            ) = (v.numpy() for v in forward_step(x, y))
+            ) = (v.numpy() for v in forward_step(samples))
 
         unique_paths, indices = np.unique(paths, axis=0, return_inverse=True)
         counts = np.bincount(indices)
