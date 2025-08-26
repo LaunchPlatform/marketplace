@@ -169,7 +169,9 @@ class Optimizer:
                             (
                                 self.learning_rate
                                 if self.meta_learning_rate is None
-                                else ctx.learning_rate + ctx.delta_learning_rates[i]
+                                else (
+                                    ctx.learning_rate + ctx.delta_learning_rates[i]
+                                ).abs()
                             ),
                         ),
                     )
@@ -205,13 +207,15 @@ class Optimizer:
             counter = 0
             if self.meta_learning_rate is not None:
                 ctx.learning_rate.assign(
-                    ctx.learning_rate
-                    + self.make_delta(
-                        seed=seed,
-                        counter=Tensor(counter, dtype=dtypes.uint),
-                        lr=self.meta_learning_rate,
-                        params=ctx.learning_rate,
-                    )
+                    (
+                        ctx.learning_rate
+                        + self.make_delta(
+                            seed=seed,
+                            counter=Tensor(counter, dtype=dtypes.uint),
+                            lr=self.meta_learning_rate,
+                            params=ctx.learning_rate,
+                        )
+                    ).abs()
                 )
                 counter += counter_advance_for(ctx.learning_rate)
 
@@ -281,7 +285,9 @@ class Optimizer:
                             lr=(
                                 self.learning_rate
                                 if self.meta_learning_rate is None
-                                else ctx.learning_rate + ctx.delta_learning_rates[i]
+                                else (
+                                    ctx.learning_rate + ctx.delta_learning_rates[i]
+                                ).abs()
                             ),
                             params=params[i],
                         )
