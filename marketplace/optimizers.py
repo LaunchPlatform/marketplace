@@ -20,6 +20,7 @@ SEED_MAX = 2**64
 class SpecContext:
     seeds: Tensor
     delta: dict[str, Tensor] | None = None
+    learning_rates: Tensor = None
 
 
 class CachedDeltaVendor:
@@ -74,12 +75,14 @@ class Optimizer:
         learning_rate: Tensor,
         seeds: list[Tensor] | None = None,
         make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
+        meta_learning_rate: Tensor | None = None,
         cache_delta: bool = True,
     ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
         self.make_rng = make_rng
         self.cache_delta = cache_delta
+        self.meta_learning_rate = meta_learning_rate
 
         if seeds is not None:
             market_shape = tuple(spec.vendor_count for spec in marketplace)
@@ -110,6 +113,11 @@ class Optimizer:
                     for key, params in get_state_dict(spec.model).items()
                 }
                 if cache_delta
+                else None,
+                learning_rates=Tensor.full(
+                    shape=(spec.vendor_count,), fill_value=self.learning_rate
+                )
+                if self.meta_learning_rate is not None
                 else None,
             )
             for i, spec in enumerate(self.marketplace)
@@ -217,6 +225,17 @@ class Optimizer:
         delta_updates = []
         for ctx in self.spec_context:
             counter = 0
+            if self.meta_learning_rate is not None:
+                for seed, lr in zip(ctx.seeds, ctx.learning_rates):
+                    lr.assign(
+                        self.make_delta(
+                            seed=seed,
+                            counter=Tensor(counter, dtype=dtypes.uint),
+                            params=lr,
+                        )
+                    )
+                    counter += counter_advance_for(lr)
+
             keys = sorted(list(ctx.delta.keys()))
             for key in keys:
                 params = ctx.delta[key]
