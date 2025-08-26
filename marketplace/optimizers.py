@@ -191,10 +191,21 @@ class Optimizer:
 
     def schedule_weight_update(self, seeds: Tensor) -> list[Tensor]:
         weight_updates = []
-        for spec, seed in zip(self.marketplace, seeds):
+        for spec, ctx, seed in zip(self.marketplace, self.spec_context, seeds):
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
             counter = 0
+            if self.meta_learning_rate is not None:
+                ctx.learning_rate.assign(
+                    self.make_delta(
+                        seed=seed,
+                        counter=Tensor(counter, dtype=dtypes.uint),
+                        lr=self.meta_learning_rate,
+                        params=ctx.learning_rate,
+                    )
+                )
+                counter += counter_advance_for(ctx.learning_rate)
+
             for key in keys:
                 params = model_params[key]
                 weight_updates.append(
@@ -234,16 +245,16 @@ class Optimizer:
         for ctx in self.spec_context:
             counter = 0
             if self.meta_learning_rate is not None:
-                for seed, lr in zip(ctx.seeds, ctx.delta_learning_rates):
-                    lr.assign(
+                for seed, lr_delta in zip(ctx.seeds, ctx.delta_learning_rates):
+                    lr_delta.assign(
                         self.make_delta(
                             seed=seed,
                             counter=Tensor(counter, dtype=dtypes.uint),
                             lr=self.meta_learning_rate,
-                            params=lr,
+                            params=lr_delta,
                         )
                     )
-                    counter += counter_advance_for(lr)
+                    counter += counter_advance_for(lr_delta)
 
             keys = sorted(list(ctx.delta.keys()))
             for key in keys:
