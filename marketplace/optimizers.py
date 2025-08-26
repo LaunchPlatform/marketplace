@@ -1,5 +1,6 @@
 import copy
 import dataclasses
+import functools
 import typing
 
 from tinygrad import dtypes
@@ -53,7 +54,7 @@ class DeltaVendor:
         vendor_params = {}
         for key in keys:
             params = model_params[key]
-            delta = self.make_delta(Tensor(counter, dtype=dtypes.uint))
+            delta = self.make_delta(Tensor(counter, dtype=dtypes.uint), params)
             vendor_params[key] = params + delta
             counter += counter_advance_for(params)
 
@@ -144,11 +145,11 @@ class Optimizer:
         else:
             self.vendors = [
                 [
-                    CachedDeltaVendor(
+                    DeltaVendor(
                         model=spec.model,
-                        delta={key: params[i] for key, params in ctx.delta.items()},
+                        make_delta=functools.partial(self.make_delta, seed),
                     )
-                    for i in range(spec.vendor_count)
+                    for seed in ctx.seeds
                 ]
                 for spec, ctx in zip(self.marketplace, self.spec_context)
             ]
@@ -169,7 +170,7 @@ class Optimizer:
         return (
             self.schedule_weight_update(seeds)
             + self.schedule_seeds_update(keep_leader)
-            + self.schedule_delta_update()
+            + (self.schedule_delta_update() if self.cache_delta else [])
         )
 
     def schedule_weight_update(self, seeds: Tensor) -> list[Tensor]:
@@ -211,6 +212,8 @@ class Optimizer:
         ]
 
     def schedule_delta_update(self) -> list[Tensor]:
+        if not self.cache_delta:
+            raise RuntimeError("Delta cache is not enabled, cannot update delta")
         delta_updates = []
         for ctx in self.spec_context:
             counter = 0
