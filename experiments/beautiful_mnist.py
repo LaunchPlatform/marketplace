@@ -173,15 +173,14 @@ def train(
             [len(sample_batches) * product_count, len(marketplace)], dtype=int
         )
 
-        for i, samples in enumerate(sample_batches):
-            start = i * product_count
-            end = start + product_count
-            current_slice = slice(start, end)
+        for i in Tensor.arange(len(sample_batches)):
+            i_val = i.item()
+            output_slice = slice(i_val * product_count, (i_val + 1) * product_count)
             (
-                loss[current_slice],
-                accuracy[current_slice],
-                paths[current_slice],
-            ) = (v.numpy() for v in forward_step(samples))
+                loss[output_slice],
+                accuracy[output_slice],
+                paths[output_slice],
+            ) = (v.numpy() for v in forward_step(sample_batches[i]))
 
         unique_paths, indices = np.unique(paths, axis=0, return_inverse=True)
         counts = np.bincount(indices)
@@ -237,7 +236,7 @@ def train(
                 continue
             best_loss = candidate_loss
             best_accuracy = candidate_accuracy
-            best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
+            best_seeds = optimizer.get_seeds(Tensor(candidate_path)).clone().realize()
 
         optimize_step(best_seeds)
 
