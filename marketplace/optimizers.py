@@ -214,6 +214,9 @@ class Optimizer:
                         + self.make_delta(
                             seed=seed,
                             counter=Tensor(counter, dtype=dtypes.uint),
+                            lr=self.learning_rate
+                            if self.meta_learning_rate is None
+                            else ctx.learning_rate,
                             params=params,
                         )
                     )
