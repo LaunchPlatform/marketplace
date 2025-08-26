@@ -19,7 +19,7 @@ def main():
                 experiment_id=exp_id,
                 log_system_metrics=True,
             ):
-                marketplace = make_marketplace(default_vendor_count=16)
+                marketplace = make_marketplace(default_vendor_count=8)
                 train(
                     step_count=3_000,
                     batch_size=512,
