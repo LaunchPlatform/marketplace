@@ -163,9 +163,17 @@ class Optimizer:
                 [
                     DeltaVendor(
                         model=spec.model,
-                        make_delta=functools.partial(self.make_delta, seed),
+                        make_delta=functools.partial(
+                            self.make_delta,
+                            seed,
+                            (
+                                self.learning_rate
+                                if self.meta_learning_rate is None
+                                else ctx.learning_rate + ctx.delta_learning_rates[i]
+                            ),
+                        ),
                     )
-                    for seed in ctx.seeds
+                    for i, seed in enumerate(ctx.seeds)
                 ]
                 for spec, ctx in zip(self.marketplace, self.spec_context)
             ]
