@@ -177,7 +177,6 @@ def train(
             start = i * product_count
             end = start + product_count
             current_slice = slice(start, end)
-
             (
                 loss[current_slice],
                 accuracy[current_slice],
