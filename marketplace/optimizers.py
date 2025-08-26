@@ -205,7 +205,8 @@ class Optimizer:
             counter = 0
             if self.meta_learning_rate is not None:
                 ctx.learning_rate.assign(
-                    self.make_delta(
+                    ctx.learning_rate
+                    + self.make_delta(
                         seed=seed,
                         counter=Tensor(counter, dtype=dtypes.uint),
                         lr=self.meta_learning_rate,
