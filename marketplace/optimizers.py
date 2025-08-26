@@ -20,7 +20,8 @@ SEED_MAX = 2**64
 class SpecContext:
     seeds: Tensor
     delta: dict[str, Tensor] | None = None
-    learning_rates: Tensor = None
+    learning_rate: Tensor = None
+    delta_learning_rates: Tensor = None
 
 
 class CachedDeltaVendor:
@@ -106,19 +107,26 @@ class Optimizer:
             SpecContext(
                 seeds=seeds[i].contiguous(),
                 # allocate memory for delta
-                delta={
-                    key: Tensor.empty(
-                        spec.vendor_count, *params.shape, dtype=params.dtype
-                    ).contiguous()
-                    for key, params in get_state_dict(spec.model).items()
-                }
-                if cache_delta
-                else None,
-                learning_rates=Tensor.full(
-                    shape=(spec.vendor_count,), fill_value=self.learning_rate
-                )
-                if self.meta_learning_rate is not None
-                else None,
+                delta=(
+                    {
+                        key: Tensor.empty(
+                            spec.vendor_count, *params.shape, dtype=params.dtype
+                        ).contiguous()
+                        for key, params in get_state_dict(spec.model).items()
+                    }
+                    if cache_delta
+                    else None
+                ),
+                learning_rate=(
+                    self.learning_rate.clone().contiguous()
+                    if self.meta_learning_rate is not None
+                    else None
+                ),
+                delta_learning_rates=(
+                    Tensor.empty(spec.vendor_count)
+                    if self.meta_learning_rate is not None
+                    else None
+                ),
             )
             for i, spec in enumerate(self.marketplace)
         ]
@@ -226,7 +234,7 @@ class Optimizer:
         for ctx in self.spec_context:
             counter = 0
             if self.meta_learning_rate is not None:
-                for seed, lr in zip(ctx.seeds, ctx.learning_rates):
+                for seed, lr in zip(ctx.seeds, ctx.delta_learning_rates):
                     lr.assign(
                         self.make_delta(
                             seed=seed,
