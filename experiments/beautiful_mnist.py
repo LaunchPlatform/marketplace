@@ -8,6 +8,7 @@ import time
 import click
 import mlflow
 import numpy as np
+from numpy.typing import NDArray
 from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
@@ -154,7 +155,7 @@ def train(
             batch_paths.realize(),
         )
 
-    def multi_forward_step(sample_batches: Tensor):
+    def multi_forward_step(sample_batches: Tensor) -> tuple[NDArray, NDArray, NDArray]:
         # TODO: extract this
         product_count = 1
         for spec in reversed(marketplace):
@@ -187,7 +188,12 @@ def train(
         accuracy_sums = np.bincount(indices, weights=accuracy)
         accuracy_means = accuracy_sums / counts
 
-        print(loss_means, accuracy_means)
+        min_idx = loss_means.argmin()
+        return (
+            loss_means[min_idx],
+            accuracy_means[min_idx],
+            unique_paths[min_idx],
+        )
 
     @TinyJit
     def optimize_step(seeds: Tensor):
