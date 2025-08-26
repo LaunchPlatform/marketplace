@@ -291,6 +291,12 @@ def train(
     default=1,
     help="How many forward pass to run (simulate distributed computing)",
 )
+@click.option(
+    "--marketplace-replica",
+    type=int,
+    default=1,
+    help="How many marketplace replica to run (simulate distributed computing)",
+)
 @click.option("--vendor-count", type=int, default=8, help="Vendor count")
 @click.option("--seed", type=int, help="Set the random seed")
 @click.option(
@@ -310,6 +316,7 @@ def main(
     initial_lr: float,
     lr_decay: float,
     forward_pass: int,
+    marketplace_replica: int,
     vendor_count: int,
     seed: int | None,
     checkpoint_filepath: str,
@@ -335,6 +342,7 @@ def main(
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count,
             ),
+            marketplace_replica=marketplace_replica,
             checkpoint_filepath=pathlib.Path(checkpoint_filepath)
             if checkpoint_filepath is not None
             else None,
