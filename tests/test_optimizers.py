@@ -4,7 +4,7 @@ from tinygrad import Tensor
 from tinygrad.nn.state import get_state_dict
 
 from marketplace.nn import Model
-from marketplace.optimizers import DeltaVendor
+from marketplace.optimizers import CachedDeltaVendor
 from marketplace.optimizers import Optimizer
 from marketplace.optimizers import SEED_MAX
 from marketplace.training import Spec
@@ -56,12 +56,12 @@ def optimizer() -> Optimizer:
     )
 
 
-def test_delta_vendor():
+def test_cached_delta_vendor():
     model = Model(
         Multiply(3.0),
         Add(7.0),
     )
-    vendor = DeltaVendor(
+    vendor = CachedDeltaVendor(
         model=model,
         delta={
             "layers.0.number": Tensor(5.0),

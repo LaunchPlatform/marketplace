@@ -18,10 +18,10 @@ SEED_MAX = 2**64
 @dataclasses.dataclass
 class SpecContext:
     seeds: Tensor
-    delta: dict[str, Tensor]
+    delta: dict[str, Tensor] | None = None
 
 
-class DeltaVendor:
+class CachedDeltaVendor:
     def __init__(self, model: typing.Callable, delta: dict[str, Tensor]):
         self.model = model
         self.delta = delta
@@ -40,6 +40,32 @@ class DeltaVendor:
         return vendored_model(*args, **kwargs)
 
 
+class DeltaVendor:
+    def __init__(self, model: typing.Callable, make_delta: typing.Callable):
+        self.model = model
+        self.make_delta = make_delta
+
+    def __call__(self, *args, **kwargs):
+        vendored_model = copy.deepcopy(self.model)
+        model_params = get_state_dict(vendored_model)
+        keys = sorted(list(model_params.keys()))
+        counter = 0
+        vendor_params = {}
+        for key in keys:
+            params = model_params[key]
+            delta = self.make_delta(Tensor(counter, dtype=dtypes.uint))
+            vendor_params[key] = params + delta
+            counter += counter_advance_for(params)
+
+        load_state_dict(
+            vendored_model,
+            state_dict=vendor_params,
+            verbose=False,
+            realize=False,
+        )
+        return vendored_model(*args, **kwargs)
+
+
 class Optimizer:
     def __init__(
         self,
@@ -47,10 +73,12 @@ class Optimizer:
         learning_rate: Tensor,
         seeds: list[Tensor] | None = None,
         make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
+        cache_delta: bool = True,
     ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
         self.make_rng = make_rng
+        self.cache_delta = cache_delta
 
         if seeds is not None:
             market_shape = tuple(spec.vendor_count for spec in marketplace)
@@ -79,7 +107,9 @@ class Optimizer:
                         spec.vendor_count, *params.shape, dtype=params.dtype
                     ).contiguous()
                     for key, params in get_state_dict(spec.model).items()
-                },
+                }
+                if cache_delta
+                else None,
             )
             for i, spec in enumerate(self.marketplace)
         ]
@@ -98,18 +128,30 @@ class Optimizer:
                 + [ctx.seeds for ctx in self.spec_context]
             )
         )
-        # Realize the delta, making them buffers
-        Tensor.realize(*self.schedule_delta_update())
-        self.vendors = [
-            [
-                DeltaVendor(
-                    model=spec.model,
-                    delta={key: params[i] for key, params in ctx.delta.items()},
-                )
-                for i in range(spec.vendor_count)
+        if self.cache_delta:
+            # Realize the delta, making them buffers
+            Tensor.realize(*self.schedule_delta_update())
+            self.vendors = [
+                [
+                    CachedDeltaVendor(
+                        model=spec.model,
+                        delta={key: params[i] for key, params in ctx.delta.items()},
+                    )
+                    for i in range(spec.vendor_count)
+                ]
+                for spec, ctx in zip(self.marketplace, self.spec_context)
             ]
-            for spec, ctx in zip(self.marketplace, self.spec_context)
-        ]
+        else:
+            self.vendors = [
+                [
+                    CachedDeltaVendor(
+                        model=spec.model,
+                        delta={key: params[i] for key, params in ctx.delta.items()},
+                    )
+                    for i in range(spec.vendor_count)
+                ]
+                for spec, ctx in zip(self.marketplace, self.spec_context)
+            ]
 
     def get_seeds(self, path: Tensor) -> Tensor:
         return Tensor.cat(
