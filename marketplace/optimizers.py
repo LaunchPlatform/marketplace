@@ -163,25 +163,24 @@ class Optimizer:
                 [
                     DeltaVendor(
                         model=spec.model,
-                        make_delta=lambda counter,
-                        params,
-                        seed=seed,
-                        i=i: self.make_delta(
-                            seed=seed,
-                            counter=(
-                                counter
-                                if self.meta_learning_rate is None
-                                else counter
-                                + counter_advance_for(ctx.delta_learning_rates[0])
-                            ),
-                            lr=(
-                                self.learning_rate
-                                if self.meta_learning_rate is None
-                                else (
-                                    ctx.learning_rate + ctx.delta_learning_rates[i]
-                                ).abs()
-                            ),
-                            params=params,
+                        make_delta=(
+                            lambda counter, params, seed=seed, i=i: self.make_delta(
+                                seed=seed,
+                                counter=(
+                                    counter
+                                    if self.meta_learning_rate is None
+                                    else counter
+                                    + counter_advance_for(ctx.delta_learning_rates[0])
+                                ),
+                                lr=(
+                                    self.learning_rate
+                                    if self.meta_learning_rate is None
+                                    else (
+                                        ctx.learning_rate + ctx.delta_learning_rates[i]
+                                    ).abs()
+                                ),
+                                params=params,
+                            )
                         ),
                     )
                     for i, seed in enumerate(ctx.seeds)
