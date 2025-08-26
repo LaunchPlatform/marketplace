@@ -14,7 +14,7 @@ def main():
     for lr in [1e-1, 1e-2, 1e-3, 1e-4]:
         for meta_lr in [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]:
             with mlflow.start_run(
-                run_name=f"meta-lr-init-lr-{lr:.1e}-meta-lr-{meta_lr:.1e}",
+                run_name=f"meta-lr-init-{lr:.1e}-meta-{meta_lr:.1e}",
                 experiment_id=exp_id,
                 log_system_metrics=True,
             ):
