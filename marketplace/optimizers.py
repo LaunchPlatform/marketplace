@@ -173,6 +173,7 @@ class Optimizer:
                                     ctx.learning_rate + ctx.delta_learning_rates[i]
                                 ).abs()
                             ),
+                            # TODO: the counter is wrong when meta lr enabled
                         ),
                     )
                     for i, seed in enumerate(ctx.seeds)
@@ -226,12 +227,12 @@ class Optimizer:
                         params
                         + self.make_delta(
                             seed=seed,
-                            counter=Tensor(counter, dtype=dtypes.uint),
                             lr=(
                                 self.learning_rate
                                 if self.meta_learning_rate is None
                                 else ctx.learning_rate
                             ),
+                            counter=Tensor(counter, dtype=dtypes.uint),
                             params=params,
                         )
                     )
@@ -281,7 +282,6 @@ class Optimizer:
                     *(
                         self.make_delta(
                             seed=seed,
-                            counter=Tensor(counter, dtype=dtypes.uint),
                             lr=(
                                 self.learning_rate
                                 if self.meta_learning_rate is None
@@ -289,6 +289,7 @@ class Optimizer:
                                     ctx.learning_rate + ctx.delta_learning_rates[i]
                                 ).abs()
                             ),
+                            counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
                         )
                         for i, seed in enumerate(ctx.seeds)
@@ -300,7 +301,7 @@ class Optimizer:
         return delta_updates
 
     def make_delta(
-        self, seed: Tensor, counter: Tensor, lr: Tensor, params: Tensor
+        self, seed: Tensor, lr: Tensor, counter: Tensor, params: Tensor
     ) -> Tensor:
         return (seed != 0).where(
             self.make_rng(seed=seed, counter=counter).uniform_like(
