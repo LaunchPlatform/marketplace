@@ -16,7 +16,7 @@ def main():
         for marketplace_replica in [1, 2, 4, 8, 16, 32]:
             for forward_pass in [1, 2, 4, 8, 16, 32]:
                 with mlflow.start_run(
-                    run_name=f"scaling-lr-{lr}-mr-{marketplace_replica}-fw-{forward_pass}",
+                    run_name=f"scaling-lr-{lr:.1e}-mr-{marketplace_replica}-fw-{forward_pass}",
                     experiment_id=exp_id,
                     log_system_metrics=True,
                 ):
