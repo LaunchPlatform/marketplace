@@ -266,18 +266,27 @@ class Optimizer:
         for ctx in self.spec_context:
             counter = 0
             if self.meta_learning_rate is not None:
-                for seed, lr_delta in zip(ctx.seeds, ctx.delta_learning_rates):
-                    delta_updates.append(
-                        lr_delta.assign(
-                            self.make_delta(
-                                seed=seed,
-                                counter=Tensor(counter, dtype=dtypes.uint),
-                                lr=self.meta_learning_rate,
-                                params=lr_delta,
-                            )
+                delta_updates.append(
+                    ctx.delta_learning_rates.assign(
+                        Tensor.stack(
+                            *(
+                                lr_delta.assign(
+                                    self.make_delta(
+                                        seed=seed,
+                                        counter=Tensor(counter, dtype=dtypes.uint),
+                                        lr=self.meta_learning_rate,
+                                        params=lr_delta,
+                                    ),
+                                )
+                                for i, (seed, lr_delta) in enumerate(
+                                    ctx.seeds, ctx.delta_learning_rates
+                                )
+                            ),
+                            dim=0,
                         )
                     )
-                    counter += counter_advance_for(lr_delta)
+                )
+                counter += counter_advance_for(ctx.learning_rate)
 
             keys = sorted(list(ctx.delta.keys()))
             for key in keys:
