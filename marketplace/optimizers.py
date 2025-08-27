@@ -210,7 +210,6 @@ class Optimizer:
         weight_updates = []
         for spec, ctx, seed in zip(self.marketplace, self.spec_context, seeds):
             model_params = get_state_dict(spec.model)
-            keys = sorted(list(model_params.keys()))
             counter = 0
             effective_lr = self.learning_rate
             if self.meta_learning_rate is not None:
@@ -226,6 +225,7 @@ class Optimizer:
                 weight_updates.append(ctx.learning_rate.assign(effective_lr))
                 counter += counter_advance_for(ctx.learning_rate)
 
+            keys = sorted(list(model_params.keys()))
             for key in keys:
                 params = model_params[key]
                 weight_updates.append(
