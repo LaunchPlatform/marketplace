@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 def main():
     exp_id = ensure_experiment("Scaling V2")
-    for marketplace_replica in [  # 1,
+    for marketplace_replica in [
+        # 1,
         2,
         4,
         8,
