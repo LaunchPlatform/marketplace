@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Scaling V3")
-    for lr in [1e-1, 1e-2, 1e-3]:
+    exp_id = ensure_experiment("Scaling V4")
+    for lr in [1e-2, 1e-3]:
         for marketplace_replica in [1, 2, 4, 8, 16, 32]:
             for forward_pass in [1, 2, 4, 8, 16, 32]:
                 with mlflow.start_run(
