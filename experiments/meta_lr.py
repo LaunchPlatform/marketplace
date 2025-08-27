@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Meta Learning Rate")
+    exp_id = ensure_experiment("Meta Learning Rate V2")
     for lr in [1e-1, 1e-2, 1e-3, 1e-4]:
         for meta_lr in [None, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5]:
             meta_lr_str = f"{meta_lr:.1e}" if meta_lr is not None else "none"
