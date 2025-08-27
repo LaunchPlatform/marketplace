@@ -326,6 +326,7 @@ def train(
     default=100,
     help="For how many steps we should write a checkpoint",
 )
+@click.option("--run-name", type=str, help="Set the run name")
 def main(
     step_count: int,
     batch_size: int,
@@ -338,6 +339,7 @@ def main(
     seed: int | None,
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
+    run_name: str | None,
 ):
     # ref: https://github.com/tinygrad/tinygrad/issues/8617
     # With complex huge compute graph, tinygrad runs into recursion too deep issue, let's bump it up
@@ -347,7 +349,7 @@ def main(
     logger.info("Set recursion limit to %s", NEW_RECURSION_LIMIT)
     with mlflow.start_run(
         experiment_id=ensure_experiment("Marketplace V2"),
-        run_name="beautiful-mnist",
+        run_name="beautiful-mnist" if run_name is None else run_name,
     ):
         train(
             step_count=step_count,
