@@ -223,7 +223,7 @@ class Optimizer:
                         params=ctx.learning_rate,
                     )
                 ).abs()
-                ctx.learning_rate.assign(effective_lr)
+                weight_updates.append(ctx.learning_rate.assign(effective_lr))
                 counter += counter_advance_for(ctx.learning_rate)
 
             for key in keys:
