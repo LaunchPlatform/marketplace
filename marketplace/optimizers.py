@@ -1,6 +1,5 @@
 import copy
 import dataclasses
-import functools
 import typing
 
 from tinygrad import dtypes
@@ -268,12 +267,14 @@ class Optimizer:
             counter = 0
             if self.meta_learning_rate is not None:
                 for seed, lr_delta in zip(ctx.seeds, ctx.delta_learning_rates):
-                    lr_delta.assign(
-                        self.make_delta(
-                            seed=seed,
-                            counter=Tensor(counter, dtype=dtypes.uint),
-                            lr=self.meta_learning_rate,
-                            params=lr_delta,
+                    delta_updates.append(
+                        lr_delta.assign(
+                            self.make_delta(
+                                seed=seed,
+                                counter=Tensor(counter, dtype=dtypes.uint),
+                                lr=self.meta_learning_rate,
+                                params=lr_delta,
+                            )
                         )
                     )
                     counter += counter_advance_for(lr_delta)
