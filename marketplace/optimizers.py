@@ -276,7 +276,7 @@ class Optimizer:
                                     lr=self.meta_learning_rate,
                                     params=lr_delta,
                                 )
-                                for i, (seed, lr_delta) in enumerate(
+                                for seed, lr_delta in zip(
                                     ctx.seeds, ctx.delta_learning_rates
                                 )
                             ),
