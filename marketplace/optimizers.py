@@ -270,13 +270,11 @@ class Optimizer:
                     ctx.delta_learning_rates.assign(
                         Tensor.stack(
                             *(
-                                lr_delta.assign(
-                                    self.make_delta(
-                                        seed=seed,
-                                        counter=Tensor(counter, dtype=dtypes.uint),
-                                        lr=self.meta_learning_rate,
-                                        params=lr_delta,
-                                    ),
+                                self.make_delta(
+                                    seed=seed,
+                                    counter=Tensor(counter, dtype=dtypes.uint),
+                                    lr=self.meta_learning_rate,
+                                    params=lr_delta,
                                 )
                                 for i, (seed, lr_delta) in enumerate(
                                     ctx.seeds, ctx.delta_learning_rates
