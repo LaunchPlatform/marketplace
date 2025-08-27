@@ -22,7 +22,7 @@ def main():
                 ):
                     marketplace = make_marketplace(default_vendor_count=8)
                     train(
-                        step_count=3_000,
+                        step_count=500,
                         batch_size=512,
                         initial_lr=lr,
                         lr_decay_rate=1e-4,
