@@ -168,8 +168,9 @@ class Optimizer:
                                 counter=(
                                     counter
                                     if self.meta_learning_rate is None
-                                    else counter
-                                    + counter_advance_for(ctx.delta_learning_rates[0])
+                                    else (
+                                        counter + counter_advance_for(ctx.learning_rate)
+                                    )
                                 ),
                                 lr=(
                                     self.learning_rate
