@@ -19,8 +19,6 @@ SEED_MAX = 2**64
 class SpecContext:
     seeds: Tensor
     delta: dict[str, Tensor] | None = None
-    learning_rate: Tensor = None
-    delta_learning_rates: Tensor = None
 
 
 class CachedDeltaVendor:
@@ -75,14 +73,12 @@ class Optimizer:
         learning_rate: Tensor,
         seeds: list[Tensor] | None = None,
         make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
-        meta_learning_rate: Tensor | None = None,
         cache_delta: bool = True,
     ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
         self.make_rng = make_rng
         self.cache_delta = cache_delta
-        self.meta_learning_rate = meta_learning_rate
 
         if seeds is not None:
             market_shape = tuple(spec.vendor_count for spec in marketplace)
@@ -114,16 +110,6 @@ class Optimizer:
                         for key, params in get_state_dict(spec.model).items()
                     }
                     if cache_delta
-                    else None
-                ),
-                learning_rate=(
-                    self.learning_rate.clone().contiguous()
-                    if self.meta_learning_rate is not None
-                    else None
-                ),
-                delta_learning_rates=(
-                    Tensor.empty(spec.vendor_count).contiguous()
-                    if self.meta_learning_rate is not None
                     else None
                 ),
             )
@@ -165,20 +151,8 @@ class Optimizer:
                         make_delta=(
                             lambda counter, params, seed=seed, i=i: self.make_delta(
                                 seed=seed,
-                                counter=(
-                                    counter
-                                    if self.meta_learning_rate is None
-                                    else (
-                                        counter + counter_advance_for(ctx.learning_rate)
-                                    )
-                                ),
-                                lr=(
-                                    self.learning_rate
-                                    if self.meta_learning_rate is None
-                                    else (
-                                        ctx.learning_rate + ctx.delta_learning_rates[i]
-                                    ).abs()
-                                ),
+                                counter=counter,
+                                lr=self.learning_rate,
                                 params=params,
                             )
                         ),
@@ -212,19 +186,6 @@ class Optimizer:
         for spec, ctx, seed in zip(self.marketplace, self.spec_context, seeds):
             model_params = get_state_dict(spec.model)
             counter = 0
-            effective_lr = self.learning_rate
-            if self.meta_learning_rate is not None:
-                effective_lr = (
-                    ctx.learning_rate
-                    + self.make_delta(
-                        seed=seed,
-                        counter=Tensor(counter, dtype=dtypes.uint),
-                        lr=self.meta_learning_rate,
-                        params=ctx.learning_rate,
-                    )
-                ).abs()
-                weight_updates.append(ctx.learning_rate.assign(effective_lr))
-                counter += counter_advance_for(ctx.learning_rate)
 
             keys = sorted(list(model_params.keys()))
             for key in keys:
@@ -234,7 +195,7 @@ class Optimizer:
                         params
                         + self.make_delta(
                             seed=seed,
-                            lr=effective_lr,
+                            lr=self.learning_rate,
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params,
                         )
@@ -266,27 +227,6 @@ class Optimizer:
         delta_updates = []
         for ctx in self.spec_context:
             counter = 0
-            if self.meta_learning_rate is not None:
-                delta_updates.append(
-                    ctx.delta_learning_rates.assign(
-                        Tensor.stack(
-                            *(
-                                self.make_delta(
-                                    seed=seed,
-                                    counter=Tensor(counter, dtype=dtypes.uint),
-                                    lr=self.meta_learning_rate,
-                                    params=lr_delta,
-                                )
-                                for seed, lr_delta in zip(
-                                    ctx.seeds, ctx.delta_learning_rates
-                                )
-                            ),
-                            dim=0,
-                        )
-                    )
-                )
-                counter += counter_advance_for(ctx.learning_rate)
-
             keys = sorted(list(ctx.delta.keys()))
             for key in keys:
                 params = ctx.delta[key]
@@ -294,13 +234,7 @@ class Optimizer:
                     *(
                         self.make_delta(
                             seed=seed,
-                            lr=(
-                                self.learning_rate
-                                if self.meta_learning_rate is None
-                                else (
-                                    ctx.learning_rate + ctx.delta_learning_rates[i]
-                                ).abs()
-                            ),
+                            lr=self.learning_rate,
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
                         )
