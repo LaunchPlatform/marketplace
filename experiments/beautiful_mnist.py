@@ -264,7 +264,7 @@ def train(
             mlflow.log_metric("testing/accuracy", test_acc, step=i)
 
             if meta_lr is not None:
-                mlflow.log_metric("testing/meta_lr", meta_lr, step=i)
+                mlflow.log_metric("training/meta_lr", meta_lr, step=i)
                 for j, ctx in enumerate(optimizer.spec_context):
                     mlflow.log_metric(
                         f"training/adaptive_lr_{j}", ctx.learning_rate.item(), step=i
