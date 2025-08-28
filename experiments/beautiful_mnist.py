@@ -132,7 +132,7 @@ def train(
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
-        meta_learning_rate=Tensor(5),
+        meta_learning_rate=Tensor(0.5),
     )
 
     @TinyJit
@@ -233,7 +233,7 @@ def train(
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
 
-        Tensor.realize(*optimizer.schedule_lr_delta_update(best_seeds))
+        Tensor.realize(*optimizer.schedule_lr_scale_update(best_seeds))
         scaled_lr_best_loss, scaled_lr_best_accuracy, scaled_lr_best_path = (
             multi_forward_step(sample_batches)
         )

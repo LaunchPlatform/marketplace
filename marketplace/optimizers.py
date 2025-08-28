@@ -166,8 +166,7 @@ class Optimizer:
                             lambda counter, params, seed=seed: self.make_delta(
                                 seed=seed,
                                 counter=counter,
-                                # FIXME: this is wrong.
-                                lr=(ctx.learning_rate + lr_scale).abs(),
+                                lr=ctx.learning_rate * (1 + lr_scale),
                                 params=params,
                             )
                         ),
@@ -189,7 +188,7 @@ class Optimizer:
     def get_learning_rates(self, path: Tensor) -> Tensor:
         return Tensor.stack(
             *(
-                (ctx.learning_rate + ctx.learning_rate_scales[index]).abs()
+                ctx.learning_rate * (1 + ctx.learning_rate_scales[index])
                 for index, ctx in zip(path, self.spec_context)
             ),
             dim=0,
@@ -295,7 +294,7 @@ class Optimizer:
                 delta_updates.append(params.assign(updated_params))
         return delta_updates
 
-    def schedule_lr_delta_update(self, best_seeds: Tensor) -> list[Tensor]:
+    def schedule_lr_scale_update(self, best_seeds: Tensor) -> list[Tensor]:
         if not self.cache_delta:
             raise RuntimeError("Delta cache is not enabled, cannot update delta")
         if self.meta_learning_rate is None:
@@ -317,14 +316,16 @@ class Optimizer:
                             (
                                 self.make_delta(
                                     seed=best_seed,
-                                    lr=ctx.learning_rate * self.meta_learning_rate,
+                                    lr=self.meta_learning_rate,
                                     counter=Tensor(final_counter, dtype=dtypes.uint),
-                                    params=delta_lr,
+                                    params=lr_scale,
                                 )
                                 if i != 0
-                                else Tensor.zeros_like(delta_lr)
+                                # we always keep the original lr in the combinations, in case we cannot find any
+                                # improvement from scale, at least we are not making regression
+                                else Tensor.zeros_like(lr_scale)
                             )
-                            for i, delta_lr in enumerate(ctx.learning_rate_scales)
+                            for i, lr_scale in enumerate(ctx.learning_rate_scales)
                         ),
                         dim=0,
                     )
@@ -338,11 +339,11 @@ class Optimizer:
                     *(
                         self.make_delta(
                             seed=best_seed,
-                            lr=(ctx.learning_rate + delta_lr).abs(),
+                            lr=ctx.learning_rate * (1 + lr_scale),
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
                         )
-                        for i, delta_lr in enumerate(ctx.learning_rate_scales)
+                        for i, lr_scale in enumerate(ctx.learning_rate_scales)
                     ),
                     dim=0,
                 )
