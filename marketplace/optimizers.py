@@ -166,12 +166,12 @@ class Optimizer:
                             lambda counter, params, seed=seed: self.make_delta(
                                 seed=seed,
                                 counter=counter,
-                                lr=lr,
+                                lr=ctx.learning_rate + delta_lr,
                                 params=params,
                             )
                         ),
                     )
-                    for seed, lr in zip(ctx.seeds, ctx.delta_learning_rates)
+                    for seed, delta_lr in zip(ctx.seeds, ctx.delta_learning_rates)
                 ]
                 for spec, ctx in zip(self.marketplace, self.spec_context)
             ]
@@ -188,7 +188,7 @@ class Optimizer:
     def get_learning_rates(self, path: Tensor) -> Tensor:
         return Tensor.stack(
             *(
-                ctx.delta_learning_rates[index]
+                ctx.learning_rate + ctx.delta_learning_rates[index]
                 for index, ctx in zip(path, self.spec_context)
             ),
             dim=0,
