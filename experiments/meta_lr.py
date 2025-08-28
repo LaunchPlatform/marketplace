@@ -25,7 +25,7 @@ def main():
                     batch_size=512,
                     initial_lr=lr,
                     lr_decay_rate=0,
-                    meta_lr=meta_lr,
+                    initial_meta_lr=meta_lr,
                     marketplace=marketplace,
                 )
 

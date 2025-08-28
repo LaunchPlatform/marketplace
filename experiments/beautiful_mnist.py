@@ -88,7 +88,7 @@ def train(
     initial_lr: float,
     lr_decay_rate: float,
     marketplace: list[Spec],
-    meta_lr: float | None = None,
+    initial_meta_lr: float | None = None,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
@@ -98,14 +98,14 @@ def train(
     manual_seed: int | None = None,
 ):
     logger.info(
-        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, meta_lr=%s, "
+        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, initial_meta_lr=%s, "
         "marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, "
         "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
-        meta_lr,
+        initial_meta_lr,
         marketplace_replica,
         initial_forward_pass,
         metrics_per_steps,
@@ -121,7 +121,7 @@ def train(
     mlflow.log_param("initial_forward_pass", initial_forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
-    mlflow.log_param("meta_lr", meta_lr)
+    mlflow.log_param("initial_meta_lr", initial_meta_lr)
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
@@ -132,10 +132,13 @@ def train(
 
     X_train, Y_train, X_test, Y_test = load_data()
     lr = Tensor(initial_lr).contiguous().realize()
+    meta_lr = None
+    if initial_meta_lr is not None:
+        meta_lr = Tensor(initial_meta_lr).contiguous().realize()
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
-        meta_learning_rate=Tensor(meta_lr) if meta_lr is not None else None,
+        meta_learning_rate=meta_lr if meta_lr is not None else None,
     )
 
     @TinyJit
@@ -288,7 +291,7 @@ def train(
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
-            if meta_lr is not None:
+            if initial_meta_lr is not None:
                 mlflow.log_metric("training/meta_lr", meta_lr.item(), step=i)
                 for j, ctx in enumerate(optimizer.spec_context):
                     mlflow.log_metric(
@@ -392,7 +395,7 @@ def main(
             batch_size=batch_size,
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
-            meta_lr=meta_lr,
+            initial_meta_lr=meta_lr,
             initial_forward_pass=forward_pass,
             manual_seed=seed,
             marketplace=make_marketplace(
