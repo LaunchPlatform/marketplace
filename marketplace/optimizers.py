@@ -197,23 +197,17 @@ class Optimizer:
     def step(
         self,
         seeds: Tensor,
-        learning_rates: Tensor | None = None,
         keep_leader: bool = True,
     ):
-        Tensor.realize(
-            *self.schedule_step(
-                seeds, learning_rates=learning_rates, keep_leader=keep_leader
-            )
-        )
+        Tensor.realize(*self.schedule_step(seeds, keep_leader=keep_leader))
 
     def schedule_step(
         self,
         seeds: Tensor,
-        learning_rates: Tensor | None = None,
         keep_leader: bool = True,
     ) -> list[Tensor]:
         return (
-            self.schedule_weight_update(seeds, learning_rates=learning_rates)
+            self.schedule_weight_update(seeds)
             + self.schedule_seeds_update(keep_leader)
             + (self.schedule_direction_delta_update() if self.cache_delta else [])
         )
