@@ -251,7 +251,7 @@ def train(
                 )
             )
         Tensor.realize(*lr_updates)
-        Tensor.realize(*optimizer.schedule_delta_update())
+        Tensor.realize(*optimizer.schedule_direction_delta_update())
 
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         learning_rates = optimizer.get_learning_rates(Tensor(best_path))

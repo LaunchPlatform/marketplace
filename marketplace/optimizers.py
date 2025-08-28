@@ -146,7 +146,7 @@ class Optimizer:
         )
         if self.cache_delta:
             # Realize the delta, making them buffers
-            Tensor.realize(*self.schedule_delta_update())
+            Tensor.realize(*self.schedule_direction_delta_update())
             self.vendors = [
                 [
                     CachedDeltaVendor(
@@ -215,7 +215,7 @@ class Optimizer:
         return (
             self.schedule_weight_update(seeds, learning_rates=learning_rates)
             + self.schedule_seeds_update(keep_leader)
-            + (self.schedule_delta_update() if self.cache_delta else [])
+            + (self.schedule_direction_delta_update() if self.cache_delta else [])
         )
 
     def schedule_weight_update(
@@ -263,7 +263,7 @@ class Optimizer:
             for ctx in self.spec_context
         ]
 
-    def schedule_lr_update(self, best_seeds: Tensor) -> list[Tensor]:
+    def schedule_lr_delta_update(self, best_seeds: Tensor) -> list[Tensor]:
         if not self.cache_delta:
             raise RuntimeError("Delta cache is not enabled, cannot update delta")
         if self.meta_learning_rate is None:
@@ -313,7 +313,7 @@ class Optimizer:
                 lr_updates.append(params.assign(updated_params))
         return lr_updates
 
-    def schedule_delta_update(self) -> list[Tensor]:
+    def schedule_direction_delta_update(self) -> list[Tensor]:
         if not self.cache_delta:
             raise RuntimeError("Delta cache is not enabled, cannot update delta")
         delta_updates = []
@@ -326,11 +326,11 @@ class Optimizer:
                     *(
                         self.make_delta(
                             seed=seed,
-                            lr=lr,
+                            lr=(ctx.learning_rate + delta_lr).abs(),
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
                         )
-                        for i, (seed, lr) in enumerate(
+                        for i, (seed, delta_lr) in enumerate(
                             zip(ctx.seeds, ctx.delta_learning_rates)
                         )
                     ),
