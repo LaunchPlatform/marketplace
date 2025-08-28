@@ -138,7 +138,7 @@ def train(
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
-        meta_learning_rate=meta_lr if meta_lr is not None else None,
+        meta_learning_rate=meta_lr,
     )
 
     @TinyJit
@@ -291,7 +291,7 @@ def train(
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
-            if initial_meta_lr is not None:
+            if meta_lr is not None:
                 mlflow.log_metric("training/meta_lr", meta_lr.item(), step=i)
                 for j, ctx in enumerate(optimizer.spec_context):
                     mlflow.log_metric(
