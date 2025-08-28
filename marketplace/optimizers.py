@@ -313,13 +313,18 @@ class Optimizer:
                 ctx.delta_learning_rates.assign(
                     Tensor.stack(
                         *(
-                            self.make_delta(
-                                seed=best_seed,
-                                lr=self.meta_learning_rate,
-                                counter=Tensor(final_counter, dtype=dtypes.uint),
-                                params=delta_lr,
+                            (i == 0).where(
+                                # We kee the first delta as zero, so that the combination always have the current
+                                # un changed lr
+                                Tensor.zeros_like(delta_lr),
+                                self.make_delta(
+                                    seed=best_seed,
+                                    lr=self.meta_learning_rate,
+                                    counter=Tensor(final_counter, dtype=dtypes.uint),
+                                    params=delta_lr,
+                                ),
                             )
-                            for delta_lr in ctx.delta_learning_rates
+                            for i, delta_lr in enumerate(ctx.delta_learning_rates)
                         ),
                         dim=0,
                     )
