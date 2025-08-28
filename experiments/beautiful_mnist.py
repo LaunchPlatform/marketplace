@@ -234,7 +234,6 @@ def train(
         ).mean() * 100
 
     i = 0
-    best_seeds = None
     test_acc = float("nan")
     current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):
