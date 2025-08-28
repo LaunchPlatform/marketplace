@@ -166,7 +166,7 @@ class Optimizer:
                             lambda counter, params, seed=seed: self.make_delta(
                                 seed=seed,
                                 counter=counter,
-                                lr=ctx.learning_rate + delta_lr,
+                                lr=(ctx.learning_rate + delta_lr).abs(),
                                 params=params,
                             )
                         ),
@@ -188,7 +188,7 @@ class Optimizer:
     def get_learning_rates(self, path: Tensor) -> Tensor:
         return Tensor.stack(
             *(
-                ctx.learning_rate + ctx.delta_learning_rates[index]
+                (ctx.learning_rate + ctx.delta_learning_rates[index]).abs()
                 for index, ctx in zip(path, self.spec_context)
             ),
             dim=0,
@@ -263,31 +263,31 @@ class Optimizer:
             for ctx in self.spec_context
         ]
 
-    def schedule_lr_update(self) -> list[Tensor]:
+    def schedule_lr_update(self, best_seeds: Tensor) -> list[Tensor]:
         if not self.cache_delta:
             raise RuntimeError("Delta cache is not enabled, cannot update delta")
         if self.meta_learning_rate is None:
             raise ValueError("Meta learning rate not set")
         lr_updates = []
-        for ctx in self.spec_context:
-            # We use the final counter for generating the lr
+        for ctx, best_seed in zip(self.spec_context, best_seeds):
+            # We use the final counter (after all params) for generating the lr delta.
             final_counter = 0
             keys = sorted(list(ctx.delta.keys()))
             for key in keys:
                 params = ctx.delta[key]
                 final_counter += counter_advance_for(params[0])
-
+            # Generate different LR to try out
             lr_updates.append(
                 ctx.delta_learning_rates.assign(
                     Tensor.stack(
                         *(
                             self.make_delta(
-                                seed=seed,
+                                seed=best_seed,
                                 lr=self.meta_learning_rate,
                                 counter=final_counter,
-                                params=ctx.delta_learning_rates[i],
+                                params=delta_lr,
                             )
-                            for i, seed in enumerate(ctx.seeds)
+                            for delta_lr in ctx.delta_learning_rates
                         ),
                         dim=0,
                     )
@@ -295,25 +295,22 @@ class Optimizer:
             )
 
             counter = 0
-            # keys = sorted(list(ctx.delta.keys()))
-            # for key in keys:
-            #     params = ctx.delta[key]
-            #     updated_params = Tensor.stack(
-            #         *(
-            #             self.make_delta(
-            #                 seed=seed,
-            #                 lr=lr,
-            #                 counter=Tensor(counter, dtype=dtypes.uint),
-            #                 params=params[i],
-            #             )
-            #             for i, (seed, lr) in enumerate(
-            #                 zip(ctx.seeds, ctx.learning_rates)
-            #             )
-            #         ),
-            #         dim=0,
-            #     )
-            #     counter += counter_advance_for(params[0])
-            #     lr_updates.append(params.assign(updated_params))
+            for key in keys:
+                params = ctx.delta[key]
+                updated_params = Tensor.stack(
+                    *(
+                        self.make_delta(
+                            seed=best_seed,
+                            lr=(ctx.learning_rate + delta_lr).abs(),
+                            counter=Tensor(counter, dtype=dtypes.uint),
+                            params=params[i],
+                        )
+                        for i, delta_lr in enumerate(ctx.delta_learning_rates)
+                    ),
+                    dim=0,
+                )
+                counter += counter_advance_for(params[0])
+                lr_updates.append(params.assign(updated_params))
         return lr_updates
 
     def schedule_delta_update(self) -> list[Tensor]:
