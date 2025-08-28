@@ -277,6 +277,16 @@ class Optimizer:
                 delta_updates.append(params.assign(updated_params))
         return delta_updates
 
+    def schedule_reset_lr(self) -> list[Tensor]:
+        lr_updates = []
+        for ctx in self.spec_context:
+            lr_updates.append(
+                ctx.learning_rates.assign(
+                    self.learning_rate.expand(len(ctx.learning_rates))
+                )
+            )
+        return lr_updates
+
     def make_delta(
         self, seed: Tensor, lr: Tensor, counter: Tensor, params: Tensor
     ) -> Tensor:

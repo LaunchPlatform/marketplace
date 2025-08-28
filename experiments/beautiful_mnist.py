@@ -230,14 +230,7 @@ def train(
         ).realize()
 
         # reset LR to the current one
-        lr_updates = []
-        for ctx in optimizer.spec_context:
-            lr_updates.append(
-                ctx.learning_rates.assign(
-                    optimizer.learning_rate.expand(len(ctx.learning_rates))
-                )
-            )
-        Tensor.realize(*lr_updates)
+        Tensor.realize(*optimizer.schedule_reset_lr())
 
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
