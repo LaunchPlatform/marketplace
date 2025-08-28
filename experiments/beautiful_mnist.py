@@ -241,7 +241,7 @@ def train(
 
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
-        best_loss_before = best_loss.clone().realize()
+        best_loss_before = best_loss
         print("@@@ best loss before lr scale", best_loss.item())
 
         # lr scaling phase
