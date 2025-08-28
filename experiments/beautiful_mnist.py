@@ -87,6 +87,7 @@ def train(
     batch_size: int,
     initial_lr: float,
     lr_decay_rate: float,
+    meta_lr: float,
     marketplace: list[Spec],
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
@@ -97,13 +98,14 @@ def train(
     manual_seed: int | None = None,
 ):
     logger.info(
-        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
+        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, meta_lr=%s, "
         "marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, "
         "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
+        meta_lr,
         marketplace_replica,
         initial_forward_pass,
         metrics_per_steps,
@@ -119,6 +121,7 @@ def train(
     mlflow.log_param("initial_forward_pass", initial_forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
+    mlflow.log_param("meta_lr", meta_lr)
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
@@ -201,6 +204,25 @@ def train(
             unique_paths[min_idx],
         )
 
+    def lr_scaled_forward(
+        sample_batches: Tensor,
+    ) -> tuple[NDArray, NDArray, NDArray, Tensor, Tensor]:
+        best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
+        best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
+        # lr scaling
+        Tensor.realize(*optimizer.schedule_lr_scale_update(best_seeds))
+        scaled_lr_loss, scaled_lr_accuracy, scaled_lr_path = multi_forward_step(
+            sample_batches
+        )
+        learning_rates = optimizer.get_learning_rates(Tensor(scaled_lr_path))
+        return (
+            scaled_lr_loss,
+            scaled_lr_accuracy,
+            best_loss - scaled_lr_loss,
+            best_seeds,
+            learning_rates,
+        )
+
     @TinyJit
     def optimize_step(seeds: Tensor, learning_rates: Tensor):
         optimizer.step(seeds, learning_rates=learning_rates)
@@ -230,28 +252,30 @@ def train(
             current_forward_pass, batch_size, high=X_train.shape[0]
         ).realize()
 
-        best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
-        best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
-
-        Tensor.realize(*optimizer.schedule_lr_scale_update(best_seeds))
-        scaled_lr_best_loss, scaled_lr_best_accuracy, scaled_lr_best_path = (
-            multi_forward_step(sample_batches)
+        best_loss, best_accuracy, best_gain, best_seeds, best_lrs = lr_scaled_forward(
+            sample_batches
         )
-        learning_rates = optimizer.get_learning_rates(Tensor(scaled_lr_best_path))
+        best_seeds = best_seeds.clone().realize()
+        best_lrs = best_lrs.clone().realize()
+        for _ in range(marketplace_replica - 1):
+            # Update seeds
+            Tensor.realize(*optimizer.schedule_seeds_update())
+            (
+                candidate_loss,
+                candidate_accuracy,
+                candidate_gain,
+                candidate_seeds,
+                candidate_lrs,
+            ) = lr_scaled_forward(sample_batches)
+            if candidate_loss.item() >= best_loss.item():
+                continue
+            best_loss = candidate_loss
+            best_accuracy = candidate_accuracy
+            best_gain = candidate_gain
+            best_seeds = candidate_seeds.clone().realize()
+            best_lrs = candidate_lrs.clone().realize()
 
-        # for _ in range(marketplace_replica - 1):
-        #     # Update seeds
-        #     Tensor.realize(*optimizer.schedule_seeds_update())
-        #     candidate_loss, candidate_accuracy, candidate_path = multi_forward_step(
-        #         sample_batches
-        #     )
-        #     if candidate_loss.item() >= best_loss.item():
-        #         continue
-        #     best_loss = candidate_loss
-        #     best_accuracy = candidate_accuracy
-        #     best_seeds = optimizer.get_seeds(Tensor(candidate_path)).clone().realize()
-
-        optimize_step(best_seeds, learning_rates)
+        optimize_step(best_seeds, best_lrs)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
@@ -272,7 +296,7 @@ def train(
                     )
                 mlflow.log_metric(
                     f"training/lr_scaling_gain",
-                    (best_loss - scaled_lr_best_loss).item(),
+                    best_gain.item(),
                     step=i,
                 )
             mlflow.log_metric("testing/accuracy", test_acc, step=i)
