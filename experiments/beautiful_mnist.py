@@ -132,6 +132,7 @@ def train(
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
+        meta_learning_rate=Tensor(0.01),
     )
 
     @TinyJit
