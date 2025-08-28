@@ -232,10 +232,8 @@ def train(
 
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
-        print("@@@ best loss before lr scale", best_loss.item())
 
         Tensor.realize(*optimizer.schedule_lr_delta_update(best_seeds))
-
         scaled_lr_best_loss, scaled_lr_best_accuracy, scaled_lr_best_path = (
             multi_forward_step(sample_batches)
         )
