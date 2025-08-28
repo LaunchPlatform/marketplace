@@ -229,8 +229,19 @@ def train(
             current_forward_pass, batch_size, high=X_train.shape[0]
         ).realize()
 
+        # reset LR to the current one
+        lr_updates = []
+        for ctx in optimizer.spec_context:
+            lr_updates.append(
+                ctx.learning_rates.assign(
+                    optimizer.learning_rate.expand(len(ctx.learning_rates))
+                )
+            )
+        Tensor.realize(*lr_updates)
+
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
+        best_loss_before = best_loss.clone().realize()
         print("@@@ best loss before lr scale", best_loss.item())
 
         # lr scaling phase
@@ -250,7 +261,13 @@ def train(
         Tensor.realize(*optimizer.schedule_delta_update())
 
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
-        learning_rates = optimizer.get_learning_rates(best_path)
+        learning_rates = optimizer.get_learning_rates(Tensor(best_path))
+        print(
+            "@@@ best loss after lr scale",
+            best_loss.item(),
+            "gain",
+            (best_loss_before - best_loss).item(),
+        )
         print("LRs", learning_rates.tolist())
 
         # for _ in range(marketplace_replica - 1):

@@ -176,30 +176,46 @@ class Optimizer:
         )
 
     def get_learning_rates(self, path: Tensor) -> Tensor:
-        return Tensor.cat(
-            *(
-                ctx.learning_rates[index].unsqueeze(0)
-                for index, ctx in zip(path, self.spec_context)
-            ),
+        return Tensor.stack(
+            *(ctx.learning_rates[index] for index, ctx in zip(path, self.spec_context)),
             dim=0,
         )
 
-    def step(self, seeds: Tensor, keep_leader: bool = True):
-        Tensor.realize(*self.schedule_step(seeds, keep_leader))
+    def step(
+        self,
+        seeds: Tensor,
+        learning_rates: Tensor | None = None,
+        keep_leader: bool = True,
+    ):
+        Tensor.realize(
+            *self.schedule_step(
+                seeds, learning_rates=learning_rates, keep_leader=keep_leader
+            )
+        )
 
-    def schedule_step(self, seeds: Tensor, keep_leader: bool = True) -> list[Tensor]:
+    def schedule_step(
+        self,
+        seeds: Tensor,
+        learning_rates: Tensor | None = None,
+        keep_leader: bool = True,
+    ) -> list[Tensor]:
         return (
-            self.schedule_weight_update(seeds)
+            self.schedule_weight_update(seeds, learning_rates=learning_rates)
             + self.schedule_seeds_update(keep_leader)
             + (self.schedule_delta_update() if self.cache_delta else [])
         )
 
-    def schedule_weight_update(self, seeds: Tensor) -> list[Tensor]:
+    def schedule_weight_update(
+        self, seeds: Tensor, learning_rates: Tensor | None = None
+    ) -> list[Tensor]:
+        if learning_rates is None:
+            learning_rates = self.learning_rate.expand(len(self.marketplace))
         weight_updates = []
-        for spec, ctx, seed in zip(self.marketplace, self.spec_context, seeds):
+        for spec, ctx, seed, lr in zip(
+            self.marketplace, self.spec_context, seeds, learning_rates
+        ):
             model_params = get_state_dict(spec.model)
             counter = 0
-
             keys = sorted(list(model_params.keys()))
             for key in keys:
                 params = model_params[key]
@@ -208,7 +224,7 @@ class Optimizer:
                         params
                         + self.make_delta(
                             seed=seed,
-                            lr=self.learning_rate,
+                            lr=lr,
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params,
                         )
