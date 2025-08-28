@@ -356,6 +356,7 @@ def main(
         experiment_id=ensure_experiment("Marketplace V2"),
         run_name="beautiful-mnist" if run_name is None else run_name,
     ):
+        mlflow.log_param("vendor_count", vendor_count)
         train(
             step_count=step_count,
             batch_size=batch_size,
