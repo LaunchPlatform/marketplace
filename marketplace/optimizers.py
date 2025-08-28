@@ -218,15 +218,9 @@ class Optimizer:
             + (self.schedule_direction_delta_update() if self.cache_delta else [])
         )
 
-    def schedule_weight_update(
-        self, seeds: Tensor, learning_rates: Tensor | None = None
-    ) -> list[Tensor]:
-        if learning_rates is None:
-            learning_rates = self.learning_rate.expand(len(self.marketplace))
+    def schedule_weight_update(self, seeds: Tensor) -> list[Tensor]:
         weight_updates = []
-        for spec, ctx, seed, lr in zip(
-            self.marketplace, self.spec_context, seeds, learning_rates
-        ):
+        for spec, ctx, seed in zip(self.marketplace, self.spec_context, seeds):
             model_params = get_state_dict(spec.model)
             counter = 0
             keys = sorted(list(model_params.keys()))
@@ -237,7 +231,7 @@ class Optimizer:
                         params
                         + self.make_delta(
                             seed=seed,
-                            lr=lr,
+                            lr=ctx.learning_rate,
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params,
                         )
@@ -262,6 +256,31 @@ class Optimizer:
             )
             for ctx in self.spec_context
         ]
+
+    def schedule_direction_delta_update(self) -> list[Tensor]:
+        if not self.cache_delta:
+            raise RuntimeError("Delta cache is not enabled, cannot update delta")
+        delta_updates = []
+        for ctx in self.spec_context:
+            counter = 0
+            keys = sorted(list(ctx.delta.keys()))
+            for key in keys:
+                params = ctx.delta[key]
+                updated_params = Tensor.stack(
+                    *(
+                        self.make_delta(
+                            seed=seed,
+                            lr=ctx.learning_rate,
+                            counter=Tensor(counter, dtype=dtypes.uint),
+                            params=params[i],
+                        )
+                        for i, seed in enumerate(ctx.seeds)
+                    ),
+                    dim=0,
+                )
+                counter += counter_advance_for(params[0])
+                delta_updates.append(params.assign(updated_params))
+        return delta_updates
 
     def schedule_lr_delta_update(self, best_seeds: Tensor) -> list[Tensor]:
         if not self.cache_delta:
@@ -312,33 +331,6 @@ class Optimizer:
                 counter += counter_advance_for(params[0])
                 lr_updates.append(params.assign(updated_params))
         return lr_updates
-
-    def schedule_direction_delta_update(self) -> list[Tensor]:
-        if not self.cache_delta:
-            raise RuntimeError("Delta cache is not enabled, cannot update delta")
-        delta_updates = []
-        for ctx in self.spec_context:
-            counter = 0
-            keys = sorted(list(ctx.delta.keys()))
-            for key in keys:
-                params = ctx.delta[key]
-                updated_params = Tensor.stack(
-                    *(
-                        self.make_delta(
-                            seed=seed,
-                            lr=(ctx.learning_rate + delta_lr).abs(),
-                            counter=Tensor(counter, dtype=dtypes.uint),
-                            params=params[i],
-                        )
-                        for i, (seed, delta_lr) in enumerate(
-                            zip(ctx.seeds, ctx.delta_learning_rates)
-                        )
-                    ),
-                    dim=0,
-                )
-                counter += counter_advance_for(params[0])
-                delta_updates.append(params.assign(updated_params))
-        return delta_updates
 
     def make_delta(
         self, seed: Tensor, lr: Tensor, counter: Tensor, params: Tensor
