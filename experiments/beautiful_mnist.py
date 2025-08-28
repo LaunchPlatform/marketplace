@@ -332,7 +332,11 @@ def train(
     "--initial-lr", type=float, default=1e-3, help="Initial learning rate value"
 )
 @click.option("--lr-decay", type=float, default=1e-4, help="Learning rate decay rate")
-@click.option("--meta-lr", type=float, help="Learning rate decay rate")
+@click.option(
+    "--meta-lr",
+    type=click.FloatRange(0.0, 1.0, max_open=True),
+    help="Enable learning rate scaling mode with the given meta-learning rate",
+)
 @click.option(
     "--forward-pass",
     type=int,
