@@ -72,12 +72,14 @@ class Optimizer:
         self,
         marketplace: list[Spec],
         learning_rate: Tensor,
+        meta_learning_rate: Tensor | None = None,
         seeds: list[Tensor] | None = None,
         make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
         cache_delta: bool = True,
     ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
+        self.meta_learning_rate = meta_learning_rate
         self.make_rng = make_rng
         self.cache_delta = cache_delta
 
@@ -250,6 +252,59 @@ class Optimizer:
             for ctx in self.spec_context
         ]
 
+    def schedule_lr_update(self) -> list[Tensor]:
+        if not self.cache_delta:
+            raise RuntimeError("Delta cache is not enabled, cannot update delta")
+        if self.meta_learning_rate is None:
+            raise ValueError("Meta learning rate not set")
+        lr_updates = []
+        for ctx in self.spec_context:
+            # We use the final counter for generating the lr
+            final_counter = 0
+            keys = sorted(list(ctx.delta.keys()))
+            for key in keys:
+                params = ctx.delta[key]
+                final_counter += counter_advance_for(params[0])
+
+            lr_updates.append(
+                ctx.learning_rates.assign(
+                    Tensor.stack(
+                        *(
+                            self.make_delta(
+                                seed=seed,
+                                lr=self.meta_learning_rate,
+                                counter=final_counter,
+                                params=ctx.learning_rates[i],
+                            )
+                            for i, seed in enumerate(ctx.seeds)
+                        ),
+                        dim=0,
+                    )
+                )
+            )
+
+            counter = 0
+            # keys = sorted(list(ctx.delta.keys()))
+            # for key in keys:
+            #     params = ctx.delta[key]
+            #     updated_params = Tensor.stack(
+            #         *(
+            #             self.make_delta(
+            #                 seed=seed,
+            #                 lr=lr,
+            #                 counter=Tensor(counter, dtype=dtypes.uint),
+            #                 params=params[i],
+            #             )
+            #             for i, (seed, lr) in enumerate(
+            #                 zip(ctx.seeds, ctx.learning_rates)
+            #             )
+            #         ),
+            #         dim=0,
+            #     )
+            #     counter += counter_advance_for(params[0])
+            #     lr_updates.append(params.assign(updated_params))
+        return lr_updates
+
     def schedule_delta_update(self) -> list[Tensor]:
         if not self.cache_delta:
             raise RuntimeError("Delta cache is not enabled, cannot update delta")
@@ -276,16 +331,6 @@ class Optimizer:
                 counter += counter_advance_for(params[0])
                 delta_updates.append(params.assign(updated_params))
         return delta_updates
-
-    def schedule_reset_lr(self) -> list[Tensor]:
-        lr_updates = []
-        for ctx in self.spec_context:
-            lr_updates.append(
-                ctx.learning_rates.assign(
-                    self.learning_rate.expand(len(ctx.learning_rates))
-                )
-            )
-        return lr_updates
 
     def make_delta(
         self, seed: Tensor, lr: Tensor, counter: Tensor, params: Tensor
