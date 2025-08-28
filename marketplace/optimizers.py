@@ -316,7 +316,7 @@ class Optimizer:
                             (
                                 self.make_delta(
                                     seed=best_seed,
-                                    lr=self.meta_learning_rate,
+                                    lr=ctx.learning_rate * self.meta_learning_rate,
                                     counter=Tensor(final_counter, dtype=dtypes.uint),
                                     params=delta_lr,
                                 )

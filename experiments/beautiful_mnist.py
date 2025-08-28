@@ -132,7 +132,7 @@ def train(
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
-        meta_learning_rate=Tensor(0.01),
+        meta_learning_rate=Tensor(5),
     )
 
     @TinyJit
@@ -232,20 +232,14 @@ def train(
 
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
-        best_loss_before = best_loss
         print("@@@ best loss before lr scale", best_loss.item())
 
         Tensor.realize(*optimizer.schedule_lr_delta_update(best_seeds))
 
-        best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
-        learning_rates = optimizer.get_learning_rates(Tensor(best_path))
-        print(
-            "@@@ best loss after lr scale",
-            best_loss.item(),
-            "gain",
-            (best_loss_before - best_loss).item(),
+        scaled_lr_best_loss, scaled_lr_best_accuracy, scaled_lr_best_path = (
+            multi_forward_step(sample_batches)
         )
-        print("LRs", learning_rates.tolist())
+        learning_rates = optimizer.get_learning_rates(Tensor(scaled_lr_best_path))
 
         # for _ in range(marketplace_replica - 1):
         #     # Update seeds
@@ -273,6 +267,16 @@ def train(
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
+            if True:
+                for j, ctx in enumerate(optimizer.spec_context):
+                    mlflow.log_metric(
+                        f"training/learning_rate_{j}", ctx.learning_rate.item(), step=i
+                    )
+                mlflow.log_metric(
+                    f"training/lr_scaling_gain",
+                    (scaled_lr_best_loss - best_loss).item(),
+                    step=i,
+                )
             mlflow.log_metric("testing/accuracy", test_acc, step=i)
 
         # if checkpoint_filepath is not None and i % checkpoint_per_steps == (
