@@ -242,7 +242,9 @@ class Optimizer:
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
                         )
-                        for i, (seed, lr) in enumerate(ctx.seeds, ctx.learning_rates)
+                        for i, (seed, lr) in enumerate(
+                            zip(ctx.seeds, ctx.learning_rates)
+                        )
                     ),
                     dim=0,
                 )
