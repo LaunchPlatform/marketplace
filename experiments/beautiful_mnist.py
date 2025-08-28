@@ -245,9 +245,9 @@ def train(
             # update lr in range to see which one works the best
             # TODO: find a better way? like spread out in a fixed scale?
             lr_updates.append(
-                ctx.learning_rates.assign(
+                ctx.delta_learning_rates.assign(
                     optimizer.learning_rate
-                    * Tensor.arange(1, len(ctx.learning_rates) + 1)
+                    * Tensor.arange(1, len(ctx.delta_learning_rates) + 1)
                 )
             )
         Tensor.realize(*lr_updates)

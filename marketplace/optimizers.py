@@ -19,7 +19,8 @@ SEED_MAX = 2**64
 class SpecContext:
     seeds: Tensor
     delta: dict[str, Tensor] | None = None
-    learning_rates: Tensor | None = None
+    learning_rate: Tensor | None = None
+    delta_learning_rates: Tensor | None = None
 
 
 class CachedDeltaVendor:
@@ -115,9 +116,16 @@ class Optimizer:
                     if cache_delta
                     else None
                 ),
-                learning_rates=self.learning_rate.expand(
-                    spec.vendor_count
-                ).contiguous(),
+                learning_rate=(
+                    self.learning_rate.clone().contiguous()
+                    if self.meta_learning_rate is not None
+                    else None
+                ),
+                delta_learning_rates=(
+                    Tensor.zeros(spec.vendor_count).contiguous()
+                    if self.meta_learning_rate is not None
+                    else None
+                ),
             )
             for i, spec in enumerate(self.marketplace)
         ]
@@ -163,7 +171,7 @@ class Optimizer:
                             )
                         ),
                     )
-                    for seed, lr in zip(ctx.seeds, ctx.learning_rates)
+                    for seed, lr in zip(ctx.seeds, ctx.delta_learning_rates)
                 ]
                 for spec, ctx in zip(self.marketplace, self.spec_context)
             ]
@@ -179,7 +187,10 @@ class Optimizer:
 
     def get_learning_rates(self, path: Tensor) -> Tensor:
         return Tensor.stack(
-            *(ctx.learning_rates[index] for index, ctx in zip(path, self.spec_context)),
+            *(
+                ctx.delta_learning_rates[index]
+                for index, ctx in zip(path, self.spec_context)
+            ),
             dim=0,
         )
 
@@ -267,14 +278,14 @@ class Optimizer:
                 final_counter += counter_advance_for(params[0])
 
             lr_updates.append(
-                ctx.learning_rates.assign(
+                ctx.delta_learning_rates.assign(
                     Tensor.stack(
                         *(
                             self.make_delta(
                                 seed=seed,
                                 lr=self.meta_learning_rate,
                                 counter=final_counter,
-                                params=ctx.learning_rates[i],
+                                params=ctx.delta_learning_rates[i],
                             )
                             for i, seed in enumerate(ctx.seeds)
                         ),
@@ -323,7 +334,7 @@ class Optimizer:
                             params=params[i],
                         )
                         for i, (seed, lr) in enumerate(
-                            zip(ctx.seeds, ctx.learning_rates)
+                            zip(ctx.seeds, ctx.delta_learning_rates)
                         )
                     ),
                     dim=0,
