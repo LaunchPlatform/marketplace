@@ -175,6 +175,15 @@ class Optimizer:
             dim=0,
         )
 
+    def get_learning_rates(self, path: Tensor) -> Tensor:
+        return Tensor.cat(
+            *(
+                ctx.learning_rates[index].unsqueeze(0)
+                for index, ctx in zip(path, self.spec_context)
+            ),
+            dim=0,
+        )
+
     def step(self, seeds: Tensor, keep_leader: bool = True):
         Tensor.realize(*self.schedule_step(seeds, keep_leader))
 

@@ -201,8 +201,8 @@ def train(
         )
 
     @TinyJit
-    def optimize_step(seeds: Tensor):
-        optimizer.step(seeds)
+    def optimize_step(seeds: Tensor, learning_rates: Tensor):
+        optimizer.step(seeds, learning_rates=learning_rates)
 
     @TinyJit
     def get_test_acc() -> Tensor:
@@ -231,19 +231,41 @@ def train(
 
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
-        for _ in range(marketplace_replica - 1):
-            # Update seeds
-            Tensor.realize(*optimizer.schedule_seeds_update())
-            candidate_loss, candidate_accuracy, candidate_path = multi_forward_step(
-                sample_batches
-            )
-            if candidate_loss.item() >= best_loss.item():
-                continue
-            best_loss = candidate_loss
-            best_accuracy = candidate_accuracy
-            best_seeds = optimizer.get_seeds(Tensor(candidate_path)).clone().realize()
+        print("@@@ best loss before lr scale", best_loss.item())
 
-        optimize_step(best_seeds)
+        # lr scaling phase
+        lr_updates = []
+        for ctx, best_seed in zip(optimizer.spec_context, best_seeds):
+            # update all the seeds in the same spec to use the same one
+            lr_updates.append(ctx.seeds.assign(best_seed.expand(len(ctx.seeds))))
+            # update lr in range to see which one works the best
+            # TODO: find a better way? like spread out in a fixed scale?
+            lr_updates.append(
+                ctx.learning_rates.assign(
+                    optimizer.learning_rate
+                    * Tensor.arange(1, len(ctx.learning_rates) + 1)
+                )
+            )
+        Tensor.realize(*lr_updates)
+        Tensor.realize(*optimizer.schedule_delta_update())
+
+        best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
+        learning_rates = optimizer.get_learning_rates(best_path)
+        print("LRs", learning_rates.tolist())
+
+        # for _ in range(marketplace_replica - 1):
+        #     # Update seeds
+        #     Tensor.realize(*optimizer.schedule_seeds_update())
+        #     candidate_loss, candidate_accuracy, candidate_path = multi_forward_step(
+        #         sample_batches
+        #     )
+        #     if candidate_loss.item() >= best_loss.item():
+        #         continue
+        #     best_loss = candidate_loss
+        #     best_accuracy = candidate_accuracy
+        #     best_seeds = optimizer.get_seeds(Tensor(candidate_path)).clone().realize()
+
+        optimize_step(best_seeds, learning_rates)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
