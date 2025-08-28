@@ -272,7 +272,7 @@ def train(
                     )
                 mlflow.log_metric(
                     f"training/lr_scaling_gain",
-                    (scaled_lr_best_loss - best_loss).item(),
+                    (best_loss - scaled_lr_best_loss).item(),
                     step=i,
                 )
             mlflow.log_metric("testing/accuracy", test_acc, step=i)
