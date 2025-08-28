@@ -150,6 +150,7 @@ class Optimizer:
         else:
             self.vendors = [
                 [
+                    # TODO: this needs to be reimplemented for lr scaling
                     DeltaVendor(
                         model=spec.model,
                         make_delta=(
@@ -238,11 +239,11 @@ class Optimizer:
                     *(
                         self.make_delta(
                             seed=seed,
-                            lr=self.learning_rate,
+                            lr=lr,
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
                         )
-                        for i, seed in enumerate(ctx.seeds)
+                        for i, (seed, lr) in enumerate(ctx.seeds, ctx.learning_rates)
                     ),
                     dim=0,
                 )
