@@ -285,7 +285,10 @@ def train(
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        lr.assign(lr * (1 - lr_decay_rate)).realize()
+        if meta_lr is None:
+            lr.assign(lr * (1 - lr_decay_rate)).realize()
+        else:
+            meta_lr.assign(meta_lr * (1 - lr_decay_rate)).realize()
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
