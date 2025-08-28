@@ -19,6 +19,7 @@ SEED_MAX = 2**64
 class SpecContext:
     seeds: Tensor
     delta: dict[str, Tensor] | None = None
+    learning_rates: Tensor | None = None
 
 
 class CachedDeltaVendor:
@@ -112,6 +113,9 @@ class Optimizer:
                     if cache_delta
                     else None
                 ),
+                learning_rates=self.learning_rate.expand(
+                    spec.vendor_count
+                ).contiguous(),
             )
             for i, spec in enumerate(self.marketplace)
         ]
