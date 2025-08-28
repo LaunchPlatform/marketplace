@@ -232,8 +232,8 @@ class Optimizer:
 
             effective_lr = ctx.learning_rate
             if self.meta_learning_rate is not None:
-                effective_lr = lr
-                weight_updates.append(ctx.learning_rate.assign(lr))
+                effective_lr = ctx.learning_rate.assign(lr)
+                weight_updates.append(effective_lr)
 
             counter = 0
             for key in keys:
