@@ -197,27 +197,45 @@ class Optimizer:
     def step(
         self,
         seeds: Tensor,
+        learning_rates: Tensor | None = None,
         keep_leader: bool = True,
     ):
-        Tensor.realize(*self.schedule_step(seeds, keep_leader=keep_leader))
+        Tensor.realize(
+            *self.schedule_step(
+                seeds, learning_rates=learning_rates, keep_leader=keep_leader
+            )
+        )
 
     def schedule_step(
         self,
         seeds: Tensor,
+        learning_rates: Tensor | None = None,
         keep_leader: bool = True,
     ) -> list[Tensor]:
         return (
-            self.schedule_weight_update(seeds)
+            self.schedule_weight_update(seeds, learning_rates=learning_rates)
             + self.schedule_seeds_update(keep_leader)
             + (self.schedule_direction_delta_update() if self.cache_delta else [])
         )
 
-    def schedule_weight_update(self, seeds: Tensor) -> list[Tensor]:
+    def schedule_weight_update(
+        self, seeds: Tensor, learning_rates: Tensor | None = None
+    ) -> list[Tensor]:
         weight_updates = []
-        for spec, ctx, seed in zip(self.marketplace, self.spec_context, seeds):
+        if learning_rates is None:
+            learning_rates = self.learning_rate.expand(len(self.marketplace))
+        for spec, ctx, seed, lr in zip(
+            self.marketplace, self.spec_context, seeds, learning_rates
+        ):
             model_params = get_state_dict(spec.model)
-            counter = 0
             keys = sorted(list(model_params.keys()))
+
+            effective_lr = ctx.learning_rate
+            if self.meta_learning_rate is not None:
+                effective_lr = lr
+                weight_updates.append(ctx.learning_rate.assign(lr))
+
+            counter = 0
             for key in keys:
                 params = model_params[key]
                 weight_updates.append(
@@ -225,7 +243,7 @@ class Optimizer:
                         params
                         + self.make_delta(
                             seed=seed,
-                            lr=ctx.learning_rate,
+                            lr=effective_lr,
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params,
                         )
@@ -284,6 +302,7 @@ class Optimizer:
         lr_updates = []
         for ctx, best_seed in zip(self.spec_context, best_seeds):
             # We use the final counter (after all params) for generating the lr delta.
+            # TODO: extract this part?
             final_counter = 0
             keys = sorted(list(ctx.delta.keys()))
             for key in keys:
