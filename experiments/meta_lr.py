@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def main():
     exp_id = ensure_experiment("Meta Learning Rate V3")
     for lr in [1e-1, 1e-2, 1e-3, 1e-4]:
-        for meta_lr in [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]:
+        for meta_lr in [1e-1, 2e-1, 3e-1, 4e-1, 5e-1, 6e-1, 7e-1, 8e-1, 9e-1]:
             for decay in [0.0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5]:
                 meta_lr_str = f"{meta_lr:.1e}" if meta_lr is not None else "none"
                 with mlflow.start_run(
