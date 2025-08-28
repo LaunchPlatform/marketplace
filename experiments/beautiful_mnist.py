@@ -229,29 +229,12 @@ def train(
             current_forward_pass, batch_size, high=X_train.shape[0]
         ).realize()
 
-        # reset LR to the current one
-        Tensor.realize(*optimizer.schedule_reset_lr())
-
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
         best_loss_before = best_loss
         print("@@@ best loss before lr scale", best_loss.item())
 
-        # lr scaling phase
-        lr_updates = []
-        for ctx, best_seed in zip(optimizer.spec_context, best_seeds):
-            # update all the seeds in the same spec to use the same one
-            lr_updates.append(ctx.seeds.assign(best_seed.expand(len(ctx.seeds))))
-            # update lr in range to see which one works the best
-            # TODO: find a better way? like spread out in a fixed scale?
-            lr_updates.append(
-                ctx.delta_learning_rates.assign(
-                    optimizer.learning_rate
-                    * Tensor.arange(1, len(ctx.delta_learning_rates) + 1)
-                )
-            )
-        Tensor.realize(*lr_updates)
-        Tensor.realize(*optimizer.schedule_direction_delta_update())
+        Tensor.realize(*optimizer.schedule_lr_delta_update(best_seeds))
 
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         learning_rates = optimizer.get_learning_rates(Tensor(best_path))
