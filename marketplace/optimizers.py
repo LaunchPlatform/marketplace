@@ -20,7 +20,7 @@ class SpecContext:
     seeds: Tensor
     delta: dict[str, Tensor] | None = None
     learning_rate: Tensor | None = None
-    delta_learning_rates: Tensor | None = None
+    learning_rate_scales: Tensor | None = None
 
 
 class CachedDeltaVendor:
@@ -121,7 +121,7 @@ class Optimizer:
                     if self.meta_learning_rate is not None
                     else None
                 ),
-                delta_learning_rates=(
+                learning_rate_scales=(
                     Tensor.zeros(spec.vendor_count).contiguous()
                     if self.meta_learning_rate is not None
                     else None
@@ -166,12 +166,13 @@ class Optimizer:
                             lambda counter, params, seed=seed: self.make_delta(
                                 seed=seed,
                                 counter=counter,
-                                lr=(ctx.learning_rate + delta_lr).abs(),
+                                # FIXME: this is wrong.
+                                lr=(ctx.learning_rate + lr_scale).abs(),
                                 params=params,
                             )
                         ),
                     )
-                    for seed, delta_lr in zip(ctx.seeds, ctx.delta_learning_rates)
+                    for seed, lr_scale in zip(ctx.seeds, ctx.learning_rate_scales)
                 ]
                 for spec, ctx in zip(self.marketplace, self.spec_context)
             ]
@@ -188,7 +189,7 @@ class Optimizer:
     def get_learning_rates(self, path: Tensor) -> Tensor:
         return Tensor.stack(
             *(
-                (ctx.learning_rate + ctx.delta_learning_rates[index]).abs()
+                (ctx.learning_rate + ctx.learning_rate_scales[index]).abs()
                 for index, ctx in zip(path, self.spec_context)
             ),
             dim=0,
@@ -310,7 +311,7 @@ class Optimizer:
                 final_counter += counter_advance_for(params[0])
             # Generate different LR to try out
             lr_updates.append(
-                ctx.delta_learning_rates.assign(
+                ctx.learning_rate_scales.assign(
                     Tensor.stack(
                         *(
                             (
@@ -323,7 +324,7 @@ class Optimizer:
                                 if i != 0
                                 else Tensor.zeros_like(delta_lr)
                             )
-                            for i, delta_lr in enumerate(ctx.delta_learning_rates)
+                            for i, delta_lr in enumerate(ctx.learning_rate_scales)
                         ),
                         dim=0,
                     )
@@ -341,7 +342,7 @@ class Optimizer:
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
                         )
-                        for i, delta_lr in enumerate(ctx.delta_learning_rates)
+                        for i, delta_lr in enumerate(ctx.learning_rate_scales)
                     ),
                     dim=0,
                 )
