@@ -87,8 +87,8 @@ def train(
     batch_size: int,
     initial_lr: float,
     lr_decay_rate: float,
-    meta_lr: float,
     marketplace: list[Spec],
+    meta_lr: float | None = None,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
@@ -135,7 +135,7 @@ def train(
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
-        meta_learning_rate=Tensor(0.5),
+        meta_learning_rate=Tensor(meta_lr) if meta_lr is not None else None,
     )
 
     @TinyJit
@@ -289,7 +289,8 @@ def train(
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
-            if True:
+            if meta_lr is not None:
+                mlflow.log_metric("training/meta_lr", meta_lr.item(), step=i)
                 for j, ctx in enumerate(optimizer.spec_context):
                     mlflow.log_metric(
                         f"training/learning_rate_{j}", ctx.learning_rate.item(), step=i
@@ -331,6 +332,7 @@ def train(
     "--initial-lr", type=float, default=1e-3, help="Initial learning rate value"
 )
 @click.option("--lr-decay", type=float, default=1e-4, help="Learning rate decay rate")
+@click.option("--meta-lr", type=float, help="Learning rate decay rate")
 @click.option(
     "--forward-pass",
     type=int,
@@ -362,6 +364,7 @@ def main(
     batch_size: int,
     initial_lr: float,
     lr_decay: float,
+    meta_lr: float,
     forward_pass: int,
     marketplace_replica: int,
     vendor_count: int,
@@ -386,6 +389,7 @@ def main(
             batch_size=batch_size,
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
+            meta_lr=meta_lr,
             initial_forward_pass=forward_pass,
             manual_seed=seed,
             marketplace=make_marketplace(
