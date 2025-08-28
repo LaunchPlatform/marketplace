@@ -207,13 +207,17 @@ def train(
             unique_paths[min_idx],
         )
 
+    @TinyJit
+    def lr_scale_update(best_seeds: Tensor):
+        Tensor.realize(*optimizer.schedule_lr_scale_update(best_seeds))
+
     def lr_scaled_forward(
         sample_batches: Tensor,
     ) -> tuple[NDArray, NDArray, NDArray, Tensor, Tensor]:
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
         # lr scaling
-        Tensor.realize(*optimizer.schedule_lr_scale_update(best_seeds))
+        lr_scale_update()
         scaled_lr_loss, scaled_lr_accuracy, scaled_lr_path = multi_forward_step(
             sample_batches
         )
