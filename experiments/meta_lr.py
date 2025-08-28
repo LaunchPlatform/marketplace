@@ -16,7 +16,7 @@ def main():
             for decay in [0.0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5]:
                 meta_lr_str = f"{meta_lr:.1e}" if meta_lr is not None else "none"
                 with mlflow.start_run(
-                    run_name=f"meta-lr-init-{lr:.1e}-meta-{meta_lr_str}-decay-{decay}",
+                    run_name=f"meta-lr-init-{lr:.1e}-meta-{meta_lr_str}-decay-{decay:.1e}",
                     experiment_id=exp_id,
                     log_system_metrics=True,
                 ):
