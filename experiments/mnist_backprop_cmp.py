@@ -69,7 +69,7 @@ class Model:
         return x.sequential(self.layers)
 
 
-def train_mnist(sgd: bool = False, lr: float = 1e-3):
+def train_mnist(optimizer_type: str = "adam", lr: float = 1e-3):
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
     model = Model()
@@ -92,17 +92,21 @@ def train_mnist(sgd: bool = False, lr: float = 1e-3):
         load_state_dict(model, converted_state)
         logger.info("Model weight loaded")
 
-    if not sgd:
-        opt = (nn.optim.Adam if not getenv("MUON") else nn.optim.Muon)(
-            nn.state.get_parameters(model)
-        )
+    if optimizer_type == "adam":
+        opt = nn.optim.Adam(nn.state.get_parameters(model))
         mlflow.log_param("optimizer", "adam")
-    else:
+    elif optimizer_type == "muon":
+        opt = nn.optim.Muon(nn.state.get_parameters(model), lr=lr)
+        mlflow.log_param("lr", lr)
+    elif optimizer_type == "sgd":
         opt = nn.optim.SGD(
             nn.state.get_parameters(model),
             lr=lr,
         )
-        mlflow.log_param("optimizer", "sgd")
+        mlflow.log_param("lr", lr)
+    else:
+        raise ValueError("Unexpected type")
+    mlflow.log_param("optimizer", optimizer_type)
 
     @TinyJit
     @Tensor.train()
@@ -145,38 +149,23 @@ def train_mnist(sgd: bool = False, lr: float = 1e-3):
 
 if __name__ == "__main__":
     exp_id = ensure_experiment("Backprop Comparison V3")
-    with mlflow.start_run(
-        run_name=f"backprop-adam",
-        experiment_id=exp_id,
-        log_system_metrics=True,
-    ):
-        train_mnist(sgd=False)
-    for lr in [
-        1e-3,
-        2e-3,
-        3e-3,
-        4e-3,
-        5e-3,
-        6e-3,
-        7e-3,
-        8e-3,
-        9e-3,
-        1e-4,
-        2e-4,
-        3e-4,
-        4e-4,
-        5e-4,
-        6e-4,
-        7e-4,
-        8e-4,
-        9e-4,
-    ]:
-        with mlflow.start_run(
-            run_name=f"backprop-sgd-lr-{lr}",
-            experiment_id=exp_id,
-            log_system_metrics=True,
-        ):
-            train_mnist(sgd=True, lr=lr)
+    for optimizer_type in ["adam", "muon", "sgd"]:
+        if optimizer_type == "adam":
+            with mlflow.start_run(
+                run_name=f"backprop-adam",
+                experiment_id=exp_id,
+                log_system_metrics=True,
+            ):
+                train_mnist(optimizer_type=optimizer_type)
+        else:
+            for lr_base in [1e-2, 1e-3, 1e-4]:
+                for lr in list(map(lambda x: x * 1e-3, range(1, 10))):
+                    with mlflow.start_run(
+                        run_name=f"backprop-{optimizer_type}-lr-{lr}",
+                        experiment_id=exp_id,
+                        log_system_metrics=True,
+                    ):
+                        train_mnist(optimizer_type=optimizer_type, lr=lr)
     with mlflow.start_run(
         run_name="marketplace",
         experiment_id=exp_id,
