@@ -73,16 +73,22 @@ class Optimizer:
         self,
         marketplace: list[Spec],
         learning_rate: Tensor,
-        meta_learning_rate: Tensor | None = None,
+        learning_rate_scale_range: Tensor | None = None,
         seeds: list[Tensor] | None = None,
         make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
         cache_delta: bool = True,
     ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
-        self.meta_learning_rate = meta_learning_rate
+        self.learning_rate_scale_range = learning_rate_scale_range
         self.make_rng = make_rng
         self.cache_delta = cache_delta
+
+        if (
+            self.learning_rate_scale_range is not None
+            and self.learning_rate_scale_range.shape != (2,)
+        ):
+            raise ValueError("Learning rate scale range needs to be a (2, ) tensor")
 
         if seeds is not None:
             market_shape = tuple(spec.vendor_count for spec in marketplace)
@@ -118,12 +124,12 @@ class Optimizer:
                 ),
                 learning_rate=(
                     self.learning_rate.clone().contiguous()
-                    if self.meta_learning_rate is not None
+                    if self.learning_rate_scale_range is not None
                     else None
                 ),
                 learning_rate_scales=(
                     Tensor.zeros(spec.vendor_count).contiguous()
-                    if self.meta_learning_rate is not None
+                    if self.learning_rate_scale_range is not None
                     else None
                 ),
             )
@@ -231,9 +237,8 @@ class Optimizer:
             keys = sorted(list(model_params.keys()))
 
             effective_lr = ctx.learning_rate
-            if self.meta_learning_rate is not None:
-                effective_lr = ctx.learning_rate.assign(lr)
-                weight_updates.append(effective_lr)
+            if self.learning_rate_scale_range is not None:
+                effective_lr = lr
 
             counter = 0
             for key in keys:
@@ -297,7 +302,7 @@ class Optimizer:
     def schedule_lr_scale_update(self, best_seeds: Tensor) -> list[Tensor]:
         if not self.cache_delta:
             raise RuntimeError("Delta cache is not enabled, cannot update delta")
-        if self.meta_learning_rate is None:
+        if self.learning_rate_scale_range is None:
             raise ValueError("Meta learning rate not set")
         lr_updates = []
         for ctx, best_seed in zip(self.spec_context, best_seeds):
@@ -314,11 +319,13 @@ class Optimizer:
                     Tensor.stack(
                         *(
                             (
-                                self.make_delta(
+                                self.make_rng(
                                     seed=best_seed,
-                                    lr=self.meta_learning_rate,
                                     counter=Tensor(final_counter, dtype=dtypes.uint),
-                                    params=lr_scale,
+                                ).uniform(
+                                    *lr_scale.shape,
+                                    low=self.learning_rate_scale_range[0],
+                                    high=self.learning_rate_scale_range[1],
                                 )
                                 if i != 0
                                 # we always keep the original lr in the combinations, in case we cannot find any

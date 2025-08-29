@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 def main():
     exp_id = ensure_experiment("Scaling V5 with LR scaling")
-    for marketplace_replica in [1, 2, 4, 8]:
-        for forward_pass in [1, 2, 4, 8]:
+    for marketplace_replica in [64]:
+        for forward_pass in [64]:
             with mlflow.start_run(
                 run_name=f"scaling-mr-{marketplace_replica}-fw-{forward_pass}",
                 experiment_id=exp_id,
@@ -26,7 +26,7 @@ def main():
                     initial_lr=1e-2,
                     lr_decay_rate=1e-4,
                     initial_forward_pass=forward_pass,
-                    initial_meta_lr=0.1,
+                    lr_scaling_range=0.1,
                     marketplace=marketplace,
                     marketplace_replica=marketplace_replica,
                     # Make initial weights the same so that the exp is less noisy

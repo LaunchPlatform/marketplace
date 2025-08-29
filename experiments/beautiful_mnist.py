@@ -88,7 +88,7 @@ def train(
     initial_lr: float,
     lr_decay_rate: float,
     marketplace: list[Spec],
-    initial_meta_lr: float | None = None,
+    lr_scaling_range: tuple[float, float] | None = None,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
@@ -98,14 +98,14 @@ def train(
     manual_seed: int | None = None,
 ):
     logger.info(
-        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, initial_meta_lr=%s, "
+        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, lr_scaling_range=%s, "
         "marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, "
         "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
-        initial_meta_lr,
+        lr_scaling_range,
         marketplace_replica,
         initial_forward_pass,
         metrics_per_steps,
@@ -121,7 +121,9 @@ def train(
     mlflow.log_param("initial_forward_pass", initial_forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
-    mlflow.log_param("initial_meta_lr", initial_meta_lr)
+    if lr_scaling_range is not None:
+        mlflow.log_param("lr_scaling_range_start", lr_scaling_range[0])
+        mlflow.log_param("lr_scaling_range_end", lr_scaling_range[1])
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
@@ -132,13 +134,12 @@ def train(
 
     X_train, Y_train, X_test, Y_test = load_data()
     lr = Tensor(initial_lr).contiguous().realize()
-    meta_lr = None
-    if initial_meta_lr is not None:
-        meta_lr = Tensor(initial_meta_lr).contiguous().realize()
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
-        meta_learning_rate=meta_lr,
+        learning_rate_scale_range=Tensor(lr_scaling_range)
+        if lr_scaling_range is not None
+        else None,
     )
 
     @TinyJit
@@ -213,9 +214,11 @@ def train(
 
     def lr_scaled_forward(
         sample_batches: Tensor,
-    ) -> tuple[NDArray, NDArray, NDArray, Tensor, Tensor]:
+    ) -> tuple[NDArray, NDArray, NDArray | None, Tensor, Tensor | None]:
         best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
         best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
+        if lr_scaling_range is None:
+            return best_loss, best_accuracy, None, best_seeds, None
         # lr scaling
         lr_scale_update(best_seeds)
         scaled_lr_loss, scaled_lr_accuracy, scaled_lr_path = multi_forward_step(
@@ -262,7 +265,7 @@ def train(
             sample_batches
         )
         best_seeds = best_seeds.clone().realize()
-        best_lrs = best_lrs.clone().realize()
+        best_lrs = best_lrs.clone().realize() if best_lrs is not None else None
         for _ in range(marketplace_replica - 1):
             # Update seeds
             Tensor.realize(*optimizer.schedule_seeds_update())
@@ -279,16 +282,15 @@ def train(
             best_accuracy = candidate_accuracy
             best_gain = candidate_gain
             best_seeds = candidate_seeds.clone().realize()
-            best_lrs = candidate_lrs.clone().realize()
+            best_lrs = (
+                candidate_lrs.clone().realize() if candidate_lrs is not None else None
+            )
 
         optimize_step(best_seeds, best_lrs)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        if meta_lr is None:
-            lr.assign(lr * (1 - lr_decay_rate)).realize()
-        else:
-            meta_lr.assign(meta_lr * (1 - lr_decay_rate)).realize()
+        lr.assign(lr * (1 - lr_decay_rate)).realize()
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
@@ -298,12 +300,13 @@ def train(
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
-            if meta_lr is not None:
-                mlflow.log_metric("training/meta_lr", meta_lr.item(), step=i)
-                for j, ctx in enumerate(optimizer.spec_context):
-                    mlflow.log_metric(
-                        f"training/learning_rate_{j}", ctx.learning_rate.item(), step=i
-                    )
+            if lr_scaling_range is not None:
+                mlflow.log_metric(
+                    "training/scaling_range_start", lr_scaling_range[0], step=i
+                )
+                mlflow.log_metric(
+                    "training/scaling_range_end", lr_scaling_range[1], step=i
+                )
                 mlflow.log_metric(
                     f"training/lr_scaling_gain",
                     best_gain.item(),
@@ -342,9 +345,9 @@ def train(
 )
 @click.option("--lr-decay", type=float, default=1e-4, help="Learning rate decay rate")
 @click.option(
-    "--meta-lr",
-    type=click.FloatRange(0.0, 1.0, max_open=True),
-    help="Enable learning rate scaling mode with the given meta-learning rate",
+    "--lr-scaling",
+    type=str,
+    help="Enable LR scaling with given range (start, end).",
 )
 @click.option(
     "--forward-pass",
@@ -377,7 +380,7 @@ def main(
     batch_size: int,
     initial_lr: float,
     lr_decay: float,
-    meta_lr: float,
+    lr_scaling_range: str | None,
     forward_pass: int,
     marketplace_replica: int,
     vendor_count: int,
@@ -402,16 +405,22 @@ def main(
             batch_size=batch_size,
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
-            initial_meta_lr=meta_lr,
+            lr_scaling_range=(
+                tuple(map(float, lr_scaling_range.split(",")))
+                if lr_scaling_range is not None
+                else None
+            ),
             initial_forward_pass=forward_pass,
             manual_seed=seed,
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count,
             ),
             marketplace_replica=marketplace_replica,
-            checkpoint_filepath=pathlib.Path(checkpoint_filepath)
-            if checkpoint_filepath is not None
-            else None,
+            checkpoint_filepath=(
+                pathlib.Path(checkpoint_filepath)
+                if checkpoint_filepath is not None
+                else None
+            ),
             checkpoint_per_steps=checkpoint_per_steps,
         )
 
