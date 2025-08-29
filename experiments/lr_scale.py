@@ -16,7 +16,7 @@ def main():
             for lr_scale_end in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
                 for decay in [0.0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5]:
                     with mlflow.start_run(
-                        run_name=f"lr-scale-lr-{lr:.1e}-scale-{lr_scale_start:.1e}-{lr_scale_end:.1e}-decay-{decay:.1e}",
+                        run_name=f"lr-scale-lr-{lr:.1e}-scale-{lr_scale_start}-{lr_scale_end}-decay-{decay:.1e}",
                         experiment_id=exp_id,
                         log_system_metrics=True,
                     ):
