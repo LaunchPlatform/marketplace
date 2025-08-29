@@ -27,7 +27,7 @@ def main():
                             batch_size=512,
                             initial_lr=lr,
                             lr_decay_rate=decay,
-                            lr_scaling_range=(lr_scale_end, lr_scale_start),
+                            lr_scaling_range=(lr_scale_start, lr_scale_end),
                             marketplace=marketplace,
                         )
 

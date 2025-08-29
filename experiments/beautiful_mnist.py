@@ -122,6 +122,10 @@ def train(
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     if lr_scaling_range is not None:
+        if lr_scaling_range[0] > lr_scaling_range[1]:
+            raise ValueError(
+                f"LR Scaling range start value {lr_scaling_range[0]} should be lower than end value {lr_scaling_range[1]}"
+            )
         mlflow.log_param("lr_scaling_range_start", lr_scaling_range[0])
         mlflow.log_param("lr_scaling_range_end", lr_scaling_range[1])
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
