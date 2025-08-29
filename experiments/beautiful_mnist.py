@@ -345,7 +345,7 @@ def train(
 )
 @click.option("--lr-decay", type=float, default=1e-4, help="Learning rate decay rate")
 @click.option(
-    "--lr-scaling",
+    "--lr-scale",
     type=str,
     help="Enable LR scaling with given range (start, end).",
 )
@@ -380,7 +380,7 @@ def main(
     batch_size: int,
     initial_lr: float,
     lr_decay: float,
-    lr_scaling: str | None,
+    lr_scale: str | None,
     forward_pass: int,
     marketplace_replica: int,
     vendor_count: int,
@@ -406,9 +406,7 @@ def main(
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
             lr_scaling_range=(
-                tuple(map(float, lr_scaling.split(",")))
-                if lr_scaling is not None
-                else None
+                tuple(map(float, lr_scale.split(","))) if lr_scale is not None else None
             ),
             initial_forward_pass=forward_pass,
             manual_seed=seed,
