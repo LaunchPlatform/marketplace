@@ -380,7 +380,7 @@ def main(
     batch_size: int,
     initial_lr: float,
     lr_decay: float,
-    lr_scaling_range: str | None,
+    lr_scaling: str | None,
     forward_pass: int,
     marketplace_replica: int,
     vendor_count: int,
@@ -406,8 +406,8 @@ def main(
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
             lr_scaling_range=(
-                tuple(map(float, lr_scaling_range.split(",")))
-                if lr_scaling_range is not None
+                tuple(map(float, lr_scaling.split(",")))
+                if lr_scaling is not None
                 else None
             ),
             initial_forward_pass=forward_pass,

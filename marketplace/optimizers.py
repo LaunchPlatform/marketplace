@@ -125,7 +125,7 @@ class Optimizer:
                 learning_rate=(
                     self.learning_rate.clone().contiguous()
                     if self.learning_rate_scale_range is not None
-                    else None
+                    else self.learning_rate
                 ),
                 learning_rate_scales=(
                     Tensor.zeros(spec.vendor_count).contiguous()
