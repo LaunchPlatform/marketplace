@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 def main():
     exp_id = ensure_experiment("LR Scale")
     for lr in [1e-1, 1e-2, 1e-3, 1e-4]:
-        for lr_scale_start in [1e-1, 2e-1, 3e-1, 4e-1, 5e-1, 6e-1, 7e-1, 8e-1, 9e-1]:
-            for lr_scale_end in [2, 3, 4, 5, 6, 7, 8, 9, 10]:
+        for lr_scale_start in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+            for lr_scale_end in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
                 for decay in [0.0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5]:
                     with mlflow.start_run(
                         run_name=f"lr-scale-lr-{lr:.1e}-scale-{lr_scale_start:.1e}-{lr_scale_end:.1e}-decay-{decay:.1e}",
