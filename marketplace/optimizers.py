@@ -1,6 +1,7 @@
 import copy
 import dataclasses
 import typing
+from multiprocessing.connection import reduce_connection
 
 from tinygrad import dtypes
 from tinygrad import Tensor
@@ -358,10 +359,12 @@ class Optimizer:
                 lr_updates.append(params.assign(updated_params))
         return lr_updates
 
-    def compute_direction_vector(self, loss: Tensor, seeds: Tensor):
+    def compute_direction_vector(
+        self, loss: Tensor, seeds: Tensor
+    ) -> list[dict[str, Tensor]]:
         std, mean = loss.std_mean()
         std_loss = -((loss - mean) / std)
-
+        direction_vectors = []
         for i, (spec, ctx, seed) in enumerate(
             zip(self.marketplace, self.spec_context, seeds)
         ):
@@ -385,11 +388,16 @@ class Optimizer:
                 ).sum(axis=0)
                 for key in keys
             }
-
-            # for key in keys:
-            #     direction_vector_len = direction_vector.square().sum().sqrt()
-            #     unit_vector = direction_vector / direction_vector_len
-            #     params.assign(params + (unit_vector * ctx.learning_rate * 10)).realize()
+            # We treat all the parameters delta in this spec as a vector
+            combined_vector = Tensor.cat(
+                *[delta.flatten() for delta in reconciled_delta.values()]
+            )
+            # calculate the vector's length
+            vector_len = combined_vector.square().sum().sqrt()
+            direction_vectors.append(
+                {key: delta / vector_len for key, delta in reconciled_delta.items()}
+            )
+        return direction_vectors
 
     def make_delta(
         self, seed: Tensor, lr: Tensor, counter: Tensor, params: Tensor
