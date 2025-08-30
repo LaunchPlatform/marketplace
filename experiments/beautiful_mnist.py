@@ -180,7 +180,10 @@ def train(
                 params = model_params[key]
                 params.assign(
                     params
-                    + (ctx.delta[key][indexes] * std_loss.unsqueeze(1)).sum(axis=0)
+                    + (
+                        ctx.delta[key][indexes]
+                        * std_loss.reshape(len(std_loss), *((1,) * len(params.shape)))
+                    ).sum(axis=0)
                 ).realize()
 
         return (
