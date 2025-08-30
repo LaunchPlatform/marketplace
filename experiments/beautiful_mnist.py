@@ -19,6 +19,7 @@ from tinygrad.nn import Conv2d
 from tinygrad.nn import InstanceNorm
 from tinygrad.nn import Linear
 from tinygrad.nn.datasets import mnist
+from tinygrad.nn.state import get_state_dict
 
 from .utils import ensure_experiment
 from marketplace.nn import Model
@@ -166,6 +167,21 @@ def train(
             ),
             dim=0,
         )
+
+        std, mean = loss.std_mean()
+        std_loss = -((loss - mean) / std)
+
+        for i, (spec, ctx) in enumerate(zip(marketplace, optimizer.spec_context)):
+            indexes = batch_paths[:, i]
+
+            model_params = get_state_dict(spec.model)
+            keys = sorted(list(model_params.keys()))
+            for key in keys:
+                params = model_params[key]
+                params.assign(
+                    params + (ctx.delta[indexes] * std_loss).sum(axis=0)
+                ).realize()
+
         return (
             loss.realize(),
             accuracy.realize(),
