@@ -168,6 +168,16 @@ def train(
             dim=0,
         )
 
+        optimizer.compute_direction_vector(
+            loss=loss,
+            seeds=Tensor.stack(
+                *(
+                    ctx.seeds[batch_paths[:, i]]
+                    for i, ctx in enumerate(optimizer.spec_context)
+                ),
+                dim=1,
+            ),
+        )
         std, mean = loss.std_mean()
         std_loss = -((loss - mean) / std)
 
