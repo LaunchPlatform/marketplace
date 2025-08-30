@@ -179,7 +179,8 @@ def train(
             for key in keys:
                 params = model_params[key]
                 params.assign(
-                    params + (ctx.delta[indexes] * std_loss).sum(axis=0)
+                    params
+                    + (ctx.delta[key][indexes] * std_loss.unsqueeze(1)).sum(axis=0)
                 ).realize()
 
         return (
@@ -306,7 +307,7 @@ def train(
                 candidate_lrs.clone().realize() if candidate_lrs is not None else None
             )
 
-        optimize_step(best_seeds, best_lrs)
+        # optimize_step(best_seeds, best_lrs)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
