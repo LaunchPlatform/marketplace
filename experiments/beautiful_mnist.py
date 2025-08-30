@@ -170,13 +170,7 @@ def train(
 
         direction_vectors = optimizer.compute_direction_vectors(
             loss=loss,
-            seeds=Tensor.stack(
-                *(
-                    ctx.seeds[batch_paths[:, i]]
-                    for i, ctx in enumerate(optimizer.spec_context)
-                ),
-                dim=1,
-            ),
+            paths=batch_paths,
         )
         for spec, ctx, vectors in zip(
             marketplace, optimizer.spec_context, direction_vectors
