@@ -371,10 +371,10 @@ class Optimizer:
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
             counter = 0
-
-            reconciled_delta = {
-                key: (
-                    # Take all the delta and multiply the corresponding normalized loss, so that we can "reward" each
+            reconciled_delta = {}
+            for key in keys:
+                reconciled_delta[key] = (
+                    # Take all the delta and multiply their corresponding normalized loss, so that we can "reward" each
                     # parameters in delta accordingly to compose a overall better direction.
                     self.make_delta(
                         seed=seed,
@@ -386,14 +386,14 @@ class Optimizer:
                         len(std_loss), *((1,) * len(model_params[key].shape))
                     )
                 ).sum(axis=0)
-                for key in keys
-            }
+                counter += counter_advance_for(model_params[key])
             # We treat all the parameters delta in this spec as a vector
             combined_vector = Tensor.cat(
                 *[delta.flatten() for delta in reconciled_delta.values()]
             )
             # calculate the vector's length
             vector_len = combined_vector.square().sum().sqrt()
+            # make them a unit vector
             direction_vectors.append(
                 {key: delta / vector_len for key, delta in reconciled_delta.items()}
             )
