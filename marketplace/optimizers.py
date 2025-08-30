@@ -358,6 +358,31 @@ class Optimizer:
                 lr_updates.append(params.assign(updated_params))
         return lr_updates
 
+    def compute_direction_vector(self, loss: Tensor, seeds: Tensor):
+        std, mean = loss.std_mean()
+        std_loss = -((loss - mean) / std)
+
+        for i, (spec, ctx, seed) in enumerate(
+            zip(self.marketplace, self.spec_context, seeds)
+        ):
+            model_params = get_state_dict(spec.model)
+            keys = sorted(list(model_params.keys()))
+            counter = 0
+            for key in keys:
+                params = model_params[key]
+                direction_vector = (
+                    self.make_delta(
+                        seed=seed,
+                        lr=ctx.learning_rate,
+                        counter=Tensor(counter, dtype=dtypes.uint),
+                        params=params,
+                    )
+                    * std_loss.reshape(len(std_loss), *((1,) * len(params.shape)))
+                ).sum(axis=0)
+                direction_vector_len = direction_vector.square().sum().sqrt()
+                unit_vector = direction_vector / direction_vector_len
+                params.assign(params + (unit_vector * ctx.learning_rate * 10)).realize()
+
     def make_delta(
         self, seed: Tensor, lr: Tensor, counter: Tensor, params: Tensor
     ) -> Tensor:
