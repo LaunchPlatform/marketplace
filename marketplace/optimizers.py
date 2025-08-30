@@ -368,20 +368,28 @@ class Optimizer:
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
             counter = 0
-            for key in keys:
-                params = model_params[key]
-                direction_vector = (
+
+            reconciled_delta = {
+                key: (
+                    # Take all the delta and multiply the corresponding normalized loss, so that we can "reward" each
+                    # parameters in delta accordingly to compose a overall better direction.
                     self.make_delta(
                         seed=seed,
                         lr=ctx.learning_rate,
                         counter=Tensor(counter, dtype=dtypes.uint),
-                        params=params,
+                        params=model_params[key],
                     )
-                    * std_loss.reshape(len(std_loss), *((1,) * len(params.shape)))
+                    * std_loss.reshape(
+                        len(std_loss), *((1,) * len(model_params[key].shape))
+                    )
                 ).sum(axis=0)
-                direction_vector_len = direction_vector.square().sum().sqrt()
-                unit_vector = direction_vector / direction_vector_len
-                params.assign(params + (unit_vector * ctx.learning_rate * 10)).realize()
+                for key in keys
+            }
+
+            # for key in keys:
+            #     direction_vector_len = direction_vector.square().sum().sqrt()
+            #     unit_vector = direction_vector / direction_vector_len
+            #     params.assign(params + (unit_vector * ctx.learning_rate * 10)).realize()
 
     def make_delta(
         self, seed: Tensor, lr: Tensor, counter: Tensor, params: Tensor
