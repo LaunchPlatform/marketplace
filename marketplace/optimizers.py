@@ -365,13 +365,11 @@ class Optimizer:
         std, mean = loss.std_mean()
         std_loss = -((loss - mean) / std)
         direction_vectors = []
-        for i, (spec, ctx, path) in enumerate(
-            zip(self.marketplace, self.spec_context, paths)
-        ):
+        for i, (spec, ctx) in enumerate(zip(self.marketplace, self.spec_context)):
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
             counter = 0
-            indexes = path[:, i]
+            indexes = paths[:, i]
             reconciled_delta = {}
             for key in keys:
                 reconciled_delta[key] = (
