@@ -310,6 +310,8 @@ def train(
                 candidate_lrs.clone().realize() if candidate_lrs is not None else None
             )
 
+        Tensor.realize(*optimizer.schedule_seeds_update())
+        Tensor.realize(*optimizer.schedule_direction_delta_update())
         # optimize_step(best_seeds, best_lrs)
 
         end_time = time.perf_counter()
