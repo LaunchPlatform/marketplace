@@ -359,7 +359,7 @@ class Optimizer:
                 lr_updates.append(params.assign(updated_params))
         return lr_updates
 
-    def compute_direction_vector(
+    def compute_direction_vectors(
         self, loss: Tensor, seeds: Tensor
     ) -> list[dict[str, Tensor]]:
         std, mean = loss.std_mean()

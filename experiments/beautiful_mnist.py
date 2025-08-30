@@ -168,7 +168,7 @@ def train(
             dim=0,
         )
 
-        optimizer.compute_direction_vector(
+        direction_vectors = optimizer.compute_direction_vectors(
             loss=loss,
             seeds=Tensor.stack(
                 *(
@@ -178,23 +178,14 @@ def train(
                 dim=1,
             ),
         )
-        std, mean = loss.std_mean()
-        std_loss = -((loss - mean) / std)
-
-        for i, (spec, ctx) in enumerate(zip(marketplace, optimizer.spec_context)):
-            indexes = batch_paths[:, i]
-
+        for spec, ctx, vectors in zip(
+            marketplace, optimizer.spec_context, direction_vectors
+        ):
             model_params = get_state_dict(spec.model)
-            keys = sorted(list(model_params.keys()))
-            for key in keys:
-                params = model_params[key]
-                direction_vector = (
-                    ctx.delta[key][indexes]
-                    * std_loss.reshape(len(std_loss), *((1,) * len(params.shape)))
-                ).sum(axis=0)
-                direction_vector_len = direction_vector.square().sum().sqrt()
-                unit_vector = direction_vector / direction_vector_len
-                params.assign(params + (unit_vector * ctx.learning_rate)).realize()
+            for key, params in model_params.items():
+                params.assign(
+                    params + (vectors[key] * ctx.learning_rate * 10)
+                ).realize()
 
         return (
             loss.realize(),
