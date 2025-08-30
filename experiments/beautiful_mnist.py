@@ -178,13 +178,13 @@ def train(
             keys = sorted(list(model_params.keys()))
             for key in keys:
                 params = model_params[key]
-                params.assign(
-                    params
-                    + (
-                        ctx.delta[key][indexes]
-                        * std_loss.reshape(len(std_loss), *((1,) * len(params.shape)))
-                    ).sum(axis=0)
-                ).realize()
+                direction_vector = (
+                    ctx.delta[key][indexes]
+                    * std_loss.reshape(len(std_loss), *((1,) * len(params.shape)))
+                ).sum(axis=0)
+                direction_vector_len = direction_vector.square().sum().sqrt()
+                unit_vector = direction_vector / direction_vector_len
+                params.assign(params + (unit_vector * ctx.learning_rate)).realize()
 
         return (
             loss.realize(),
@@ -259,7 +259,9 @@ def train(
 
     @TinyJit
     def optimize_step(seeds: Tensor, learning_rates: Tensor):
-        optimizer.step(seeds, learning_rates=learning_rates)
+        # optimizer.step(seeds, learning_rates=learning_rates)
+        Tensor.realize(*optimizer.schedule_seeds_update())
+        Tensor.realize(*optimizer.schedule_direction_delta_update())
 
     @TinyJit
     def get_test_acc() -> Tensor:
@@ -310,9 +312,7 @@ def train(
                 candidate_lrs.clone().realize() if candidate_lrs is not None else None
             )
 
-        Tensor.realize(*optimizer.schedule_seeds_update())
-        Tensor.realize(*optimizer.schedule_direction_delta_update())
-        # optimize_step(best_seeds, best_lrs)
+        optimize_step(best_seeds, best_lrs)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
