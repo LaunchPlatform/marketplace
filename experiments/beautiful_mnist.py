@@ -177,9 +177,7 @@ def train(
         ):
             model_params = get_state_dict(spec.model)
             for key, params in model_params.items():
-                params.assign(
-                    params + (vectors[key] * ctx.learning_rate * 10)
-                ).realize()
+                params.assign(params + (vectors[key] * ctx.learning_rate)).realize()
 
         return (
             loss.realize(),
