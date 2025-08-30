@@ -375,7 +375,7 @@ class Optimizer:
                 reconciled_delta[key] = (
                     # Take all the delta and multiply their corresponding normalized loss, so that we can "reward" each
                     # parameters in delta accordingly to compose a overall better direction.
-                    ctx.delta[indexes]
+                    ctx.delta[key][indexes]
                     * std_loss.reshape(
                         len(std_loss), *((1,) * len(model_params[key].shape))
                     )
