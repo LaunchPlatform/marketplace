@@ -28,7 +28,7 @@ def main():
                         step_count=1_000,
                         batch_size=512,
                         initial_lr=lr,
-                        lr_decay_rate=1e-3,
+                        lr_decay_rate=decay,
                         probe_scale=probe_scale,
                         marketplace=marketplace,
                     )
