@@ -13,10 +13,11 @@ VENDOR_COUNT = 8
 
 def main():
     exp_id = ensure_experiment("Param Attribution LR")
-    for probe in [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]:
+    for probe in [None, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]:
         for lr in map(lambda x: x * 0.1, range(1, 10)):
+            probe_str = f"{probe:1.e}" if probe is not None else "none"
             with mlflow.start_run(
-                run_name=f"probe-{probe:.1e}-lr-{lr:.1e}",
+                run_name=f"probe-{probe_str}-lr-{lr:.1e}",
                 experiment_id=exp_id,
                 log_system_metrics=True,
             ):
