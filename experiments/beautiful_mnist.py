@@ -254,7 +254,9 @@ def train(
             best_lr = optimizer.get_learning_rates(best_path)
             lr_scale_optimize_step(direction_vectors, best_lr)
         else:
-            best_loss, best_accuracy = optimize_step(loss=loss, paths=paths)
+            best_loss, best_accuracy = optimize_step(
+                samples=sample_batches[0], loss=loss, paths=paths
+            )
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
