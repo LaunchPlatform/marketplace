@@ -89,7 +89,7 @@ def train(
     initial_lr: float,
     lr_decay_rate: float,
     marketplace: list[Spec],
-    lr_scaling_range: tuple[float, float] | None = None,
+    meta_lr: float | None = None,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
@@ -99,14 +99,14 @@ def train(
     manual_seed: int | None = None,
 ):
     logger.info(
-        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, lr_scaling_range=%s, "
+        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, meta_lr=%s, "
         "marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, "
         "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
-        lr_scaling_range,
+        meta_lr,
         marketplace_replica,
         initial_forward_pass,
         metrics_per_steps,
@@ -122,13 +122,7 @@ def train(
     mlflow.log_param("initial_forward_pass", initial_forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
-    if lr_scaling_range is not None:
-        if lr_scaling_range[0] > lr_scaling_range[1]:
-            raise ValueError(
-                f"LR Scaling range start value {lr_scaling_range[0]} should be lower than end value {lr_scaling_range[1]}"
-            )
-        mlflow.log_param("lr_scaling_range_start", lr_scaling_range[0])
-        mlflow.log_param("lr_scaling_range_end", lr_scaling_range[1])
+    mlflow.log_param("meta_lr", meta_lr)
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
@@ -142,8 +136,7 @@ def train(
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
-        # XXX:
-        meta_learning_rate=Tensor(0.1),
+        meta_learning_rate=(Tensor(meta_lr) if meta_lr is not None else None),
     )
 
     @TinyJit
@@ -240,7 +233,12 @@ def train(
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        lr.assign(lr * (1 - lr_decay_rate)).realize()
+        if meta_lr is not None:
+            optimizer.meta_learning_rate.assign(
+                optimizer.meta_learning_rate * (1 - lr_decay_rate)
+            ).realize()
+        else:
+            lr.assign(lr * (1 - lr_decay_rate)).realize()
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
@@ -251,6 +249,10 @@ def train(
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
             mlflow.log_metric("testing/accuracy", test_acc, step=i)
+            if meta_lr is not None:
+                mlflow.log_metric(
+                    "testing/meta_lr", optimizer.meta_learning_rate.item(), step=i
+                )
             if best_lr is not None:
                 for j, spec_lr in enumerate(best_lr):
                     mlflow.log_metric(
@@ -268,7 +270,7 @@ def train(
         #     )
 
         t.set_description(
-            f"loss: {0:6.2f}, fw: {current_forward_pass}, rl: {lr.item():.2e}, "
+            f"loss: {best_loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():.2e}, "
             f"acc: {best_accuracy.item():.2f}%, vacc: {test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
         )
     # if path is not None and i is not None and checkpoint_filepath is not None:
