@@ -153,7 +153,7 @@ class Optimizer:
         )
         if self.cache_delta:
             # Realize the delta, making them buffers
-            Tensor.realize(*self.schedule_direction_delta_update())
+            Tensor.realize(*self.schedule_delta_update())
             self.vendors = [
                 [
                     CachedDeltaVendor(
@@ -222,7 +222,7 @@ class Optimizer:
         return (
             self.schedule_weight_update(seeds, learning_rates=learning_rates)
             + self.schedule_seeds_update(keep_leader)
-            + (self.schedule_direction_delta_update() if self.cache_delta else [])
+            + (self.schedule_delta_update() if self.cache_delta else [])
         )
 
     def schedule_weight_update(
@@ -275,7 +275,7 @@ class Optimizer:
             for ctx in self.spec_context
         ]
 
-    def schedule_direction_delta_update(self) -> list[Tensor]:
+    def schedule_delta_update(self) -> list[Tensor]:
         if not self.cache_delta:
             raise RuntimeError("Delta cache is not enabled, cannot update delta")
         delta_updates = []

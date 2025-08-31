@@ -174,65 +174,22 @@ def train(
         )
 
     @TinyJit
-    def compute_direction_vectors(loss: Tensor, paths: Tensor):
-        return [
-            {key: vector.realize() for key, vector in vectors.items()}
-            for vectors in optimizer.compute_direction_vectors(
-                loss=loss,
-                paths=paths,
-            )
-        ]
-
-    @TinyJit
-    def lr_scale_update(best_seeds: Tensor):
-        Tensor.realize(*optimizer.schedule_lr_scale_update(best_seeds))
-
-    def lr_scaled_forward(
-        sample_batches: Tensor,
-    ) -> tuple[NDArray, NDArray, NDArray | None, Tensor, Tensor | None]:
-        loss, accuracy, paths = forward_step(sample_batches[0])
-
+    def optimize_step(loss: Tensor, paths: Tensor):
         direction_vectors = optimizer.compute_direction_vectors(
             loss=loss,
             paths=paths,
         )
-        updates = []
-        for ctx, vectors in zip(optimizer.spec_context, direction_vectors):
-            for i, (key, delta) in enumerate(ctx.delta.items()):
-                updates.append(
-                    delta.assign(
-                        vectors[key]
-                        * ctx.learning_rate
-                        * (Tensor.uniform(low=0.1, high=10.0) if i != 0 else 1)
-                    )
-                )
-        Tensor.realize(*updates)
-
-        lr_scaled_loss, lr_scaled_accuracy, lr_scaled_paths = forward_step(
-            sample_batches[0]
-        )
-        best_loss, best_index = lr_scaled_loss.topk(1, largest=False)
-        path = paths[best_index].realize()
-
         weight_updates = []
-        for spec, ctx, idx in zip(
-            marketplace,
-            optimizer.spec_context,
-            path,
+        for spec, ctx, vectors in zip(
+            marketplace, optimizer.spec_context, direction_vectors
         ):
             model_params = get_state_dict(spec.model)
-            keys = sorted(list(model_params.keys()))
-            for key in keys:
-                params = model_params[key]
-                weight_updates.append(params.assign(params + ctx.delta[key][idx]))
+            for key, params in model_params.items():
+                weight_updates.append(params.assign(params + vectors[key]))
         Tensor.realize(*weight_updates)
-        return best_loss.realize()
 
-    @TinyJit
-    def optimize_step():
-        # optimizer.step(seeds, learning_rates=learning_rates)
         Tensor.realize(*optimizer.schedule_seeds_update())
-        Tensor.realize(*optimizer.schedule_direction_delta_update())
+        Tensor.realize(*optimizer.schedule_delta_update())
 
     @TinyJit
     def get_test_acc() -> Tensor:
@@ -241,6 +198,7 @@ def train(
         ).mean() * 100
 
     i = 0
+    best_accuracy = Tensor(0)
     test_acc = float("nan")
     current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):

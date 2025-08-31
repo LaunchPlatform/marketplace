@@ -91,7 +91,7 @@ def test_optimizer_schedule_delta_update(optimizer: Optimizer):
         for ctx in optimizer.spec_context
     ]
     for _ in range(10):
-        Tensor.realize(*optimizer.schedule_direction_delta_update())
+        Tensor.realize(*optimizer.schedule_delta_update())
         new_delta = [
             {key: params.tolist() for key, params in ctx.delta.items()}
             for ctx in optimizer.spec_context
@@ -107,7 +107,7 @@ def test_optimizer_schedule_delta_update(optimizer: Optimizer):
         assert [ctx.seeds.tolist() for ctx in optimizer.spec_context] != init_seeds
         last_delta = None
         for _ in range(10):
-            Tensor.realize(*optimizer.schedule_direction_delta_update())
+            Tensor.realize(*optimizer.schedule_delta_update())
             new_delta = [
                 {key: params.tolist() for key, params in ctx.delta.items()}
                 for ctx in optimizer.spec_context
