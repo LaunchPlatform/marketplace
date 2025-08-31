@@ -190,11 +190,11 @@ def train(
     def lr_scaled_forward(
         sample_batches: Tensor,
     ) -> tuple[NDArray, NDArray, NDArray | None, Tensor, Tensor | None]:
-        best_loss, best_accuracy, best_paths = forward_step(sample_batches)
+        loss, accuracy, paths = forward_step(sample_batches)
 
         direction_vectors = optimizer.compute_direction_vectors(
-            loss=best_loss,
-            paths=best_paths,
+            loss=loss,
+            paths=paths,
         )
         updates = []
         for ctx, vectors in zip(optimizer.spec_context, direction_vectors):
@@ -208,10 +208,28 @@ def train(
                 )
         Tensor.realize(*updates)
 
-        return
+        lr_scaled_loss, lr_scaled_accuracy, lr_scaled_paths = forward_step(
+            sample_batches
+        )
+        best_loss, best_index = lr_scaled_loss.topk(1, largest=False)
+        path = paths[best_index].realize()
+
+        weight_updates = []
+        for spec, ctx, idx in zip(
+            marketplace,
+            optimizer.spec_context,
+            path,
+        ):
+            model_params = get_state_dict(spec.model)
+            keys = sorted(list(model_params.keys()))
+            for key in keys:
+                params = model_params[key]
+                weight_updates.append(params.assign(params + ctx.delta[key][idx]))
+        Tensor.realize(*weight_updates)
+        return best_loss.realize()
 
     @TinyJit
-    def optimize_step(seeds: Tensor, learning_rates: Tensor):
+    def optimize_step():
         # optimizer.step(seeds, learning_rates=learning_rates)
         Tensor.realize(*optimizer.schedule_seeds_update())
         Tensor.realize(*optimizer.schedule_direction_delta_update())
@@ -240,32 +258,9 @@ def train(
             current_forward_pass, batch_size, high=X_train.shape[0]
         ).realize()
 
-        best_loss, best_accuracy, best_gain, best_seeds, best_lrs = lr_scaled_forward(
-            sample_batches
-        )
-        best_seeds = best_seeds.clone().realize()
-        best_lrs = best_lrs.clone().realize() if best_lrs is not None else None
-        for _ in range(marketplace_replica - 1):
-            # Update seeds
-            Tensor.realize(*optimizer.schedule_seeds_update())
-            (
-                candidate_loss,
-                candidate_accuracy,
-                candidate_gain,
-                candidate_seeds,
-                candidate_lrs,
-            ) = lr_scaled_forward(sample_batches)
-            if candidate_loss.item() >= best_loss.item():
-                continue
-            best_loss = candidate_loss
-            best_accuracy = candidate_accuracy
-            best_gain = candidate_gain
-            best_seeds = candidate_seeds.clone().realize()
-            best_lrs = (
-                candidate_lrs.clone().realize() if candidate_lrs is not None else None
-            )
+        best_loss = lr_scaled_forward(sample_batches)
 
-        optimize_step(best_seeds, best_lrs)
+        optimize_step()
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
