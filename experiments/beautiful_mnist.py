@@ -175,6 +175,7 @@ def train(
 
     @TinyJit
     def optimize_step(loss: Tensor, paths: Tensor):
+        # TODO: move to optimizer
         direction_vectors = optimizer.compute_direction_vectors(
             loss=loss,
             paths=paths,
