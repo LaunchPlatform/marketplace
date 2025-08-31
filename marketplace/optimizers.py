@@ -18,8 +18,8 @@ SEED_MAX = 2**64
 @dataclasses.dataclass
 class SpecContext:
     seeds: Tensor
-    delta: dict[str, Tensor] | None = None
-    learning_rate: Tensor | None = None
+    delta: dict[str, Tensor]
+    learning_rate: Tensor
     learning_rate_scales: Tensor | None = None
 
 
@@ -47,24 +47,19 @@ class Optimizer:
         self,
         marketplace: list[Spec],
         learning_rate: Tensor,
-        learning_rate_scale_range: Tensor | None = None,
+        # learning_rate_scale_range: Tensor | None = None,
+        meta_learning_rate: Tensor | None = None,
         seeds: list[Tensor] | None = None,
         probe: Tensor | None = None,
         make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
     ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
-        self.learning_rate_scale_range = learning_rate_scale_range
+        self.meta_learning_rate = meta_learning_rate
         self.make_rng = make_rng
         self.probe = probe
         if self.probe is None:
             self.probe = Tensor(1e-4)
-
-        if (
-            self.learning_rate_scale_range is not None
-            and self.learning_rate_scale_range.shape != (2,)
-        ):
-            raise ValueError("Learning rate scale range needs to be a (2, ) tensor")
 
         if seeds is not None:
             market_shape = tuple(spec.vendor_count for spec in marketplace)
@@ -96,12 +91,12 @@ class Optimizer:
                 },
                 learning_rate=(
                     self.learning_rate.clone().contiguous()
-                    if self.learning_rate_scale_range is not None
+                    if self.meta_learning_rate is not None
                     else self.learning_rate
                 ),
                 learning_rate_scales=(
                     Tensor.zeros(spec.vendor_count).contiguous()
-                    if self.learning_rate_scale_range is not None
+                    if self.meta_learning_rate is not None
                     else None
                 ),
             )
@@ -191,7 +186,7 @@ class Optimizer:
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
             effective_lr = ctx.learning_rate
-            if self.learning_rate_scale_range is not None:
+            if self.meta_learning_rate is not None:
                 weight_updates.append(ctx.learning_rate.assign(lr))
                 effective_lr = lr
             for key in keys:
@@ -240,7 +235,7 @@ class Optimizer:
         return delta_updates
 
     def schedule_lr_scale_update(self, direction_vectors: Tensor) -> list[Tensor]:
-        if self.learning_rate_scale_range is None:
+        if self.meta_learning_rate is None:
             raise ValueError("LR scale not set")
         lr_updates = []
         for ctx, vector in zip(self.spec_context, direction_vectors):
@@ -257,13 +252,11 @@ class Optimizer:
                     Tensor.stack(
                         *(
                             (
-                                self.make_rng(
+                                self.make_delta(
                                     seed=seed,
                                     counter=Tensor(final_counter, dtype=dtypes.uint),
-                                ).uniform(
-                                    *lr_scale.shape,
-                                    low=self.learning_rate_scale_range[0],
-                                    high=self.learning_rate_scale_range[1],
+                                    lr=self.meta_learning_rate,
+                                    params=lr_scale,
                                 )
                                 if i != 0
                                 # we always keep the original lr in the combinations, in case we cannot find any
