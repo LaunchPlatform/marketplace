@@ -208,8 +208,6 @@ def train(
         ).mean() * 100
 
     i = 0
-    best_accuracy = Tensor(0)
-    best_lr = None
     test_acc = float("nan")
     current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):
@@ -235,6 +233,7 @@ def train(
         loss, accuracy, paths = forward_step(sample_batches[0])
         best_loss, best_index = loss.topk(1, largest=False)
         best_index = best_index.squeeze(0)
+        best_accuracy = accuracy[best_index]
         best_path = paths[best_index]
         best_lr = optimizer.get_learning_rates(best_path)
 
