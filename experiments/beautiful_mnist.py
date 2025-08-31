@@ -154,7 +154,7 @@ def train(
         )
         accuracy = Tensor.stack(
             *(
-                ((logits.sigmoid().argmax(axis=1) == y).sum() / batch_size) * 100
+                ((logits.argmax(axis=1) == y).sum() / batch_size) * 100
                 for logits in batch_logits
             ),
             dim=0,
@@ -181,10 +181,9 @@ def train(
         ]
 
     @TinyJit
-    def optimize_step(
-        direction_vectors: list[dict[str, Tensor]], learning_rates: Tensor
+    def lr_scale_optimize_step(
+        direction_vectors: list[dict[str, Tensor]] | None, learning_rates: Tensor | None
     ):
-        # TODO: extract
         Tensor.realize(
             *optimizer.schedule_weight_update(
                 direction_delta=direction_vectors, learning_rates=learning_rates
@@ -192,6 +191,30 @@ def train(
         )
         Tensor.realize(*optimizer.schedule_seeds_update())
         Tensor.realize(*optimizer.schedule_delta_update())
+
+    @TinyJit
+    def optimize_step(
+        samples: Tensor, loss: Tensor, paths: Tensor
+    ) -> tuple[Tensor, Tensor]:
+        direction_vectors = optimizer.compute_direction_vectors(
+            loss=loss,
+            paths=paths,
+        )
+        Tensor.realize(
+            *optimizer.schedule_weight_update(
+                direction_delta=direction_vectors,
+            )
+        )
+        Tensor.realize(*optimizer.schedule_seeds_update())
+        Tensor.realize(*optimizer.schedule_delta_update())
+
+        # let's run forward pass again to see accuracy and loss
+        x = X_train[samples]
+        y = Y_train[samples]
+        logits = straight_forward(marketplace, x)
+        loss = logits.sparse_categorical_crossentropy(y)
+        accuracy = ((logits.argmax(axis=1) == y).sum() / batch_size) * 100
+        return loss.realize(), accuracy.realize()
 
     @TinyJit
     def get_test_acc() -> Tensor:
@@ -220,16 +243,18 @@ def train(
         # direction probing forward pass
         loss, _, paths = forward_step(sample_batches[0])
 
-        # lr scaling forward pass
-        direction_vectors = compute_direction_vectors(loss=loss, paths=paths)
-        loss, accuracy, paths = forward_step(sample_batches[0])
-        best_loss, best_index = loss.topk(1, largest=False)
-        best_index = best_index.squeeze(0)
-        best_accuracy = accuracy[best_index]
-        best_path = paths[best_index]
-        best_lr = optimizer.get_learning_rates(best_path)
-
-        optimize_step(direction_vectors, best_lr)
+        if meta_lr is not None:
+            # lr scaling forward pass
+            direction_vectors = compute_direction_vectors(loss=loss, paths=paths)
+            loss, accuracy, paths = forward_step(sample_batches[0])
+            best_loss, best_index = loss.topk(1, largest=False)
+            best_index = best_index.squeeze(0)
+            best_accuracy = accuracy[best_index]
+            best_path = paths[best_index]
+            best_lr = optimizer.get_learning_rates(best_path)
+            lr_scale_optimize_step(direction_vectors, best_lr)
+        else:
+            best_loss, best_accuracy = optimize_step(loss=loss, paths=paths)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
