@@ -170,16 +170,18 @@ class Optimizer:
         return (
             self.schedule_weight_update(seeds, learning_rates=learning_rates)
             + self.schedule_seeds_update(keep_leader)
-            + (self.schedule_delta_update() if self.cache_delta else [])
+            + self.schedule_delta_update()
         )
 
     def schedule_weight_update(
-        self, direction_delta: Tensor, learning_rates: Tensor | None = None
+        self, direction_delta: list[Tensor], learning_rates: Tensor | None = None
     ) -> list[Tensor]:
         weight_updates = []
         if learning_rates is None:
             learning_rates = self.learning_rate.expand(len(self.marketplace))
-        for spec, ctx, lr in zip(self.marketplace, self.spec_context, learning_rates):
+        for spec, ctx, delta, lr in zip(
+            self.marketplace, self.spec_context, direction_delta, learning_rates
+        ):
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
 
@@ -187,21 +189,9 @@ class Optimizer:
             if self.learning_rate_scale_range is not None:
                 effective_lr = lr
 
-            counter = 0
             for key in keys:
                 params = model_params[key]
-                weight_updates.append(
-                    params.assign(
-                        params
-                        + self.make_delta(
-                            seed=seed,
-                            lr=effective_lr,
-                            counter=Tensor(counter, dtype=dtypes.uint),
-                            params=params,
-                        )
-                    )
-                )
-                counter += counter_advance_for(params)
+                weight_updates.append(params.assign(params + delta * effective_lr))
         return weight_updates
 
     def schedule_seeds_update(self, keep_leader: bool = True):
