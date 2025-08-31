@@ -90,7 +90,7 @@ def train(
     lr_decay_rate: float,
     marketplace: list[Spec],
     meta_lr: float | None = None,
-    probe: float | None = None,
+    probe_scale: float | None = None,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
@@ -101,14 +101,14 @@ def train(
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, meta_lr=%s, "
-        "probe=%s, marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, "
-        "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
+        "probe_scale=%s, marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, "
+        "metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
         meta_lr,
-        probe,
+        probe_scale,
         marketplace_replica,
         initial_forward_pass,
         metrics_per_steps,
@@ -125,7 +125,7 @@ def train(
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     mlflow.log_param("meta_lr", meta_lr)
-    mlflow.log_param("probe", probe)
+    mlflow.log_param("probe_scale", probe_scale)
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
@@ -139,7 +139,7 @@ def train(
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
-        probe=(Tensor(probe) if probe is not None else None),
+        probe_scale=(Tensor(probe_scale) if probe_scale is not None else None),
         meta_learning_rate=(Tensor(meta_lr) if meta_lr is not None else None),
     )
 
