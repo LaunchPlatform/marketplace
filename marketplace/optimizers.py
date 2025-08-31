@@ -300,13 +300,13 @@ class Optimizer:
                 delta_updates.append(params.assign(updated_params))
         return delta_updates
 
-    def schedule_lr_scale_update(self, best_seeds: Tensor) -> list[Tensor]:
+    def schedule_lr_scale_update(self, direction_vectors: Tensor) -> list[Tensor]:
         if not self.cache_delta:
             raise RuntimeError("Delta cache is not enabled, cannot update delta")
         if self.learning_rate_scale_range is None:
             raise ValueError("Meta learning rate not set")
         lr_updates = []
-        for ctx, best_seed in zip(self.spec_context, best_seeds):
+        for ctx, vector in zip(self.spec_context, direction_vectors):
             # We use the final counter (after all params) for generating the lr delta.
             # TODO: extract this part?
             final_counter = 0

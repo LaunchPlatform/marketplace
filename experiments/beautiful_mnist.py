@@ -167,63 +167,21 @@ def train(
             ),
             dim=0,
         )
-
-        direction_vectors = optimizer.compute_direction_vectors(
-            loss=loss,
-            paths=batch_paths,
-        )
-        for spec, ctx, vectors in zip(
-            marketplace, optimizer.spec_context, direction_vectors
-        ):
-            model_params = get_state_dict(spec.model)
-            for key, params in model_params.items():
-                params.assign(params + (vectors[key] * ctx.learning_rate)).realize()
-
         return (
             loss.realize(),
             accuracy.realize(),
             batch_paths.realize(),
         )
 
-    def multi_forward_step(sample_batches: Tensor) -> tuple[NDArray, NDArray, NDArray]:
-        # TODO: extract this
-        product_count = 1
-        for spec in reversed(marketplace):
-            product_count *= spec.vendor_count
-            if spec.upstream_sampling != 0:
-                product_count *= spec.upstream_sampling
-                break
-        # TODO: ideally, if we want to save some memory, we should apply online algorithm here instead so that we don't
-        #       need to accumulate all the data in each forward pass
-        loss = np.empty([len(sample_batches) * product_count])
-        accuracy = np.empty([len(sample_batches) * product_count])
-        paths = np.empty(
-            [len(sample_batches) * product_count, len(marketplace)], dtype=int
-        )
-
-        for i in Tensor.arange(len(sample_batches)):
-            i_val = i.item()
-            output_slice = slice(i_val * product_count, (i_val + 1) * product_count)
-            (
-                loss[output_slice],
-                accuracy[output_slice],
-                paths[output_slice],
-            ) = (v.numpy() for v in forward_step(sample_batches[i]))
-
-        unique_paths, indices = np.unique(paths, axis=0, return_inverse=True)
-        counts = np.bincount(indices)
-
-        loss_sums = np.bincount(indices, weights=loss)
-        loss_means = loss_sums / counts
-        accuracy_sums = np.bincount(indices, weights=accuracy)
-        accuracy_means = accuracy_sums / counts
-
-        min_idx = loss_means.argmin()
-        return (
-            loss_means[min_idx],
-            accuracy_means[min_idx],
-            unique_paths[min_idx],
-        )
+    @TinyJit
+    def compute_direction_vectors(loss: Tensor, paths: Tensor):
+        return [
+            {key: vector.realize() for key, vector in vectors.items()}
+            for vectors in optimizer.compute_direction_vectors(
+                loss=loss,
+                paths=paths,
+            )
+        ]
 
     @TinyJit
     def lr_scale_update(best_seeds: Tensor):
@@ -232,23 +190,25 @@ def train(
     def lr_scaled_forward(
         sample_batches: Tensor,
     ) -> tuple[NDArray, NDArray, NDArray | None, Tensor, Tensor | None]:
-        best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
-        best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
-        if lr_scaling_range is None:
-            return best_loss, best_accuracy, None, best_seeds, None
-        # lr scaling
-        lr_scale_update(best_seeds)
-        scaled_lr_loss, scaled_lr_accuracy, scaled_lr_path = multi_forward_step(
-            sample_batches
+        best_loss, best_accuracy, best_paths = forward_step(sample_batches)
+
+        direction_vectors = optimizer.compute_direction_vectors(
+            loss=best_loss,
+            paths=best_paths,
         )
-        learning_rates = optimizer.get_learning_rates(Tensor(scaled_lr_path))
-        return (
-            scaled_lr_loss,
-            scaled_lr_accuracy,
-            best_loss - scaled_lr_loss,
-            best_seeds,
-            learning_rates,
-        )
+        updates = []
+        for ctx, vectors in zip(optimizer.spec_context, direction_vectors):
+            for i, (key, delta) in ctx.delta.items():
+                updates.append(
+                    delta.assign(
+                        vectors[key]
+                        * ctx.learning_rate
+                        * (Tensor.uniform(low=0.1, high=10.0) if i != 0 else 1)
+                    )
+                )
+        Tensor.realize(*updates)
+
+        return
 
     @TinyJit
     def optimize_step(seeds: Tensor, learning_rates: Tensor):
