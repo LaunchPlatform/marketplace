@@ -184,11 +184,9 @@ class Optimizer:
         ):
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
-
             effective_lr = ctx.learning_rate
             if self.learning_rate_scale_range is not None:
                 effective_lr = lr
-
             for key in keys:
                 params = model_params[key]
                 weight_updates.append(params.assign(params + delta * effective_lr))
