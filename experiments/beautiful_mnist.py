@@ -174,15 +174,30 @@ def train(
         )
 
     @TinyJit
-    def optimize_step(loss: Tensor, paths: Tensor):
+    def compute_direction_vectors(
+        loss: Tensor, paths: Tensor
+    ) -> list[dict[str, Tensor]]:
         direction_vectors = optimizer.compute_direction_vectors(
             loss=loss,
             paths=paths,
         )
-        Tensor.realize(
-            *optimizer.schedule_weight_update(direction_delta=direction_vectors)
-        )
+        # TODO: optional
+        Tensor.realize(*optimizer.schedule_lr_scale_update(direction_vectors))
+        return [
+            {key: params.realize() for key, params in delta.items()}
+            for delta in direction_vectors
+        ]
 
+    @TinyJit
+    def optimize_step(
+        direction_vectors: list[dict[str, Tensor]], learning_rates: Tensor
+    ):
+        # TODO: extract
+        Tensor.realize(
+            *optimizer.schedule_weight_update(
+                direction_delta=direction_vectors, learning_rates=learning_rates
+            )
+        )
         Tensor.realize(*optimizer.schedule_seeds_update())
         Tensor.realize(*optimizer.schedule_delta_update())
 
@@ -194,6 +209,7 @@ def train(
 
     i = 0
     best_accuracy = Tensor(0)
+    best_lr = None
     test_acc = float("nan")
     current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):
@@ -211,8 +227,18 @@ def train(
             current_forward_pass, batch_size, high=X_train.shape[0]
         ).realize()
 
+        # direction probing forward pass
+        loss, _, paths = forward_step(sample_batches[0])
+
+        # lr scaling forward pass
+        direction_vectors = compute_direction_vectors(loss=loss, paths=paths)
         loss, accuracy, paths = forward_step(sample_batches[0])
-        optimize_step(loss=loss, paths=paths)
+        best_loss, best_index = loss.topk(1, largest=False)
+        best_index = best_index.squeeze(0)
+        best_path = paths[best_index]
+        best_lr = optimizer.get_learning_rates(best_path)
+
+        optimize_step(direction_vectors, best_lr)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
@@ -221,12 +247,17 @@ def train(
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
             test_acc = get_test_acc().item()
-            # mlflow.log_metric("training/loss", best_loss.item(), step=i)
+            mlflow.log_metric("training/loss", best_loss.item(), step=i)
             mlflow.log_metric("training/accuracy", best_accuracy.item(), step=i)
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
             mlflow.log_metric("testing/accuracy", test_acc, step=i)
+            if best_lr is not None:
+                for j, spec_lr in enumerate(best_lr):
+                    mlflow.log_metric(
+                        f"training/adaptive_lr_{j}", spec_lr.item(), step=i
+                    )
 
         # if checkpoint_filepath is not None and i % checkpoint_per_steps == (
         #     checkpoint_per_steps - 1

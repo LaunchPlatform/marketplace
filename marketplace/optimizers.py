@@ -240,7 +240,7 @@ class Optimizer:
 
     def schedule_lr_scale_update(self, direction_vectors: Tensor) -> list[Tensor]:
         if self.learning_rate_scale_range is None:
-            raise ValueError("Meta learning rate not set")
+            raise ValueError("LR scale not set")
         lr_updates = []
         for ctx, vector in zip(self.spec_context, direction_vectors):
             # We use the final counter (after all params) for generating the lr delta.
@@ -269,8 +269,8 @@ class Optimizer:
                                 # improvement from scale, at least we are not making regression
                                 else Tensor.zeros_like(lr_scale)
                             )
-                            for i, lr_scale, seed in enumerate(
-                                ctx.learning_rate_scales, ctx.seeds
+                            for i, (lr_scale, seed) in enumerate(
+                                zip(ctx.learning_rate_scales, ctx.seeds)
                             )
                         ),
                         dim=0,
