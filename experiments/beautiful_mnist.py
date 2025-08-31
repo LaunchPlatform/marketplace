@@ -190,7 +190,7 @@ def train(
     def lr_scaled_forward(
         sample_batches: Tensor,
     ) -> tuple[NDArray, NDArray, NDArray | None, Tensor, Tensor | None]:
-        loss, accuracy, paths = forward_step(sample_batches)
+        loss, accuracy, paths = forward_step(sample_batches[0])
 
         direction_vectors = optimizer.compute_direction_vectors(
             loss=loss,
@@ -198,7 +198,7 @@ def train(
         )
         updates = []
         for ctx, vectors in zip(optimizer.spec_context, direction_vectors):
-            for i, (key, delta) in ctx.delta.items():
+            for i, (key, delta) in enumerate(ctx.delta.items()):
                 updates.append(
                     delta.assign(
                         vectors[key]
@@ -209,7 +209,7 @@ def train(
         Tensor.realize(*updates)
 
         lr_scaled_loss, lr_scaled_accuracy, lr_scaled_paths = forward_step(
-            sample_batches
+            sample_batches[0]
         )
         best_loss, best_index = lr_scaled_loss.topk(1, largest=False)
         path = paths[best_index].realize()
