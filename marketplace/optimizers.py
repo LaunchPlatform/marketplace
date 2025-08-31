@@ -239,8 +239,6 @@ class Optimizer:
         return delta_updates
 
     def schedule_lr_scale_update(self, direction_vectors: Tensor) -> list[Tensor]:
-        if not self.cache_delta:
-            raise RuntimeError("Delta cache is not enabled, cannot update delta")
         if self.learning_rate_scale_range is None:
             raise ValueError("Meta learning rate not set")
         lr_updates = []
@@ -259,7 +257,7 @@ class Optimizer:
                         *(
                             (
                                 self.make_rng(
-                                    seed=best_seed,
+                                    seed=seed,
                                     counter=Tensor(final_counter, dtype=dtypes.uint),
                                 ).uniform(
                                     *lr_scale.shape,
@@ -271,29 +269,24 @@ class Optimizer:
                                 # improvement from scale, at least we are not making regression
                                 else Tensor.zeros_like(lr_scale)
                             )
-                            for i, lr_scale in enumerate(ctx.learning_rate_scales)
+                            for i, lr_scale, seed in enumerate(
+                                ctx.learning_rate_scales, ctx.seeds
+                            )
                         ),
                         dim=0,
                     )
                 )
             )
 
-            counter = 0
             for key in keys:
                 params = ctx.delta[key]
                 updated_params = Tensor.stack(
                     *(
-                        self.make_delta(
-                            seed=best_seed,
-                            lr=ctx.learning_rate * (1 + lr_scale),
-                            counter=Tensor(counter, dtype=dtypes.uint),
-                            params=params[i],
-                        )
+                        ctx.delta[i] * (ctx.learning_rate * (1 + lr_scale))
                         for i, lr_scale in enumerate(ctx.learning_rate_scales)
                     ),
                     dim=0,
                 )
-                counter += counter_advance_for(params[0])
                 lr_updates.append(params.assign(updated_params))
         return lr_updates
 
