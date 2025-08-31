@@ -90,7 +90,7 @@ def train(
     lr_decay_rate: float,
     marketplace: list[Spec],
     meta_lr: float | None = None,
-    probe: float = 1e-4,
+    probe: float | None = None,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
@@ -138,7 +138,7 @@ def train(
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
-        probe=probe,
+        probe=(Tensor(probe) if probe is not None else None),
         meta_learning_rate=(Tensor(meta_lr) if meta_lr is not None else None),
     )
 

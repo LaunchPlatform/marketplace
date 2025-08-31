@@ -58,8 +58,6 @@ class Optimizer:
         self.meta_learning_rate = meta_learning_rate
         self.make_rng = make_rng
         self.probe = probe
-        if self.probe is None:
-            self.probe = Tensor(1e-4)
 
         if seeds is not None:
             market_shape = tuple(spec.vendor_count for spec in marketplace)
@@ -222,7 +220,9 @@ class Optimizer:
                     *(
                         self.make_delta(
                             seed=seed,
-                            lr=self.probe,
+                            lr=(
+                                ctx.learning_rate if self.probe is None else self.probe
+                            ),
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
                         )
