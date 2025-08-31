@@ -175,21 +175,13 @@ def train(
 
     @TinyJit
     def optimize_step(loss: Tensor, paths: Tensor):
-        # TODO: move to optimizer
         direction_vectors = optimizer.compute_direction_vectors(
             loss=loss,
             paths=paths,
         )
-        weight_updates = []
-        for spec, ctx, vectors in zip(
-            marketplace, optimizer.spec_context, direction_vectors
-        ):
-            model_params = get_state_dict(spec.model)
-            for key, params in model_params.items():
-                weight_updates.append(
-                    params.assign(params + (vectors[key] * ctx.learning_rate))
-                )
-        Tensor.realize(*weight_updates)
+        Tensor.realize(
+            *optimizer.schedule_weight_update(direction_delta=direction_vectors)
+        )
 
         Tensor.realize(*optimizer.schedule_seeds_update())
         Tensor.realize(*optimizer.schedule_delta_update())

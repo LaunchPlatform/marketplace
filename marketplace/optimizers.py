@@ -174,7 +174,9 @@ class Optimizer:
         )
 
     def schedule_weight_update(
-        self, direction_delta: list[Tensor], learning_rates: Tensor | None = None
+        self,
+        direction_delta: list[dict[str, Tensor]],
+        learning_rates: Tensor | None = None,
     ) -> list[Tensor]:
         weight_updates = []
         if learning_rates is None:
@@ -189,7 +191,7 @@ class Optimizer:
                 effective_lr = lr
             for key in keys:
                 params = model_params[key]
-                weight_updates.append(params.assign(params + delta * effective_lr))
+                weight_updates.append(params.assign(params + delta[key] * effective_lr))
         return weight_updates
 
     def schedule_seeds_update(self, keep_leader: bool = True):
@@ -210,8 +212,6 @@ class Optimizer:
         ]
 
     def schedule_delta_update(self) -> list[Tensor]:
-        if not self.cache_delta:
-            raise RuntimeError("Delta cache is not enabled, cannot update delta")
         delta_updates = []
         for ctx in self.spec_context:
             counter = 0
