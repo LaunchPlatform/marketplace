@@ -1,7 +1,6 @@
 import copy
 import dataclasses
 import typing
-from multiprocessing.connection import reduce_connection
 
 from tinygrad import dtypes
 from tinygrad import Tensor
@@ -43,32 +42,6 @@ class CachedDeltaVendor:
         return vendored_model(*args, **kwargs)
 
 
-class DeltaVendor:
-    def __init__(self, model: typing.Callable, make_delta: typing.Callable):
-        self.model = model
-        self.make_delta = make_delta
-
-    def __call__(self, *args, **kwargs):
-        vendored_model = copy.deepcopy(self.model)
-        model_params = get_state_dict(vendored_model)
-        keys = sorted(list(model_params.keys()))
-        counter = 0
-        vendor_params = {}
-        for key in keys:
-            params = model_params[key]
-            delta = self.make_delta(Tensor(counter, dtype=dtypes.uint), params)
-            vendor_params[key] = params + delta
-            counter += counter_advance_for(params)
-
-        load_state_dict(
-            vendored_model,
-            state_dict=vendor_params,
-            verbose=False,
-            realize=False,
-        )
-        return vendored_model(*args, **kwargs)
-
-
 class Optimizer:
     def __init__(
         self,
@@ -77,13 +50,11 @@ class Optimizer:
         learning_rate_scale_range: Tensor | None = None,
         seeds: list[Tensor] | None = None,
         make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
-        cache_delta: bool = True,
     ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
         self.learning_rate_scale_range = learning_rate_scale_range
         self.make_rng = make_rng
-        self.cache_delta = cache_delta
 
         if (
             self.learning_rate_scale_range is not None
@@ -113,16 +84,12 @@ class Optimizer:
             SpecContext(
                 seeds=seeds[i].contiguous(),
                 # allocate memory for delta
-                delta=(
-                    {
-                        key: Tensor.empty(
-                            spec.vendor_count, *params.shape, dtype=params.dtype
-                        ).contiguous()
-                        for key, params in get_state_dict(spec.model).items()
-                    }
-                    if cache_delta
-                    else None
-                ),
+                delta={
+                    key: Tensor.empty(
+                        spec.vendor_count, *params.shape, dtype=params.dtype
+                    ).contiguous()
+                    for key, params in get_state_dict(spec.model).items()
+                },
                 learning_rate=(
                     self.learning_rate.clone().contiguous()
                     if self.learning_rate_scale_range is not None
@@ -151,37 +118,18 @@ class Optimizer:
                 + [ctx.seeds for ctx in self.spec_context]
             )
         )
-        if self.cache_delta:
-            # Realize the delta, making them buffers
-            Tensor.realize(*self.schedule_delta_update())
-            self.vendors = [
-                [
-                    CachedDeltaVendor(
-                        model=spec.model,
-                        delta={key: params[i] for key, params in ctx.delta.items()},
-                    )
-                    for i in range(spec.vendor_count)
-                ]
-                for spec, ctx in zip(self.marketplace, self.spec_context)
+        # Realize the delta, making them buffers
+        Tensor.realize(*self.schedule_delta_update())
+        self.vendors = [
+            [
+                CachedDeltaVendor(
+                    model=spec.model,
+                    delta={key: params[i] for key, params in ctx.delta.items()},
+                )
+                for i in range(spec.vendor_count)
             ]
-        else:
-            self.vendors = [
-                [
-                    DeltaVendor(
-                        model=spec.model,
-                        make_delta=(
-                            lambda counter, params, seed=seed: self.make_delta(
-                                seed=seed,
-                                counter=counter,
-                                lr=ctx.learning_rate * (1 + lr_scale),
-                                params=params,
-                            )
-                        ),
-                    )
-                    for seed, lr_scale in zip(ctx.seeds, ctx.learning_rate_scales)
-                ]
-                for spec, ctx in zip(self.marketplace, self.spec_context)
-            ]
+            for spec, ctx in zip(self.marketplace, self.spec_context)
+        ]
 
     def get_seeds(self, path: Tensor) -> Tensor:
         return Tensor.cat(
@@ -226,14 +174,12 @@ class Optimizer:
         )
 
     def schedule_weight_update(
-        self, seeds: Tensor, learning_rates: Tensor | None = None
+        self, direction_delta: Tensor, learning_rates: Tensor | None = None
     ) -> list[Tensor]:
         weight_updates = []
         if learning_rates is None:
             learning_rates = self.learning_rate.expand(len(self.marketplace))
-        for spec, ctx, seed, lr in zip(
-            self.marketplace, self.spec_context, seeds, learning_rates
-        ):
+        for spec, ctx, lr in zip(self.marketplace, self.spec_context, learning_rates):
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
 
@@ -288,7 +234,7 @@ class Optimizer:
                     *(
                         self.make_delta(
                             seed=seed,
-                            lr=ctx.learning_rate,
+                            lr=Tensor(0.0001),
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
                         )

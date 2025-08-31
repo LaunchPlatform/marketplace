@@ -219,9 +219,8 @@ def train(
             current_forward_pass, batch_size, high=X_train.shape[0]
         ).realize()
 
-        best_loss = lr_scaled_forward(sample_batches)
-
-        optimize_step()
+        loss, accuracy, paths = forward_step(sample_batches[0])
+        optimize_step(loss=loss, paths=paths)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
@@ -230,23 +229,11 @@ def train(
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
             test_acc = get_test_acc().item()
-            mlflow.log_metric("training/loss", best_loss.item(), step=i)
+            # mlflow.log_metric("training/loss", best_loss.item(), step=i)
             mlflow.log_metric("training/accuracy", best_accuracy.item(), step=i)
             mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
-            if lr_scaling_range is not None:
-                mlflow.log_metric(
-                    "training/scaling_range_start", lr_scaling_range[0], step=i
-                )
-                mlflow.log_metric(
-                    "training/scaling_range_end", lr_scaling_range[1], step=i
-                )
-                mlflow.log_metric(
-                    f"training/lr_scaling_gain",
-                    best_gain.item(),
-                    step=i,
-                )
             mlflow.log_metric("testing/accuracy", test_acc, step=i)
 
         # if checkpoint_filepath is not None and i % checkpoint_per_steps == (
@@ -260,7 +247,7 @@ def train(
         #     )
 
         t.set_description(
-            f"loss: {best_loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():.2e}, "
+            f"loss: {0:6.2f}, fw: {current_forward_pass}, rl: {lr.item():.2e}, "
             f"acc: {best_accuracy.item():.2f}%, vacc: {test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
         )
     # if path is not None and i is not None and checkpoint_filepath is not None:
