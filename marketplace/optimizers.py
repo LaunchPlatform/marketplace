@@ -50,14 +50,14 @@ class Optimizer:
         # learning_rate_scale_range: Tensor | None = None,
         meta_learning_rate: Tensor | None = None,
         seeds: list[Tensor] | None = None,
-        probe: Tensor | None = None,
+        probe_scale: Tensor | None = None,
         make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
     ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
         self.meta_learning_rate = meta_learning_rate
         self.make_rng = make_rng
-        self.probe = probe
+        self.probe_scale = probe_scale
 
         if seeds is not None:
             market_shape = tuple(spec.vendor_count for spec in marketplace)
@@ -221,7 +221,9 @@ class Optimizer:
                         self.make_delta(
                             seed=seed,
                             lr=(
-                                ctx.learning_rate if self.probe is None else self.probe
+                                ctx.learning_rate
+                                if self.probe_scale is None
+                                else (ctx.learning_rate * self.probe_scale)
                             ),
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
