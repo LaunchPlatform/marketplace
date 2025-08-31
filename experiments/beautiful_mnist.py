@@ -142,9 +142,8 @@ def train(
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
-        learning_rate_scale_range=Tensor(lr_scaling_range)
-        if lr_scaling_range is not None
-        else None,
+        # XXX:
+        meta_learning_rate=Tensor(0.1),
     )
 
     @TinyJit
