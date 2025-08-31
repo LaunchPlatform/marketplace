@@ -278,12 +278,11 @@ class Optimizer:
                     )
                 )
             )
-
             for key in keys:
-                params = ctx.delta[key]
+                params = vector[key]
                 updated_params = Tensor.stack(
                     *(
-                        params[i] * (ctx.learning_rate * (1 + lr_scale))
+                        params * (ctx.learning_rate * (1 + lr_scale))
                         for i, lr_scale in enumerate(ctx.learning_rate_scales)
                     ),
                     dim=0,
