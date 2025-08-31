@@ -49,12 +49,16 @@ class Optimizer:
         learning_rate: Tensor,
         learning_rate_scale_range: Tensor | None = None,
         seeds: list[Tensor] | None = None,
+        probe: Tensor | None = None,
         make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
     ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
         self.learning_rate_scale_range = learning_rate_scale_range
         self.make_rng = make_rng
+        self.probe = probe
+        if self.probe is None:
+            self.probe = Tensor(1e-4)
 
         if (
             self.learning_rate_scale_range is not None
@@ -222,7 +226,7 @@ class Optimizer:
                     *(
                         self.make_delta(
                             seed=seed,
-                            lr=Tensor(0.0001),
+                            lr=self.probe,
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
                         )
