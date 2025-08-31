@@ -186,7 +186,9 @@ def train(
         ):
             model_params = get_state_dict(spec.model)
             for key, params in model_params.items():
-                weight_updates.append(params.assign(params + vectors[key]))
+                weight_updates.append(
+                    params.assign(params + (vectors[key] * ctx.learning_rate))
+                )
         Tensor.realize(*weight_updates)
 
         Tensor.realize(*optimizer.schedule_seeds_update())
