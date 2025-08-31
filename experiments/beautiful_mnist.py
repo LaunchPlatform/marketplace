@@ -90,6 +90,7 @@ def train(
     lr_decay_rate: float,
     marketplace: list[Spec],
     meta_lr: float | None = None,
+    probe: float = 1e-4,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
@@ -100,13 +101,14 @@ def train(
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, meta_lr=%s, "
-        "marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, "
+        "probe=%s, marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, "
         "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
         meta_lr,
+        probe,
         marketplace_replica,
         initial_forward_pass,
         metrics_per_steps,
@@ -136,6 +138,7 @@ def train(
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
+        probe=probe,
         meta_learning_rate=(Tensor(meta_lr) if meta_lr is not None else None),
     )
 

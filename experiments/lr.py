@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Learning Rate V5")
+    exp_id = ensure_experiment("Param Attribution LR")
     for lr in [1e-1, 1e-2, 1e-3, 1e-4]:
         for decay in [1e-3, 1e-4, 1e-5]:
             with mlflow.start_run(
