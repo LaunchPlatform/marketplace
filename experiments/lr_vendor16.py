@@ -14,7 +14,7 @@ VENDOR_COUNT = 16
 def main():
     exp_id = ensure_experiment("Param Attribution LR Vendor 16")
     for probe_scale in map(lambda x: 0.1 + x * 0.025, range(10)):
-        for lr in [0.1, 0.3, 0.5]:
+        for lr in [0.06, 0.08, 0.2]:
             for decay in [1e-5]:
                 probe_str = f"{probe_scale:.1e}" if probe_scale is not None else "none"
                 with mlflow.start_run(
