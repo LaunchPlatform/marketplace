@@ -290,9 +290,9 @@ def train(
 )
 @click.option("--lr-decay", type=float, default=1e-4, help="Learning rate decay rate")
 @click.option(
-    "--lr-scale",
-    type=str,
-    help="Enable LR scaling with given range (start, end).",
+    "--meta-lr",
+    type=click.FloatRange(0.0, 1.0, max_open=True),
+    help="Enable learning rate scaling mode with the given meta-learning rate",
 )
 @click.option(
     "--forward-pass",
@@ -325,7 +325,7 @@ def main(
     batch_size: int,
     initial_lr: float,
     lr_decay: float,
-    lr_scale: str | None,
+    meta_lr: float | None,
     forward_pass: int,
     marketplace_replica: int,
     vendor_count: int,
@@ -350,9 +350,7 @@ def main(
             batch_size=batch_size,
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
-            lr_scaling_range=(
-                tuple(map(float, lr_scale.split(","))) if lr_scale is not None else None
-            ),
+            meta_lr=meta_lr,
             initial_forward_pass=forward_pass,
             manual_seed=seed,
             marketplace=make_marketplace(
