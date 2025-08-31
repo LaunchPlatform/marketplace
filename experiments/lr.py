@@ -17,7 +17,7 @@ def main():
         for lr in [1e-1, 1e-2, 1e-3, 1e-4]:
             for decay in [1e-3, 1e-4, 1e-5]:
                 with mlflow.start_run(
-                    run_name=f"lr-{lr:.1e}-decay-{decay:.1e}",
+                    run_name=f"probe-{probe:.1e}-lr-{lr:.1e}-decay-{decay:.1e}",
                     experiment_id=exp_id,
                     log_system_metrics=True,
                 ):
