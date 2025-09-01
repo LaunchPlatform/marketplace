@@ -188,4 +188,5 @@ if __name__ == "__main__":
             lr_decay_rate=1e-5,
             probe_scale=1e-1,
             marketplace=marketplace,
+            manual_seed=42,
         )
