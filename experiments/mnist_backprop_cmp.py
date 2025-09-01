@@ -154,6 +154,7 @@ def train_mnist(
 
 
 if __name__ == "__main__":
+    step_count = 1_000
     exp_id = ensure_experiment("Backprop Comparison V4")
     for optimizer_type in ["adam", "muon", "sgd"]:
         if optimizer_type == "adam":
@@ -162,7 +163,7 @@ if __name__ == "__main__":
                 experiment_id=exp_id,
                 log_system_metrics=True,
             ):
-                train_mnist(optimizer_type=optimizer_type)
+                train_mnist(optimizer_type=optimizer_type, step_count=step_count)
         else:
             for lr_base in [1e-2, 1e-3, 1e-4]:
                 for lr in list(map(lambda x: x * 1e-3, range(1, 10))):
@@ -171,7 +172,9 @@ if __name__ == "__main__":
                         experiment_id=exp_id,
                         log_system_metrics=True,
                     ):
-                        train_mnist(optimizer_type=optimizer_type, lr=lr)
+                        train_mnist(
+                            optimizer_type=optimizer_type, lr=lr, step_count=step_count
+                        )
     with mlflow.start_run(
         run_name="marketplace-v2",
         experiment_id=exp_id,
@@ -179,7 +182,7 @@ if __name__ == "__main__":
     ):
         marketplace = make_marketplace(default_vendor_count=16)
         train(
-            step_count=1_000,
+            step_count=step_count,
             batch_size=512,
             initial_lr=1e-1,
             lr_decay_rate=1e-5,
