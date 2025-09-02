@@ -19,6 +19,7 @@ from tinygrad.nn import Conv2d
 from tinygrad.nn import InstanceNorm
 from tinygrad.nn import Linear
 from tinygrad.nn.datasets import mnist
+from tinygrad.nn.state import get_state_dict
 
 from .utils import ensure_experiment
 from marketplace.nn import Model
@@ -88,10 +89,11 @@ def train(
     initial_lr: float,
     lr_decay_rate: float,
     marketplace: list[Spec],
+    meta_lr: float | None = None,
+    probe_scale: float | None = None,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
     forward_pass_schedule: list[tuple[int, int]] | None = None,
-    meta_lr: float | None = None,
     metrics_per_steps: int = 10,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
@@ -99,13 +101,14 @@ def train(
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, meta_lr=%s, "
-        "marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, "
-        "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
+        "probe_scale=%s, marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, "
+        "metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
         meta_lr,
+        probe_scale,
         marketplace_replica,
         initial_forward_pass,
         metrics_per_steps,
@@ -122,6 +125,7 @@ def train(
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     mlflow.log_param("meta_lr", meta_lr)
+    mlflow.log_param("probe_scale", probe_scale)
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
@@ -135,7 +139,8 @@ def train(
     optimizer = Optimizer(
         marketplace=marketplace,
         learning_rate=lr,
-        meta_learning_rate=Tensor(meta_lr) if meta_lr is not None else None,
+        probe_scale=(Tensor(probe_scale) if probe_scale is not None else None),
+        meta_learning_rate=(Tensor(meta_lr) if meta_lr is not None else None),
     )
 
     @TinyJit
@@ -153,7 +158,7 @@ def train(
         )
         accuracy = Tensor.stack(
             *(
-                ((logits.sigmoid().argmax(axis=1) == y).sum() / batch_size) * 100
+                ((logits.argmax(axis=1) == y).sum() / batch_size) * 100
                 for logits in batch_logits
             ),
             dim=0,
@@ -164,49 +169,56 @@ def train(
             batch_paths.realize(),
         )
 
-    def multi_forward_step(sample_batches: Tensor) -> tuple[NDArray, NDArray, NDArray]:
-        # TODO: extract this
-        product_count = 1
-        for spec in reversed(marketplace):
-            product_count *= spec.vendor_count
-            if spec.upstream_sampling != 0:
-                product_count *= spec.upstream_sampling
-                break
-        # TODO: ideally, if we want to save some memory, we should apply online algorithm here instead so that we don't
-        #       need to accumulate all the data in each forward pass
-        loss = np.empty([len(sample_batches) * product_count])
-        accuracy = np.empty([len(sample_batches) * product_count])
-        paths = np.empty(
-            [len(sample_batches) * product_count, len(marketplace)], dtype=int
+    @TinyJit
+    def compute_direction_vectors(
+        loss: Tensor, paths: Tensor
+    ) -> list[dict[str, Tensor]]:
+        direction_vectors = optimizer.compute_direction_vectors(
+            loss=loss,
+            paths=paths,
         )
-
-        for i in Tensor.arange(len(sample_batches)):
-            i_val = i.item()
-            output_slice = slice(i_val * product_count, (i_val + 1) * product_count)
-            (
-                loss[output_slice],
-                accuracy[output_slice],
-                paths[output_slice],
-            ) = (v.numpy() for v in forward_step(sample_batches[i]))
-
-        unique_paths, indices = np.unique(paths, axis=0, return_inverse=True)
-        counts = np.bincount(indices)
-
-        loss_sums = np.bincount(indices, weights=loss)
-        loss_means = loss_sums / counts
-        accuracy_sums = np.bincount(indices, weights=accuracy)
-        accuracy_means = accuracy_sums / counts
-
-        min_idx = loss_means.argmin()
-        return (
-            loss_means[min_idx],
-            accuracy_means[min_idx],
-            unique_paths[min_idx],
-        )
+        # TODO: optional
+        Tensor.realize(*optimizer.schedule_lr_scale_update(direction_vectors))
+        return [
+            {key: params.realize() for key, params in delta.items()}
+            for delta in direction_vectors
+        ]
 
     @TinyJit
-    def optimize_step(seeds: Tensor):
-        optimizer.step(seeds)
+    def lr_scale_optimize_step(
+        direction_vectors: list[dict[str, Tensor]] | None, learning_rates: Tensor | None
+    ):
+        Tensor.realize(
+            *optimizer.schedule_weight_update(
+                direction_delta=direction_vectors, learning_rates=learning_rates
+            )
+        )
+        Tensor.realize(*optimizer.schedule_seeds_update())
+        Tensor.realize(*optimizer.schedule_delta_update())
+
+    @TinyJit
+    def optimize_step(
+        samples: Tensor, loss: Tensor, paths: Tensor
+    ) -> tuple[Tensor, Tensor]:
+        direction_vectors = optimizer.compute_direction_vectors(
+            loss=loss,
+            paths=paths,
+        )
+        Tensor.realize(
+            *optimizer.schedule_weight_update(
+                direction_delta=direction_vectors,
+            )
+        )
+        Tensor.realize(*optimizer.schedule_seeds_update())
+        Tensor.realize(*optimizer.schedule_delta_update())
+
+        # let's run forward pass again to see accuracy and loss
+        x = X_train[samples]
+        y = Y_train[samples]
+        logits = straight_forward(marketplace, x)
+        loss = logits.sparse_categorical_crossentropy(y)
+        accuracy = ((logits.argmax(axis=1) == y).sum() / batch_size) * 100
+        return loss.realize(), accuracy.realize()
 
     @TinyJit
     def get_test_acc() -> Tensor:
@@ -215,7 +227,6 @@ def train(
         ).mean() * 100
 
     i = 0
-    best_seeds = None
     test_acc = float("nan")
     current_forward_pass = initial_forward_pass
     for i in (t := trange(step_count)):
@@ -233,25 +244,32 @@ def train(
             current_forward_pass, batch_size, high=X_train.shape[0]
         ).realize()
 
-        best_loss, best_accuracy, best_path = multi_forward_step(sample_batches)
-        best_seeds = optimizer.get_seeds(Tensor(best_path)).clone().realize()
-        for _ in range(marketplace_replica - 1):
-            # Update seeds
-            Tensor.realize(*optimizer.schedule_seeds_update())
-            candidate_loss, candidate_accuracy, candidate_path = multi_forward_step(
-                sample_batches
-            )
-            if candidate_loss.item() >= best_loss.item():
-                continue
-            best_loss = candidate_loss
-            best_accuracy = candidate_accuracy
-            best_seeds = optimizer.get_seeds(Tensor(candidate_path)).clone().realize()
+        # direction probing forward pass
+        loss, _, paths = forward_step(sample_batches[0])
 
-        optimize_step(best_seeds)
+        if meta_lr is not None:
+            # lr scaling forward pass
+            direction_vectors = compute_direction_vectors(loss=loss, paths=paths)
+            loss, accuracy, paths = forward_step(sample_batches[0])
+            best_loss, best_index = loss.topk(1, largest=False)
+            best_index = best_index.squeeze(0)
+            best_accuracy = accuracy[best_index]
+            best_path = paths[best_index]
+            best_lr = optimizer.get_learning_rates(best_path)
+            lr_scale_optimize_step(direction_vectors, best_lr)
+        else:
+            best_loss, best_accuracy = optimize_step(
+                samples=sample_batches[0], loss=loss, paths=paths
+            )
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        lr.assign(lr * (1 - lr_decay_rate)).realize()
+        if meta_lr is not None:
+            optimizer.meta_learning_rate.assign(
+                optimizer.meta_learning_rate * (1 - lr_decay_rate)
+            ).realize()
+        else:
+            lr.assign(lr * (1 - lr_decay_rate)).realize()
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
@@ -262,12 +280,13 @@ def train(
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
             mlflow.log_metric("testing/accuracy", test_acc, step=i)
-
             if meta_lr is not None:
-                mlflow.log_metric("training/meta_lr", meta_lr, step=i)
-                for j, ctx in enumerate(optimizer.spec_context):
+                mlflow.log_metric(
+                    "testing/meta_lr", optimizer.meta_learning_rate.item(), step=i
+                )
+                for j, spec_lr in enumerate(best_lr):
                     mlflow.log_metric(
-                        f"training/adaptive_lr_{j}", ctx.learning_rate.item(), step=i
+                        f"training/adaptive_lr_{j}", spec_lr.item(), step=i
                     )
 
         # if checkpoint_filepath is not None and i % checkpoint_per_steps == (
@@ -300,7 +319,11 @@ def train(
     "--initial-lr", type=float, default=1e-3, help="Initial learning rate value"
 )
 @click.option("--lr-decay", type=float, default=1e-4, help="Learning rate decay rate")
-@click.option("--meta-lr", type=float, help="Meta learning rate")
+@click.option(
+    "--meta-lr",
+    type=click.FloatRange(0.0, 1.0, max_open=True),
+    help="Enable learning rate scaling mode with the given meta-learning rate",
+)
 @click.option(
     "--forward-pass",
     type=int,
@@ -351,21 +374,24 @@ def main(
         experiment_id=ensure_experiment("Marketplace V2"),
         run_name="beautiful-mnist" if run_name is None else run_name,
     ):
+        mlflow.log_param("vendor_count", vendor_count)
         train(
             step_count=step_count,
             batch_size=batch_size,
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
-            initial_forward_pass=forward_pass,
             meta_lr=meta_lr,
+            initial_forward_pass=forward_pass,
             manual_seed=seed,
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count,
             ),
             marketplace_replica=marketplace_replica,
-            checkpoint_filepath=pathlib.Path(checkpoint_filepath)
-            if checkpoint_filepath is not None
-            else None,
+            checkpoint_filepath=(
+                pathlib.Path(checkpoint_filepath)
+                if checkpoint_filepath is not None
+                else None
+            ),
             checkpoint_per_steps=checkpoint_per_steps,
         )
 

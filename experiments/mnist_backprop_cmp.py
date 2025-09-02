@@ -2,6 +2,7 @@
 import logging
 import os
 import time
+import typing
 from typing import Callable
 
 import mlflow
@@ -47,19 +48,19 @@ logger = logging.getLogger(__name__)
 
 
 class Model:
-    def __init__(self):
+    def __init__(self, norm_cls: typing.Callable = nn.InstanceNorm):
         self.layers: list[Callable[[Tensor], Tensor]] = [
             nn.Conv2d(1, 32, 5),
             Tensor.relu,
             nn.Conv2d(32, 32, 5),
             Tensor.relu,
-            nn.InstanceNorm(32),
+            norm_cls(32),
             Tensor.max_pool2d,
             nn.Conv2d(32, 64, 3),
             Tensor.relu,
             nn.Conv2d(64, 64, 3),
             Tensor.relu,
-            nn.InstanceNorm(64),
+            norm_cls(64),
             Tensor.max_pool2d,
             lambda x: x.flatten(1),
             nn.Linear(576, 10),
@@ -69,10 +70,15 @@ class Model:
         return x.sequential(self.layers)
 
 
-def train_mnist():
+def train_mnist(
+    optimizer_type: str = "adam",
+    lr: float = 1e-3,
+    batch_size: int = 512,
+    step_count: int = 1_000,
+):
     X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-    model = Model()
+    model = Model(norm_cls=nn.BatchNorm)
 
     model_weights_filepath = os.environ.get("MODEL_WEIGHTS")
     if model_weights_filepath is not None:
@@ -92,15 +98,27 @@ def train_mnist():
         load_state_dict(model, converted_state)
         logger.info("Model weight loaded")
 
-    opt = (nn.optim.Adam if not getenv("MUON") else nn.optim.Muon)(
-        nn.state.get_parameters(model)
-    )
+    if optimizer_type == "adam":
+        opt = nn.optim.Adam(nn.state.get_parameters(model))
+        mlflow.log_param("optimizer", "adam")
+    elif optimizer_type == "muon":
+        opt = nn.optim.Muon(nn.state.get_parameters(model), lr=lr)
+        mlflow.log_param("lr", lr)
+    elif optimizer_type == "sgd":
+        opt = nn.optim.SGD(
+            nn.state.get_parameters(model),
+            lr=lr,
+        )
+        mlflow.log_param("lr", lr)
+    else:
+        raise ValueError("Unexpected type")
+    mlflow.log_param("optimizer", optimizer_type)
 
     @TinyJit
     @Tensor.train()
     def train_step() -> Tensor:
         opt.zero_grad()
-        samples = Tensor.randint(getenv("BS", 512), high=X_train.shape[0])
+        samples = Tensor.randint(batch_size, high=X_train.shape[0])
         loss = (
             model(X_train[samples])
             .sparse_categorical_crossentropy(Y_train[samples])
@@ -114,7 +132,7 @@ def train_mnist():
         return (model(X_test).argmax(axis=1) == Y_test).mean() * 100
 
     test_acc = float("nan")
-    for i in (t := trange(getenv("STEPS", 70))):
+    for i in (t := trange(step_count)):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
         loss = train_step()
         start_time = time.perf_counter()
@@ -136,23 +154,39 @@ def train_mnist():
 
 
 if __name__ == "__main__":
-    exp_id = ensure_experiment("Backprop Comparison V3")
+    step_count = 1_000
+    exp_id = ensure_experiment("Backprop Comparison V4")
+    for optimizer_type in ["adam", "muon", "sgd"]:
+        if optimizer_type == "adam":
+            with mlflow.start_run(
+                run_name=f"backprop-adam",
+                experiment_id=exp_id,
+                log_system_metrics=True,
+            ):
+                train_mnist(optimizer_type=optimizer_type, step_count=step_count)
+        else:
+            for lr_base in [1e-2, 1e-3, 1e-4]:
+                for lr in list(map(lambda x: x * 1e-3, range(1, 10))):
+                    with mlflow.start_run(
+                        run_name=f"backprop-{optimizer_type}-lr-{lr}",
+                        experiment_id=exp_id,
+                        log_system_metrics=True,
+                    ):
+                        train_mnist(
+                            optimizer_type=optimizer_type, lr=lr, step_count=step_count
+                        )
     with mlflow.start_run(
-        run_name="backprop",
-        experiment_id=exp_id,
-        log_system_metrics=True,
-    ):
-        train_mnist()
-    with mlflow.start_run(
-        run_name="marketplace",
+        run_name="marketplace-v2",
         experiment_id=exp_id,
         log_system_metrics=True,
     ):
         marketplace = make_marketplace(default_vendor_count=16)
         train(
-            step_count=3_000,
+            step_count=step_count,
             batch_size=512,
-            initial_lr=1e-3,
-            lr_decay_rate=1e-4,
+            initial_lr=1e-1,
+            lr_decay_rate=1e-5,
+            probe_scale=1e-1,
             marketplace=marketplace,
+            manual_seed=42,
         )

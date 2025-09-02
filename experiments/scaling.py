@@ -11,27 +11,27 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Scaling V4")
-    for lr in [1e-2, 1e-3]:
-        for marketplace_replica in [1, 2, 4, 8, 16, 32]:
-            for forward_pass in [1, 2, 4, 8, 16, 32]:
-                with mlflow.start_run(
-                    run_name=f"scaling-lr-{lr:.1e}-mr-{marketplace_replica}-fw-{forward_pass}",
-                    experiment_id=exp_id,
-                    log_system_metrics=True,
-                ):
-                    marketplace = make_marketplace(default_vendor_count=8)
-                    train(
-                        step_count=500,
-                        batch_size=512,
-                        initial_lr=lr,
-                        lr_decay_rate=1e-4,
-                        initial_forward_pass=forward_pass,
-                        marketplace=marketplace,
-                        marketplace_replica=marketplace_replica,
-                        # Make initial weights the same so that the exp is less noisy
-                        manual_seed=42,
-                    )
+    exp_id = ensure_experiment("Scaling V5 with LR scaling")
+    for marketplace_replica in [64]:
+        for forward_pass in [64]:
+            with mlflow.start_run(
+                run_name=f"scaling-mr-{marketplace_replica}-fw-{forward_pass}",
+                experiment_id=exp_id,
+                log_system_metrics=True,
+            ):
+                marketplace = make_marketplace(default_vendor_count=8)
+                train(
+                    step_count=500,
+                    batch_size=512,
+                    initial_lr=1e-2,
+                    lr_decay_rate=1e-4,
+                    initial_forward_pass=forward_pass,
+                    lr_scaling_range=0.1,
+                    marketplace=marketplace,
+                    marketplace_replica=marketplace_replica,
+                    # Make initial weights the same so that the exp is less noisy
+                    manual_seed=42,
+                )
 
 
 if __name__ == "__main__":

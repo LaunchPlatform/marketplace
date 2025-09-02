@@ -18,9 +18,9 @@ SEED_MAX = 2**64
 @dataclasses.dataclass
 class SpecContext:
     seeds: Tensor
-    delta: dict[str, Tensor] | None = None
-    learning_rate: Tensor = None
-    delta_learning_rates: Tensor = None
+    delta: dict[str, Tensor]
+    learning_rate: Tensor
+    learning_rate_scales: Tensor | None = None
 
 
 class CachedDeltaVendor:
@@ -42,47 +42,22 @@ class CachedDeltaVendor:
         return vendored_model(*args, **kwargs)
 
 
-class DeltaVendor:
-    def __init__(self, model: typing.Callable, make_delta: typing.Callable):
-        self.model = model
-        self.make_delta = make_delta
-
-    def __call__(self, *args, **kwargs):
-        vendored_model = copy.deepcopy(self.model)
-        model_params = get_state_dict(vendored_model)
-        keys = sorted(list(model_params.keys()))
-        counter = 0
-        vendor_params = {}
-        for key in keys:
-            params = model_params[key]
-            delta = self.make_delta(Tensor(counter, dtype=dtypes.uint), params)
-            vendor_params[key] = params + delta
-            counter += counter_advance_for(params)
-
-        load_state_dict(
-            vendored_model,
-            state_dict=vendor_params,
-            verbose=False,
-            realize=False,
-        )
-        return vendored_model(*args, **kwargs)
-
-
 class Optimizer:
     def __init__(
         self,
         marketplace: list[Spec],
         learning_rate: Tensor,
-        seeds: list[Tensor] | None = None,
-        make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
+        # learning_rate_scale_range: Tensor | None = None,
         meta_learning_rate: Tensor | None = None,
-        cache_delta: bool = True,
+        seeds: list[Tensor] | None = None,
+        probe_scale: Tensor | None = None,
+        make_rng: typing.Type[RandomNumberGenerator] = RandomNumberGenerator,
     ):
         self.marketplace = marketplace
         self.learning_rate = learning_rate
-        self.make_rng = make_rng
-        self.cache_delta = cache_delta
         self.meta_learning_rate = meta_learning_rate
+        self.make_rng = make_rng
+        self.probe_scale = probe_scale
 
         if seeds is not None:
             market_shape = tuple(spec.vendor_count for spec in marketplace)
@@ -106,23 +81,19 @@ class Optimizer:
             SpecContext(
                 seeds=seeds[i].contiguous(),
                 # allocate memory for delta
-                delta=(
-                    {
-                        key: Tensor.empty(
-                            spec.vendor_count, *params.shape, dtype=params.dtype
-                        ).contiguous()
-                        for key, params in get_state_dict(spec.model).items()
-                    }
-                    if cache_delta
-                    else None
-                ),
+                delta={
+                    key: Tensor.empty(
+                        spec.vendor_count, *params.shape, dtype=params.dtype
+                    ).contiguous()
+                    for key, params in get_state_dict(spec.model).items()
+                },
                 learning_rate=(
                     self.learning_rate.clone().contiguous()
                     if self.meta_learning_rate is not None
-                    else None
+                    else self.learning_rate
                 ),
-                delta_learning_rates=(
-                    Tensor.empty(spec.vendor_count).contiguous()
+                learning_rate_scales=(
+                    Tensor.zeros(spec.vendor_count).contiguous()
                     if self.meta_learning_rate is not None
                     else None
                 ),
@@ -144,49 +115,18 @@ class Optimizer:
                 + [ctx.seeds for ctx in self.spec_context]
             )
         )
-        if self.cache_delta:
-            # Realize the delta, making them buffers
-            Tensor.realize(*self.schedule_delta_update())
-            self.vendors = [
-                [
-                    CachedDeltaVendor(
-                        model=spec.model,
-                        delta={key: params[i] for key, params in ctx.delta.items()},
-                    )
-                    for i in range(spec.vendor_count)
-                ]
-                for spec, ctx in zip(self.marketplace, self.spec_context)
+        # Realize the delta, making them buffers
+        Tensor.realize(*self.schedule_delta_update())
+        self.vendors = [
+            [
+                CachedDeltaVendor(
+                    model=spec.model,
+                    delta={key: params[i] for key, params in ctx.delta.items()},
+                )
+                for i in range(spec.vendor_count)
             ]
-        else:
-            self.vendors = [
-                [
-                    DeltaVendor(
-                        model=spec.model,
-                        make_delta=(
-                            lambda counter, params, seed=seed, i=i: self.make_delta(
-                                seed=seed,
-                                counter=(
-                                    counter
-                                    if self.meta_learning_rate is None
-                                    else (
-                                        counter + counter_advance_for(ctx.learning_rate)
-                                    )
-                                ),
-                                lr=(
-                                    self.learning_rate
-                                    if self.meta_learning_rate is None
-                                    else (
-                                        ctx.learning_rate + ctx.delta_learning_rates[i]
-                                    ).abs()
-                                ),
-                                params=params,
-                            )
-                        ),
-                    )
-                    for i, seed in enumerate(ctx.seeds)
-                ]
-                for spec, ctx in zip(self.marketplace, self.spec_context)
-            ]
+            for spec, ctx in zip(self.marketplace, self.spec_context)
+        ]
 
     def get_seeds(self, path: Tensor) -> Tensor:
         return Tensor.cat(
@@ -197,50 +137,59 @@ class Optimizer:
             dim=0,
         )
 
-    def step(self, seeds: Tensor, keep_leader: bool = True):
-        Tensor.realize(*self.schedule_step(seeds, keep_leader))
-
-    def schedule_step(self, seeds: Tensor, keep_leader: bool = True) -> list[Tensor]:
-        return (
-            self.schedule_weight_update(seeds)
-            + self.schedule_seeds_update(keep_leader)
-            + (self.schedule_delta_update() if self.cache_delta else [])
+    def get_learning_rates(self, path: Tensor) -> Tensor:
+        return Tensor.stack(
+            *(
+                ctx.learning_rate * (1 + ctx.learning_rate_scales[index])
+                for index, ctx in zip(path, self.spec_context)
+            ),
+            dim=0,
         )
 
-    def schedule_weight_update(self, seeds: Tensor) -> list[Tensor]:
-        weight_updates = []
-        for spec, ctx, seed in zip(self.marketplace, self.spec_context, seeds):
-            model_params = get_state_dict(spec.model)
-            counter = 0
-            effective_lr = self.learning_rate
-            if self.meta_learning_rate is not None:
-                effective_lr = (
-                    ctx.learning_rate
-                    + self.make_delta(
-                        seed=seed,
-                        counter=Tensor(counter, dtype=dtypes.uint),
-                        lr=self.meta_learning_rate,
-                        params=ctx.learning_rate,
-                    )
-                ).abs()
-                weight_updates.append(ctx.learning_rate.assign(effective_lr))
-                counter += counter_advance_for(ctx.learning_rate)
+    def step(
+        self,
+        seeds: Tensor,
+        learning_rates: Tensor | None = None,
+        keep_leader: bool = True,
+    ):
+        Tensor.realize(
+            *self.schedule_step(
+                seeds, learning_rates=learning_rates, keep_leader=keep_leader
+            )
+        )
 
+    def schedule_step(
+        self,
+        seeds: Tensor,
+        learning_rates: Tensor | None = None,
+        keep_leader: bool = True,
+    ) -> list[Tensor]:
+        return (
+            self.schedule_weight_update(seeds, learning_rates=learning_rates)
+            + self.schedule_seeds_update(keep_leader)
+            + self.schedule_delta_update()
+        )
+
+    def schedule_weight_update(
+        self,
+        direction_delta: list[dict[str, Tensor]],
+        learning_rates: Tensor | None = None,
+    ) -> list[Tensor]:
+        weight_updates = []
+        if learning_rates is None:
+            learning_rates = self.learning_rate.expand(len(self.marketplace))
+        for spec, ctx, delta, lr in zip(
+            self.marketplace, self.spec_context, direction_delta, learning_rates
+        ):
+            model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
+            effective_lr = ctx.learning_rate
+            if self.meta_learning_rate is not None:
+                weight_updates.append(ctx.learning_rate.assign(lr))
+                effective_lr = lr
             for key in keys:
                 params = model_params[key]
-                weight_updates.append(
-                    params.assign(
-                        params
-                        + self.make_delta(
-                            seed=seed,
-                            lr=effective_lr,
-                            counter=Tensor(counter, dtype=dtypes.uint),
-                            params=params,
-                        )
-                    )
-                )
-                counter += counter_advance_for(params)
+                weight_updates.append(params.assign(params + delta[key] * effective_lr))
         return weight_updates
 
     def schedule_seeds_update(self, keep_leader: bool = True):
@@ -261,32 +210,9 @@ class Optimizer:
         ]
 
     def schedule_delta_update(self) -> list[Tensor]:
-        if not self.cache_delta:
-            raise RuntimeError("Delta cache is not enabled, cannot update delta")
         delta_updates = []
         for ctx in self.spec_context:
             counter = 0
-            if self.meta_learning_rate is not None:
-                delta_updates.append(
-                    ctx.delta_learning_rates.assign(
-                        Tensor.stack(
-                            *(
-                                self.make_delta(
-                                    seed=seed,
-                                    counter=Tensor(counter, dtype=dtypes.uint),
-                                    lr=self.meta_learning_rate,
-                                    params=lr_delta,
-                                )
-                                for seed, lr_delta in zip(
-                                    ctx.seeds, ctx.delta_learning_rates
-                                )
-                            ),
-                            dim=0,
-                        )
-                    )
-                )
-                counter += counter_advance_for(ctx.learning_rate)
-
             keys = sorted(list(ctx.delta.keys()))
             for key in keys:
                 params = ctx.delta[key]
@@ -295,11 +221,9 @@ class Optimizer:
                         self.make_delta(
                             seed=seed,
                             lr=(
-                                self.learning_rate
-                                if self.meta_learning_rate is None
-                                else (
-                                    ctx.learning_rate + ctx.delta_learning_rates[i]
-                                ).abs()
+                                ctx.learning_rate
+                                if self.probe_scale is None
+                                else (ctx.learning_rate * self.probe_scale)
                             ),
                             counter=Tensor(counter, dtype=dtypes.uint),
                             params=params[i],
@@ -311,6 +235,89 @@ class Optimizer:
                 counter += counter_advance_for(params[0])
                 delta_updates.append(params.assign(updated_params))
         return delta_updates
+
+    def schedule_lr_scale_update(self, direction_vectors: Tensor) -> list[Tensor]:
+        if self.meta_learning_rate is None:
+            raise ValueError("LR scale not set")
+        lr_updates = []
+        for ctx, vector in zip(self.spec_context, direction_vectors):
+            # We use the final counter (after all params) for generating the lr delta.
+            # TODO: extract this part?
+            final_counter = 0
+            keys = sorted(list(ctx.delta.keys()))
+            for key in keys:
+                params = ctx.delta[key]
+                final_counter += counter_advance_for(params[0])
+            # Generate different LR to try out
+            lr_updates.append(
+                ctx.learning_rate_scales.assign(
+                    Tensor.stack(
+                        *(
+                            (
+                                self.make_delta(
+                                    seed=seed,
+                                    counter=Tensor(final_counter, dtype=dtypes.uint),
+                                    lr=self.meta_learning_rate,
+                                    params=lr_scale,
+                                )
+                                if i != 0
+                                # we always keep the original lr in the combinations, in case we cannot find any
+                                # improvement from scale, at least we are not making regression
+                                else Tensor.zeros_like(lr_scale)
+                            )
+                            for i, (lr_scale, seed) in enumerate(
+                                zip(ctx.learning_rate_scales, ctx.seeds)
+                            )
+                        ),
+                        dim=0,
+                    )
+                )
+            )
+            for key in keys:
+                params = ctx.delta[key]
+                updated_params = Tensor.stack(
+                    *(
+                        vector[key] * (ctx.learning_rate * (1 + lr_scale))
+                        for i, lr_scale in enumerate(ctx.learning_rate_scales)
+                    ),
+                    dim=0,
+                )
+                lr_updates.append(params.assign(updated_params))
+        return lr_updates
+
+    def compute_direction_vectors(
+        self, loss: Tensor, paths: Tensor
+    ) -> list[dict[str, Tensor]]:
+        std, mean = loss.std_mean()
+        std_loss = -((loss - mean) / std)
+        direction_vectors = []
+        for i, (spec, ctx) in enumerate(zip(self.marketplace, self.spec_context)):
+            model_params = get_state_dict(spec.model)
+            keys = sorted(list(model_params.keys()))
+            counter = 0
+            indexes = paths[:, i]
+            reconciled_delta = {}
+            for key in keys:
+                reconciled_delta[key] = (
+                    # Take all the delta and multiply their corresponding normalized loss, so that we can "reward" each
+                    # parameters in delta accordingly to compose a overall better direction.
+                    ctx.delta[key][indexes]
+                    * std_loss.reshape(
+                        len(std_loss), *((1,) * len(model_params[key].shape))
+                    )
+                ).sum(axis=0)
+                counter += counter_advance_for(model_params[key])
+            # We treat all the parameters delta in this spec as a vector
+            combined_vector = Tensor.cat(
+                *[delta.flatten() for delta in reconciled_delta.values()]
+            )
+            # calculate the vector's length
+            vector_len = combined_vector.square().sum().sqrt()
+            # make them a unit vector
+            direction_vectors.append(
+                {key: delta / vector_len for key, delta in reconciled_delta.items()}
+            )
+        return direction_vectors
 
     def make_delta(
         self, seed: Tensor, lr: Tensor, counter: Tensor, params: Tensor
