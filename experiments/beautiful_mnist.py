@@ -7,9 +7,6 @@ import time
 
 import click
 import mlflow
-import numpy as np
-from numpy.typing import NDArray
-from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
 from tinygrad import TinyJit
@@ -19,7 +16,6 @@ from tinygrad.nn import Conv2d
 from tinygrad.nn import InstanceNorm
 from tinygrad.nn import Linear
 from tinygrad.nn.datasets import mnist
-from tinygrad.nn.state import get_state_dict
 
 from .utils import ensure_experiment
 from marketplace.nn import Model
@@ -27,7 +23,6 @@ from marketplace.optimizers import Optimizer
 from marketplace.training import forward
 from marketplace.training import Spec
 from marketplace.training import straight_forward
-from marketplace.utils import write_checkpoint
 
 logger = logging.getLogger(__name__)
 

@@ -2,43 +2,45 @@
 Marketplace is a machine learning experiment aimed at training a model efficiently on a GPU without using backpropagation.
 The approach involves breaking down the layers of a machine learning model into smaller groups, running them with various parameter combinations.
 We select the best-performing parameter combination and mutate it with different parameter variants.
-To learn more about the concept, please refer to the article:
+To learn more about the concept, please refer to the articles:
 
-[Marketplace: my first attempt at training without backprop on GPU efficiently](https://fangpenlin.com/posts/2025/08/18/marketplace-my-first-attempt-at-training-without-backprop-on-gpu-efficiently/)
+1. [Marketplace: my first attempt at training without backprop on GPU efficiently](https://fangpenlin.com/posts/2025/08/18/marketplace-my-first-attempt-at-training-without-backprop-on-gpu-efficiently/)
+2. [Marketplace V2 is all you need: A training algorithm on par with backprop that needs only forward pass](https://fangpenlin.com/posts/2025/09/02/marketplace-v2-is-all-you-need-a-training-algorithm-on-par-with-backprop/)
 
 For example, the [beautiful_mnist model](https://github.com/tinygrad/tinygrad/blob/c30a113b2a876cabaea1049601fea3a0b758c5b1/examples/beautiful_mnist.py) included in [Tinygrad](https://github.com/tinygrad/tinygrad)'s example folder can be broken down into three groups of layers:
 
 ```python
-from marketplace.multi_model import MultiModel, MultiConv2d, MultiLinear, MultiInstanceNorm
+from marketplace.training import Spec
+from marketplace.nn import Model
+from tinygrad import Tensor
+from tinygrad.nn import Conv2d
+from tinygrad.nn import InstanceNorm
+from tinygrad.nn import Linear
 
 [
   Spec(
-    model=MultiModel(
-      [
-        MultiConv2d(vendor_count, 1, 32, 5),
+    model=Model(
+        Conv2d(vendor_count, 1, 32, 5),
         Tensor.relu,
-        MultiConv2d(vendor_count, 32, 32, 5),
+        Conv2d(vendor_count, 32, 32, 5),
         Tensor.relu,
-        MultiInstanceNorm(vendor_count, 32),
+        InstanceNorm(vendor_count, 32),
         Tensor.max_pool2d,
-      ]
     )
   ),
   Spec(
-    model=MultiModel(
-      [
-        MultiConv2d(vendor_count, 32, 64, 3),
+    model=Model(
+        Conv2d(vendor_count, 32, 64, 3),
         Tensor.relu,
-        MultiConv2d(vendor_count, 64, 64, 3),
+        Conv2d(vendor_count, 64, 64, 3),
         Tensor.relu,
-        MultiInstanceNorm(vendor_count, 64),
+        InstanceNorm(vendor_count, 64),
         Tensor.max_pool2d,
         lambda x: x.flatten(1),
-      ]
     ),
   ),
   Spec(
-    model=MultiModel([MultiLinear(vendor_count, 576, 10)]),
+    model=Model([Linear(vendor_count, 576, 10)]),
   ),
 ]
 ```
@@ -49,12 +51,10 @@ The following code is a simple example of how to run a forward pass of the model
 ```python
 from tinygrad import Tensor
 from tinygrad import TinyJit
-from marketplace.multi_model import MultiModelBase
-from marketplace.multi_model import Spec
-from marketplace.multi_model import forward
+from marketplace.training import forward
+from marketplace.optimizers import Optimizer
 
 @TinyJit
-@MultiModelBase.train()
 def forward_step() -> tuple[Tensor, Tensor, Tensor]:
     samples = Tensor.randint(batch_size, high=X_train.shape[0])
     x = X_train[samples]
@@ -75,11 +75,18 @@ def forward_step() -> tuple[Tensor, Tensor, Tensor]:
         batch_paths[best_index].realize(),
     )
 
+lr = Tensor(1e-1).contiguous().realize()
+optimizer = Optimizer(
+    marketplace=marketplace,
+    learning_rate=lr,
+)
 best_loss, best_accuracy, best_path = forward_step()
 
 ```
 
 Next, now we know the best parameters combination, we can mutate it with different variants of parameters.
+
+TODO: the following is outdated, needs to update
 
 ```python
 @TinyJit
