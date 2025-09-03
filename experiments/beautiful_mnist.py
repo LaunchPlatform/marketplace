@@ -23,6 +23,7 @@ from marketplace.optimizers import Optimizer
 from marketplace.training import forward
 from marketplace.training import Spec
 from marketplace.training import straight_forward
+from marketplace.utils import write_checkpoint
 
 logger = logging.getLogger(__name__)
 
@@ -284,27 +285,25 @@ def train(
                         f"training/adaptive_lr_{j}", spec_lr.item(), step=i
                     )
 
-        # if checkpoint_filepath is not None and i % checkpoint_per_steps == (
-        #     checkpoint_per_steps - 1
-        # ):
-        #     write_checkpoint(
-        #         marketplace=marketplace,
-        #         path=path,
-        #         global_step=i,
-        #         output_filepath=pathlib.Path(checkpoint_filepath),
-        #     )
+        if checkpoint_filepath is not None and i % checkpoint_per_steps == (
+            checkpoint_per_steps - 1
+        ):
+            write_checkpoint(
+                marketplace=marketplace,
+                global_step=i,
+                output_filepath=pathlib.Path(checkpoint_filepath),
+            )
 
         t.set_description(
             f"loss: {best_loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():.2e}, "
             f"acc: {best_accuracy.item():.2f}%, vacc: {test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
         )
-    # if path is not None and i is not None and checkpoint_filepath is not None:
-    #     write_checkpoint(
-    #         marketplace=marketplace,
-    #         path=path,
-    #         global_step=i,
-    #         output_filepath=pathlib.Path(checkpoint_filepath),
-    #     )
+    if i is not None and checkpoint_filepath is not None:
+        write_checkpoint(
+            marketplace=marketplace,
+            global_step=i,
+            output_filepath=pathlib.Path(checkpoint_filepath),
+        )
 
 
 @click.command("beautiful_mnist")

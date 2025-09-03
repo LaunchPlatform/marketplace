@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 def write_checkpoint(
     marketplace: list[Spec],
-    path: Tensor,
     global_step: int,
     output_filepath: pathlib.Path,
 ):
@@ -23,10 +22,10 @@ def write_checkpoint(
     parameters = dict(
         itertools.chain.from_iterable(
             [
-                (f"spec.{i}.{key}", weights[index])
+                (f"spec.{i}.{key}", weights)
                 for key, weights in get_state_dict(spec.model).items()
             ]
-            for i, (index, spec) in enumerate(zip(path, marketplace))
+            for i, spec in enumerate(marketplace)
         )
     )
     checkpoint_tmp_filepath = output_filepath.with_suffix(".tmp")
