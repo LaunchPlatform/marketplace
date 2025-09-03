@@ -241,7 +241,7 @@ def train(
         batch_logits, batch_paths = forward(
             marketplace=marketplace,
             vendors=optimizer.vendors,
-            x=x,
+            x=preprocess(x),
         )
         loss = Tensor.stack(
             *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
@@ -306,7 +306,7 @@ def train(
         # let's run forward pass again to see accuracy and loss
         x = X_train[samples]
         y = Y_train[samples]
-        logits = straight_forward(marketplace, x)
+        logits = straight_forward(marketplace, preprocess(x))
         loss = logits.sparse_categorical_crossentropy(y)
         accuracy = ((logits.argmax(axis=1) == y).sum() / batch_size) * 100
         return loss.realize(), accuracy.realize()
@@ -314,7 +314,7 @@ def train(
     @TinyJit
     def get_test_acc() -> Tensor:
         return (
-            straight_forward(marketplace, X_test).argmax(axis=1) == Y_test
+            straight_forward(marketplace, preprocess(X_test)).argmax(axis=1) == Y_test
         ).mean() * 100
 
     i = 0
