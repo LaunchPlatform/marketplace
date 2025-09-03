@@ -425,7 +425,7 @@ def train(
     default=1,
     help="How many marketplace replica to run (simulate distributed computing)",
 )
-@click.option("--vendor-count", type=int, default=8, help="Vendor count")
+@click.option("--vendor-count", type=int, default=4, help="Vendor count")
 @click.option("--seed", type=int, help="Set the random seed")
 @click.option(
     "--probe-scale",
@@ -468,7 +468,7 @@ def main(
     logger.info("Set recursion limit to %s", NEW_RECURSION_LIMIT)
     with mlflow.start_run(
         experiment_id=ensure_experiment("Marketplace CIFAR"),
-        run_name="beautiful-mnist" if run_name is None else run_name,
+        run_name="beautiful-cifar" if run_name is None else run_name,
     ):
         mlflow.log_param("vendor_count", vendor_count)
         train(
