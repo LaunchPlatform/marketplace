@@ -334,6 +334,12 @@ def train(
 @click.option("--vendor-count", type=int, default=8, help="Vendor count")
 @click.option("--seed", type=int, help="Set the random seed")
 @click.option(
+    "--probe-scale",
+    type=float,
+    default=0.1,
+    help="The scale we use to apply on LR for making the reconciled delta direction",
+)
+@click.option(
     "--checkpoint-filepath",
     type=click.Path(dir_okay=False, writable=True),
     help="Filepath of checkpoint to write to",
@@ -355,6 +361,7 @@ def main(
     marketplace_replica: int,
     vendor_count: int,
     seed: int | None,
+    probe_scale: float | None,
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
     run_name: str | None,
@@ -377,6 +384,7 @@ def main(
             lr_decay_rate=lr_decay,
             meta_lr=meta_lr,
             initial_forward_pass=forward_pass,
+            probe_scale=probe_scale if probe_scale else None,
             manual_seed=seed,
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count,
