@@ -311,9 +311,9 @@ def train(
 @click.option("--step-count", type=int, default=10_000, help="How many steps to run")
 @click.option("--batch-size", type=int, default=512, help="Size of batch")
 @click.option(
-    "--initial-lr", type=float, default=1e-3, help="Initial learning rate value"
+    "--initial-lr", type=float, default=1e-1, help="Initial learning rate value"
 )
-@click.option("--lr-decay", type=float, default=1e-4, help="Learning rate decay rate")
+@click.option("--lr-decay", type=float, default=1e-5, help="Learning rate decay rate")
 @click.option(
     "--meta-lr",
     type=click.FloatRange(0.0, 1.0, max_open=True),
