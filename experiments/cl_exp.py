@@ -45,11 +45,11 @@ def main():
         mlflow.log_param("vendor_count", learn_vendor_count)
         learn(
             step_count=2_000,
-            batch_size=64,
+            batch_size=128,
             target_new_classes=(3,),
-            new_train_size=8,
+            new_train_size=32,
             initial_lr=1e-1,
-            lr_decay_rate=1e-5,
+            lr_decay_rate=0,
             probe_scale=1e-1,
             marketplace=marketplace,
             manual_seed=42,
