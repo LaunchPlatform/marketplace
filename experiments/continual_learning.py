@@ -178,14 +178,14 @@ def train(
                 logits[: len(old_samples)].argmax(axis=1)
                 == combined_y[: len(old_samples)]
             ).sum()
-            / batch_size
+            / len(old_samples)
         ) * 100
         new_accuracy = (
             (
                 logits[len(old_samples) :].argmax(axis=1)
                 == combined_y[len(old_samples) :]
             ).sum()
-            / batch_size
+            / len(new_samples)
         ) * 100
         return (
             loss.realize(),
