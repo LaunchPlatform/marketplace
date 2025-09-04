@@ -38,7 +38,9 @@ def main():
         experiment_id=exp_id,
         log_system_metrics=True,
     ):
-        marketplace = make_marketplace(default_vendor_count=8)
+        learn_vendor_count = 8
+        marketplace = make_marketplace(default_vendor_count=learn_vendor_count)
+        mlflow.log_param("vendor_count", learn_vendor_count)
         learn(
             step_count=2_000,
             batch_size=64,
