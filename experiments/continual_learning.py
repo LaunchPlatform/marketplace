@@ -19,9 +19,9 @@ from tinygrad.nn import Linear
 from tinygrad.nn.datasets import mnist
 
 from .utils import ensure_experiment
+from marketplace.continual_learning import forward_with_paths
 from marketplace.nn import Model
 from marketplace.optimizers import Optimizer
-from marketplace.training import forward
 from marketplace.training import Spec
 from marketplace.training import straight_forward
 from marketplace.utils import write_checkpoint
@@ -170,16 +170,20 @@ def train(
                 )
                 for spec in marketplace
             ),
-            dim=0,
+            dim=1,
         )
 
-        batch_logits, batch_paths = forward(
+        batch_logits = forward_with_paths(
             marketplace=marketplace,
-            vendors=optimizer.vendors,
-            x=x,
+            paths=batch_paths,
+            x=combined_x,
+            deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
         loss = Tensor.stack(
-            *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
+            *(
+                logits.sparse_categorical_crossentropy(combined_y)
+                for logits in batch_logits
+            ),
             dim=0,
         )
         accuracy = Tensor.stack(
@@ -194,33 +198,6 @@ def train(
             accuracy.realize(),
             batch_paths.realize(),
         )
-
-    @TinyJit
-    def compute_direction_vectors(
-        loss: Tensor, paths: Tensor
-    ) -> list[dict[str, Tensor]]:
-        direction_vectors = optimizer.compute_direction_vectors(
-            loss=loss,
-            paths=paths,
-        )
-        # TODO: optional
-        Tensor.realize(*optimizer.schedule_lr_scale_update(direction_vectors))
-        return [
-            {key: params.realize() for key, params in delta.items()}
-            for delta in direction_vectors
-        ]
-
-    @TinyJit
-    def lr_scale_optimize_step(
-        direction_vectors: list[dict[str, Tensor]] | None, learning_rates: Tensor | None
-    ):
-        Tensor.realize(
-            *optimizer.schedule_weight_update(
-                direction_delta=direction_vectors, learning_rates=learning_rates
-            )
-        )
-        Tensor.realize(*optimizer.schedule_seeds_update())
-        Tensor.realize(*optimizer.schedule_delta_update())
 
     @TinyJit
     def optimize_step(
