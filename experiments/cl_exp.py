@@ -30,6 +30,7 @@ def main():
                 probe_scale=1e-1,
                 marketplace=marketplace,
                 manual_seed=42,
+                checkpoint_filepath=checkpoint_file,
             )
 
 
