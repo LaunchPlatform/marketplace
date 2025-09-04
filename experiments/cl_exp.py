@@ -33,6 +33,8 @@ def main():
                 manual_seed=42,
                 checkpoint_filepath=checkpoint_file,
             )
+    else:
+        logger.info("Checkpoint file %s already exists, skip", checkpoint_file)
     with mlflow.start_run(
         run_name="learn",
         experiment_id=exp_id,
