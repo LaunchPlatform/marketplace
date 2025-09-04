@@ -243,15 +243,9 @@ def train(
 
         start_time = time.perf_counter()
 
-        sample_batches = Tensor.randint(
-            current_forward_pass, batch_size, high=X_train.shape[0]
-        ).realize()
+        loss, accuracy, paths = forward_step()
 
-        loss, accuracy, paths = forward_step(sample_batches[0])
-
-        best_loss, best_accuracy = optimize_step(
-            samples=sample_batches[0], loss=loss, paths=paths
-        )
+        best_loss, best_accuracy = optimize_step()
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
