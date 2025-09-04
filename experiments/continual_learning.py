@@ -174,10 +174,18 @@ def train(
         )
         loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
         old_accuracy = (
-            (logits[: len(old_samples)].argmax(axis=1) == combined_y).sum() / batch_size
+            (
+                logits[: len(old_samples)].argmax(axis=1)
+                == combined_y[: len(old_samples)]
+            ).sum()
+            / batch_size
         ) * 100
         new_accuracy = (
-            (logits[len(old_samples) :].argmax(axis=1) == combined_y).sum() / batch_size
+            (
+                logits[len(old_samples) :].argmax(axis=1)
+                == combined_y[len(old_samples) :]
+            ).sum()
+            / batch_size
         ) * 100
         return (
             loss.realize(),
