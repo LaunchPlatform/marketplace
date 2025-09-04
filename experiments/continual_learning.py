@@ -238,15 +238,15 @@ def train(
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
-            old_test_acc, new_test_acc = get_test_acc().item()
+            old_test_acc, new_test_acc = get_test_acc()
             mlflow.log_metric("training/old_loss", old_loss.item(), step=i)
             mlflow.log_metric("training/old_accuracy", old_accuracy.item(), step=i)
             mlflow.log_metric("training/new_loss", new_loss.item(), step=i)
             mlflow.log_metric("training/new_accuracy", new_accuracy.item(), step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
-            mlflow.log_metric("testing/old_accuracy", old_test_acc, step=i)
-            mlflow.log_metric("testing/new_accuracy", new_test_acc, step=i)
+            mlflow.log_metric("testing/old_accuracy", old_test_acc.item(), step=i)
+            mlflow.log_metric("testing/new_accuracy", new_test_acc.item(), step=i)
 
         if checkpoint_filepath is not None and i % checkpoint_per_steps == (
             checkpoint_per_steps - 1
@@ -259,7 +259,8 @@ def train(
 
         t.set_description(
             f"loss: {old_loss.item():6.2f}/{new_loss.item():6.2f}, rl: {lr.item():.2e}, "
-            f"acc: {old_accuracy.item():.2f}%/{new_accuracy.item():.2f}, vacc: {old_test_acc:.2f}%/{new_test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
+            f"acc: {old_accuracy.item():.2f}%/{new_accuracy.item():.2f}, "
+            f"vacc: {old_test_acc.item():.2f}%/{new_test_acc.item():.2f}%, {gflops:9,.2f} GFLOPS"
         )
     if i is not None and checkpoint_filepath is not None:
         write_checkpoint(
