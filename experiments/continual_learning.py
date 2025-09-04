@@ -1,5 +1,4 @@
 # model based off https://medium.com/data-science/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
-import functools
 import logging
 import pathlib
 import sys
@@ -12,7 +11,6 @@ from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
 from tinygrad import TinyJit
-from tinygrad.helpers import getenv
 from tinygrad.helpers import trange
 from tinygrad.nn import Conv2d
 from tinygrad.nn import InstanceNorm
