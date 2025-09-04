@@ -163,6 +163,16 @@ def train(
         combined_x = Tensor.cat(x, fashion_x)
         combined_y = Tensor.cat(y, fashion_y)
 
+        batch_paths = Tensor.stack(
+            *(
+                Tensor.randint(
+                    batch_size, low=0, high=spec.vendor_count, dtype=dtypes.uint
+                )
+                for spec in marketplace
+            ),
+            dim=0,
+        )
+
         batch_logits, batch_paths = forward(
             marketplace=marketplace,
             vendors=optimizer.vendors,
