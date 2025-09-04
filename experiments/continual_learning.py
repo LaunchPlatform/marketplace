@@ -313,6 +313,11 @@ def train(
     help="The scale we use to apply on LR for making the reconciled delta direction",
 )
 @click.option(
+    "--input-checkpoint-filepath",
+    type=click.Path(dir_okay=False, readable=True, exists=True),
+    help="Filepath of checkpoint to read from",
+)
+@click.option(
     "--checkpoint-filepath",
     type=click.Path(dir_okay=False, writable=True),
     help="Filepath of checkpoint to write to",
@@ -333,6 +338,7 @@ def main(
     vendor_count: int,
     seed: int | None,
     probe_scale: float | None,
+    input_checkpoint_filepath: str,
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
     run_name: str | None,
@@ -359,6 +365,11 @@ def main(
                 default_vendor_count=vendor_count,
             ),
             marketplace_replica=marketplace_replica,
+            input_checkpoint_filepath=(
+                pathlib.Path(input_checkpoint_filepath)
+                if input_checkpoint_filepath is not None
+                else None
+            ),
             checkpoint_filepath=(
                 pathlib.Path(checkpoint_filepath)
                 if checkpoint_filepath is not None
