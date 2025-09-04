@@ -173,7 +173,7 @@ def train(
             deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
         loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
-        accuracy = ((logits.argmax(axis=1) == combined_y) / batch_size) * 100
+        accuracy = ((logits.argmax(axis=1) == combined_y).sum() / batch_size) * 100
         return (
             loss.realize(),
             accuracy.realize(),
