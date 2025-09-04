@@ -260,7 +260,7 @@ def train(
 
         t.set_description(
             f"loss: {old_loss.item():6.2f}/{new_loss.item():6.2f}, rl: {lr.item():.2e}, "
-            f"acc: {old_accuracy.item():.2f}%/{new_accuracy.item():.2f}, "
+            f"acc: {old_accuracy.item():.2f}%/{new_accuracy.item():.2f}%, "
             f"vacc: {old_test_acc:.2f}%/{new_test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
         )
     if i is not None and checkpoint_filepath is not None:
