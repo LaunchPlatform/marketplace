@@ -222,19 +222,21 @@ def train(
 
         start_time = time.perf_counter()
 
-        train_size = batch_size - new_train_size
-        samples = Tensor.randint(train_size, low=0, high=train_size, dtype=dtypes.uint)
-        fashion_samples = Tensor.randint(
+        old_train_size = batch_size - new_train_size
+        old_samples = Tensor.randint(
+            old_train_size, low=0, high=old_train_size, dtype=dtypes.uint
+        )
+        new_samples = Tensor.randint(
             new_train_size, low=0, high=new_train_size, dtype=dtypes.uint
         )
         loss, accuracy, paths = forward_step(
-            old_samples=samples, new_samples=fashion_samples
+            old_samples=old_samples, new_samples=new_samples
         )
 
-        old_loss = loss[:train_size].mean()
-        old_accuracy = accuracy[:train_size].mean()
-        new_loss = loss[train_size:].mean()
-        new_accuracy = accuracy[train_size:].mean()
+        old_loss = loss[:old_train_size].mean()
+        old_accuracy = accuracy[:old_train_size].mean()
+        new_loss = loss[old_train_size:].mean()
+        new_accuracy = accuracy[old_train_size:].mean()
 
         optimize_step(loss, paths)
 
