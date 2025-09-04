@@ -173,26 +173,14 @@ def train(
             dim=1,
         )
 
-        batch_logits = forward_with_paths(
+        logits = forward_with_paths(
             marketplace=marketplace,
             paths=batch_paths,
             x=combined_x,
             deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
-        loss = Tensor.stack(
-            *(
-                logits.sparse_categorical_crossentropy(combined_y)
-                for logits in batch_logits
-            ),
-            dim=0,
-        )
-        accuracy = Tensor.stack(
-            *(
-                ((logits.argmax(axis=1) == combined_y).sum() / batch_size) * 100
-                for logits in batch_logits
-            ),
-            dim=0,
-        )
+        loss = logits.sparse_categorical_crossentropy(combined_y)
+        accuracy = ((logits.argmax(axis=1) == combined_y).sum() / batch_size) * 100
         return (
             loss.realize(),
             accuracy.realize(),
