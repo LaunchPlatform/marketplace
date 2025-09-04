@@ -40,7 +40,7 @@ def main():
             for lr in [1e-2, 3e-2, 5e-2, 7e-2]:
                 for probe_scale in [1e-1, 1e-2, 1e-3]:
                     with mlflow.start_run(
-                        run_name=f"learn-vendor-{learn_vendor_count}-lr-{lr:.1e}-fw-{fw}-probe-scale-{probe_scale}",
+                        run_name=f"learn-vendor-{learn_vendor_count}-lr-{lr:.1e}-fw-{fw}-probe-scale-{probe_scale:.1e}",
                         experiment_id=exp_id,
                         log_system_metrics=True,
                     ):
