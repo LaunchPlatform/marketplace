@@ -35,26 +35,28 @@ def main():
             )
     else:
         logger.info("Checkpoint file %s already exists, skip", checkpoint_file)
-    with mlflow.start_run(
-        run_name="learn",
-        experiment_id=exp_id,
-        log_system_metrics=True,
-    ):
-        learn_vendor_count = 8
-        marketplace = make_marketplace(default_vendor_count=learn_vendor_count)
-        mlflow.log_param("vendor_count", learn_vendor_count)
-        learn(
-            step_count=2_000,
-            batch_size=256,
-            target_new_classes=(3,),
-            new_train_size=32,
-            initial_lr=1e-1,
-            lr_decay_rate=0,
-            probe_scale=1e-1,
-            marketplace=marketplace,
-            manual_seed=42,
-            input_checkpoint_filepath=checkpoint_file,
-        )
+    for forward_pass in [1, 2, 4, 8, 16]:
+        with mlflow.start_run(
+            run_name="learn",
+            experiment_id=exp_id,
+            log_system_metrics=True,
+        ):
+            learn_vendor_count = 8
+            marketplace = make_marketplace(default_vendor_count=learn_vendor_count)
+            mlflow.log_param("vendor_count", learn_vendor_count)
+            learn(
+                step_count=2_000,
+                batch_size=256,
+                target_new_classes=(3,),
+                new_train_size=32,
+                initial_lr=1e-1,
+                lr_decay_rate=0,
+                probe_scale=1e-1,
+                forward_pass=forward_pass,
+                marketplace=marketplace,
+                manual_seed=42,
+                input_checkpoint_filepath=checkpoint_file,
+            )
 
 
 if __name__ == "__main__":
