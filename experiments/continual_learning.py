@@ -82,7 +82,7 @@ def train(
     lr_decay_rate: float,
     marketplace: list[Spec],
     target_fashion_class: int = 3,
-    fashion_train_size: int = 64,
+    fashion_train_size: int = 8,
     probe_scale: float | None = None,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
@@ -148,15 +148,12 @@ def train(
     )
 
     @TinyJit
-    def forward_step() -> tuple[Tensor, Tensor, Tensor]:
-        train_size = batch_size - fashion_train_size
-        samples = Tensor.randint(train_size, low=0, high=train_size, dtype=dtypes.uint)
+    def forward_step(
+        samples: Tensor, fashion_samples: Tensor
+    ) -> tuple[Tensor, Tensor, Tensor]:
         x = X_train[samples]
         y = Y_train[samples]
 
-        fashion_samples = Tensor.randint(
-            fashion_train_size, low=0, high=fashion_train_size, dtype=dtypes.uint
-        )
         fashion_x = target_fashion_X_train[fashion_samples]
         fashion_y = target_fashion_Y_train[fashion_samples]
 
@@ -188,9 +185,7 @@ def train(
         )
 
     @TinyJit
-    def optimize_step(
-        samples: Tensor, loss: Tensor, paths: Tensor
-    ) -> tuple[Tensor, Tensor]:
+    def optimize_step(loss: Tensor, paths: Tensor):
         direction_vectors = optimizer.compute_direction_vectors(
             loss=loss,
             paths=paths,
@@ -202,14 +197,6 @@ def train(
         )
         Tensor.realize(*optimizer.schedule_seeds_update())
         Tensor.realize(*optimizer.schedule_delta_update())
-
-        # let's run forward pass again to see accuracy and loss
-        x = X_train[samples]
-        y = Y_train[samples]
-        logits = straight_forward(marketplace, x)
-        loss = logits.sparse_categorical_crossentropy(y)
-        accuracy = ((logits.argmax(axis=1) == y).sum() / batch_size) * 100
-        return loss.realize(), accuracy.realize()
 
     @TinyJit
     def get_test_acc() -> Tensor:
@@ -231,9 +218,21 @@ def train(
 
         start_time = time.perf_counter()
 
-        loss, accuracy, paths = forward_step()
+        train_size = batch_size - fashion_train_size
+        samples = Tensor.randint(train_size, low=0, high=train_size, dtype=dtypes.uint)
+        fashion_samples = Tensor.randint(
+            fashion_train_size, low=0, high=fashion_train_size, dtype=dtypes.uint
+        )
+        loss, accuracy, paths = forward_step(
+            samples=samples, fashion_samples=fashion_samples
+        )
 
-        best_loss, best_accuracy = optimize_step()
+        old_loss = loss[:train_size].mean()
+        old_accuracy = accuracy[:train_size].mean()
+        new_loss = loss[train_size:].mean()
+        new_accuracy = accuracy[train_size:].mean()
+
+        optimize_step(loss, paths)
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
@@ -242,9 +241,10 @@ def train(
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
             test_acc = get_test_acc().item()
-            mlflow.log_metric("training/loss", best_loss.item(), step=i)
-            mlflow.log_metric("training/accuracy", best_accuracy.item(), step=i)
-            mlflow.log_metric("training/forward_pass", current_forward_pass, step=i)
+            mlflow.log_metric("training/old_loss", old_loss.item(), step=i)
+            mlflow.log_metric("training/old_accuracy", old_accuracy.item(), step=i)
+            mlflow.log_metric("training/new_loss", new_loss.item(), step=i)
+            mlflow.log_metric("training/new_accuracy", new_accuracy.item(), step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
             mlflow.log_metric("testing/accuracy", test_acc, step=i)
@@ -272,7 +272,7 @@ def train(
 
 @click.command()
 @click.option("--step-count", type=int, default=10_000, help="How many steps to run")
-@click.option("--batch-size", type=int, default=512, help="Size of batch")
+@click.option("--batch-size", type=int, default=32, help="Size of batch")
 @click.option(
     "--initial-lr", type=float, default=1e-1, help="Initial learning rate value"
 )
