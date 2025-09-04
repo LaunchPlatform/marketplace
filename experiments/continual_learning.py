@@ -7,6 +7,7 @@ import time
 
 import click
 import mlflow
+from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
 from tinygrad import TinyJit
@@ -81,6 +82,7 @@ def train(
     lr_decay_rate: float,
     marketplace: list[Spec],
     target_fashion_class: int = 3,
+    fashion_train_size: int = 64,
     probe_scale: float | None = None,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
@@ -92,14 +94,15 @@ def train(
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "target_fashion_class=%s, probe_scale=%s, marketplace_replica=%s, initial_forward_pass=%s, "
-        "forward_pass_schedule=%s, metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, "
-        "manual_seed=%s",
+        "target_fashion_class=%s, fashion_train_size=%s, probe_scale=%s, marketplace_replica=%s, "
+        "initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, checkpoint_filepath=%s, "
+        "checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
         target_fashion_class,
+        fashion_train_size,
         probe_scale,
         marketplace_replica,
         initial_forward_pass,
@@ -117,6 +120,7 @@ def train(
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     mlflow.log_param("target_fashion_class", target_fashion_class)
+    mlflow.log_param("fashion_train_size", fashion_train_size)
     mlflow.log_param("probe_scale", probe_scale)
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
@@ -144,9 +148,21 @@ def train(
     )
 
     @TinyJit
-    def forward_step(samples: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+    def forward_step() -> tuple[Tensor, Tensor, Tensor]:
+        train_size = batch_size - fashion_train_size
+        samples = Tensor.randint(train_size, low=0, high=train_size, dtype=dtypes.uint)
         x = X_train[samples]
         y = Y_train[samples]
+
+        fashion_samples = Tensor.randint(
+            fashion_train_size, low=0, high=fashion_train_size, dtype=dtypes.uint
+        )
+        fashion_x = target_fashion_X_train[fashion_samples]
+        fashion_y = target_fashion_Y_train[fashion_samples]
+
+        combined_x = Tensor.cat(x, fashion_x)
+        combined_y = Tensor.cat(y, fashion_y)
+
         batch_logits, batch_paths = forward(
             marketplace=marketplace,
             vendors=optimizer.vendors,
