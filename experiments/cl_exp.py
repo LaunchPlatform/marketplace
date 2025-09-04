@@ -37,7 +37,7 @@ def main():
         logger.info("Checkpoint file %s already exists, skip", checkpoint_file)
     for forward_pass in [1, 2, 4, 8, 16]:
         with mlflow.start_run(
-            run_name="learn",
+            run_name=f"learn-fw-{forward_pass}",
             experiment_id=exp_id,
             log_system_metrics=True,
         ):
