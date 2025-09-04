@@ -264,10 +264,10 @@ def learn(
 
         optimize_step(Tensor.cat(*all_loss), Tensor.cat(*all_paths))
 
-        old_loss = Tensor.cat(*all_old_loss).mean()
-        old_accuracy = Tensor.cat(*all_old_accuracy).mean()
-        new_loss = Tensor.cat(*all_new_loss).mean()
-        new_accuracy = Tensor.cat(*all_new_accuracy).mean()
+        old_loss = Tensor.stack(*all_old_loss).mean()
+        old_accuracy = Tensor.stack(*all_old_accuracy).mean()
+        new_loss = Tensor.stack(*all_new_loss).mean()
+        new_accuracy = Tensor.stack(*all_new_accuracy).mean()
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
