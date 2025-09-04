@@ -129,12 +129,12 @@ def train(
     X_train, Y_train, X_test, Y_test = mnist()
     fasion_X_train, fasion_Y_train, fasion_X_test, fasion_Y_test = mnist(fashion=True)
 
-    class_mask = fasion_Y_test == target_fashion_class
-    target_fashion_X_train = fasion_X_train.masked_select(class_mask).realize()
-    target_fashion_Y_train = fasion_Y_train.masked_select(class_mask).realize()
-    class_mask = fasion_Y_test == target_fashion_class
-    target_fashion_X_test = fasion_X_test.masked_select(class_mask).realize()
-    target_fashion_Y_test = fasion_Y_test.masked_select(class_mask).realize()
+    class_mask = fasion_Y_train.numpy() == target_fashion_class
+    target_fashion_X_train = Tensor(fasion_X_train.numpy()[class_mask])
+    target_fashion_Y_train = Tensor(fasion_Y_train.numpy()[class_mask])
+    class_mask = fasion_Y_test.numpy() == target_fashion_class
+    target_fashion_X_test = Tensor(fasion_X_test.numpy()[class_mask])
+    target_fashion_Y_test = Tensor(fasion_Y_test.numpy()[class_mask])
 
     lr = Tensor(initial_lr).contiguous().realize()
     optimizer = Optimizer(
