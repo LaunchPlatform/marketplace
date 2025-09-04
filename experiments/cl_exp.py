@@ -35,28 +35,29 @@ def main():
             )
     else:
         logger.info("Checkpoint file %s already exists, skip", checkpoint_file)
-    for lr in [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]:
-        with mlflow.start_run(
-            run_name=f"learn-lr-{lr:.1e}",
-            experiment_id=exp_id,
-            log_system_metrics=True,
-        ):
-            learn_vendor_count = 8
-            marketplace = make_marketplace(default_vendor_count=learn_vendor_count)
-            mlflow.log_param("vendor_count", learn_vendor_count)
-            learn(
-                step_count=2_000,
-                batch_size=256,
-                target_new_classes=(3,),
-                new_train_size=32,
-                initial_lr=lr,
-                lr_decay_rate=0,
-                probe_scale=1e-1,
-                forward_pass=1,
-                marketplace=marketplace,
-                manual_seed=42,
-                input_checkpoint_filepath=checkpoint_file,
-            )
+    for fw in [1, 2, 4, 8, 16]:
+        for lr in [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]:
+            with mlflow.start_run(
+                run_name=f"learn-lr-{lr:.1e}-fw-{fw}",
+                experiment_id=exp_id,
+                log_system_metrics=True,
+            ):
+                learn_vendor_count = 8
+                marketplace = make_marketplace(default_vendor_count=learn_vendor_count)
+                mlflow.log_param("vendor_count", learn_vendor_count)
+                learn(
+                    step_count=2_000,
+                    batch_size=256,
+                    target_new_classes=(3,),
+                    new_train_size=32,
+                    initial_lr=lr,
+                    lr_decay_rate=0,
+                    probe_scale=1e-1,
+                    forward_pass=fw,
+                    marketplace=marketplace,
+                    manual_seed=42,
+                    input_checkpoint_filepath=checkpoint_file,
+                )
 
 
 if __name__ == "__main__":
