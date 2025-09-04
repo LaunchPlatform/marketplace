@@ -57,6 +57,8 @@ def load_checkpoint(
         load_state_dict(spec.model, spec_params)
 
     global_step = state.pop("global_step", None)
+    if global_step is not None:
+        global_step = global_step.item()
     logger.info(
         "Loaded checkpoint with global_step %s from %s", global_step, input_filepath
     )

@@ -84,7 +84,7 @@ def learn(
     target_new_classes: tuple[int] = (3,),
     new_train_size: int = 8,
     probe_scale: float | None = None,
-    marketplace_replica: int = 1,
+    forward_pass: int = 1,
     metrics_per_steps: int = 10,
     input_checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_filepath: pathlib.Path | None = None,
@@ -93,7 +93,7 @@ def learn(
 ):
     logger.info(
         "Running beautiful MNIST continual learning with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "target_new_classes=%s, new_train_size=%s, probe_scale=%s, marketplace_replica=%s, metrics_per_steps=%s, "
+        "target_new_classes=%s, new_train_size=%s, probe_scale=%s, forward_pass=%s, metrics_per_steps=%s, "
         "input_checkpoint_filepath=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
@@ -102,7 +102,7 @@ def learn(
         target_new_classes,
         new_train_size,
         probe_scale,
-        marketplace_replica,
+        forward_pass,
         metrics_per_steps,
         input_checkpoint_filepath,
         checkpoint_filepath,
@@ -112,7 +112,7 @@ def learn(
 
     mlflow.log_param("step_count", step_count)
     mlflow.log_param("batch_size", batch_size)
-    mlflow.log_param("marketplace_replica", marketplace_replica)
+    mlflow.log_param("forward_pass", forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     mlflow.log_param("target_new_classes", target_new_classes)
@@ -242,14 +242,32 @@ def learn(
         new_samples = Tensor.randint(
             new_train_size, low=0, high=new_train_size, dtype=dtypes.uint
         )
-        loss, old_accuracy, new_accuracy, paths = forward_step(
-            old_samples=old_samples, new_samples=new_samples
-        )
 
-        old_loss = loss[:old_train_size].mean()
-        new_loss = loss[old_train_size:].mean()
+        all_loss = []
+        all_paths = []
+        all_old_loss = []
+        all_old_accuracy = []
+        all_new_loss = []
+        all_new_accuracy = []
+        for _ in range(forward_pass):
+            loss, old_accuracy, new_accuracy, paths = forward_step(
+                old_samples=old_samples, new_samples=new_samples
+            )
+            old_loss = loss[:old_train_size].mean()
+            new_loss = loss[old_train_size:].mean()
+            all_loss.append(loss)
+            all_paths.append(paths)
+            all_old_loss.append(old_loss)
+            all_old_accuracy.append(old_accuracy)
+            all_new_loss.append(new_loss)
+            all_new_accuracy.append(new_accuracy)
 
-        optimize_step(loss, paths)
+        optimize_step(Tensor.cat(*all_loss), Tensor.cat(all_paths))
+
+        old_loss = Tensor.cat(*all_old_loss).mean()
+        old_accuracy = Tensor.cat(*all_old_accuracy).mean()
+        new_loss = Tensor.cat(*all_new_loss).mean()
+        new_accuracy = Tensor.cat(*all_new_accuracy).mean()
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
