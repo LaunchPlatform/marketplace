@@ -316,12 +316,6 @@ def learn(
     "--initial-lr", type=float, default=1e-1, help="Initial learning rate value"
 )
 @click.option("--lr-decay", type=float, default=1e-5, help="Learning rate decay rate")
-@click.option(
-    "--marketplace-replica",
-    type=int,
-    default=1,
-    help="How many marketplace replica to run (simulate distributed computing)",
-)
 @click.option("--vendor-count", type=int, default=8, help="Vendor count")
 @click.option("--seed", type=int, help="Set the random seed")
 @click.option(
@@ -352,7 +346,6 @@ def main(
     batch_size: int,
     initial_lr: float,
     lr_decay: float,
-    marketplace_replica: int,
     vendor_count: int,
     seed: int | None,
     probe_scale: float | None,
@@ -382,7 +375,6 @@ def main(
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count,
             ),
-            marketplace_replica=marketplace_replica,
             input_checkpoint_filepath=(
                 pathlib.Path(input_checkpoint_filepath)
                 if input_checkpoint_filepath is not None
