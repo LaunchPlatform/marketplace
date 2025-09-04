@@ -23,6 +23,7 @@ from marketplace.nn import Model
 from marketplace.optimizers import Optimizer
 from marketplace.training import Spec
 from marketplace.training import straight_forward
+from marketplace.utils import load_checkpoint
 from marketplace.utils import write_checkpoint
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,7 @@ def train(
     probe_scale: float | None = None,
     marketplace_replica: int = 1,
     metrics_per_steps: int = 10,
+    input_checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
     manual_seed: int | None = None,
@@ -92,7 +94,7 @@ def train(
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
         "target_new_classes=%s, new_train_size=%s, probe_scale=%s, marketplace_replica=%s, metrics_per_steps=%s, "
-        "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
+        "input_checkpoint_filepath=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
@@ -102,6 +104,7 @@ def train(
         probe_scale,
         marketplace_replica,
         metrics_per_steps,
+        input_checkpoint_filepath,
         checkpoint_filepath,
         checkpoint_per_steps,
         manual_seed,
@@ -118,6 +121,11 @@ def train(
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
     mlflow.log_param("manual_seed", manual_seed)
+
+    if input_checkpoint_filepath is not None:
+        load_checkpoint(
+            marketplace=marketplace, input_filepath=input_checkpoint_filepath
+        )
 
     if manual_seed is not None:
         Tensor.manual_seed(manual_seed)
