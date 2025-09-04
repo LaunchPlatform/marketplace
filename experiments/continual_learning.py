@@ -81,8 +81,8 @@ def train(
     initial_lr: float,
     lr_decay_rate: float,
     marketplace: list[Spec],
-    target_fashion_class: int = 3,
-    fashion_train_size: int = 8,
+    target_new_class: int = 3,
+    new_train_size: int = 8,
     probe_scale: float | None = None,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
@@ -94,15 +94,15 @@ def train(
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "target_fashion_class=%s, fashion_train_size=%s, probe_scale=%s, marketplace_replica=%s, "
+        "target_new_class=%s, new_train_size=%s, probe_scale=%s, marketplace_replica=%s, "
         "initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, checkpoint_filepath=%s, "
         "checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
-        target_fashion_class,
-        fashion_train_size,
+        target_new_class,
+        new_train_size,
         probe_scale,
         marketplace_replica,
         initial_forward_pass,
@@ -119,8 +119,8 @@ def train(
     mlflow.log_param("initial_forward_pass", initial_forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
-    mlflow.log_param("target_fashion_class", target_fashion_class)
-    mlflow.log_param("fashion_train_size", fashion_train_size)
+    mlflow.log_param("target_new_class", target_new_class)
+    mlflow.log_param("new_train_size", new_train_size)
     mlflow.log_param("probe_scale", probe_scale)
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
@@ -131,14 +131,20 @@ def train(
         Tensor.manual_seed(manual_seed)
 
     X_train, Y_train, X_test, Y_test = mnist()
-    fasion_X_train, fasion_Y_train, fasion_X_test, fasion_Y_test = mnist(fashion=True)
+    new_X_train, new_Y_train, new_X_test, new_Y_test = mnist(fashion=True)
 
-    class_mask = fasion_Y_train.numpy() == target_fashion_class
-    target_fashion_X_train = Tensor(fasion_X_train.numpy()[class_mask])
-    target_fashion_Y_train = Tensor(fasion_Y_train.numpy()[class_mask])
-    class_mask = fasion_Y_test.numpy() == target_fashion_class
-    target_fashion_X_test = Tensor(fasion_X_test.numpy()[class_mask])
-    target_fashion_Y_test = Tensor(fasion_Y_test.numpy()[class_mask])
+    if target_new_class is not None:
+        class_mask = new_Y_train.numpy() == target_new_class
+        target_new_X_train = Tensor(new_X_train.numpy()[class_mask])
+        target_new_Y_train = Tensor(new_Y_train.numpy()[class_mask])
+        class_mask = new_Y_test.numpy() == target_new_class
+        target_new_X_test = Tensor(new_X_test.numpy()[class_mask])
+        target_new_Y_test = Tensor(new_Y_test.numpy()[class_mask])
+    else:
+        target_new_X_train = new_X_train
+        target_new_Y_train = new_Y_train
+        target_new_X_test = new_X_test
+        target_new_Y_test = new_Y_test
 
     lr = Tensor(initial_lr).contiguous().realize()
     optimizer = Optimizer(
@@ -149,16 +155,14 @@ def train(
 
     @TinyJit
     def forward_step(
-        samples: Tensor, fashion_samples: Tensor
+        old_samples: Tensor, new_samples: Tensor
     ) -> tuple[Tensor, Tensor, Tensor]:
-        x = X_train[samples]
-        y = Y_train[samples]
-
-        fashion_x = target_fashion_X_train[fashion_samples]
-        fashion_y = target_fashion_Y_train[fashion_samples]
-
-        combined_x = Tensor.cat(x, fashion_x)
-        combined_y = Tensor.cat(y, fashion_y)
+        old_x = X_train[old_samples]
+        old_y = Y_train[old_samples]
+        new_x = target_new_X_train[new_samples]
+        new_y = target_new_Y_train[new_samples]
+        combined_x = Tensor.cat(old_x, new_x)
+        combined_y = Tensor.cat(old_y, new_y)
 
         batch_paths = Tensor.stack(
             *(
@@ -218,13 +222,13 @@ def train(
 
         start_time = time.perf_counter()
 
-        train_size = batch_size - fashion_train_size
+        train_size = batch_size - new_train_size
         samples = Tensor.randint(train_size, low=0, high=train_size, dtype=dtypes.uint)
         fashion_samples = Tensor.randint(
-            fashion_train_size, low=0, high=fashion_train_size, dtype=dtypes.uint
+            new_train_size, low=0, high=new_train_size, dtype=dtypes.uint
         )
         loss, accuracy, paths = forward_step(
-            samples=samples, fashion_samples=fashion_samples
+            old_samples=samples, new_samples=fashion_samples
         )
 
         old_loss = loss[:train_size].mean()
