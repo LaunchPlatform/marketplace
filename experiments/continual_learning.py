@@ -173,7 +173,7 @@ def train(
             deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
         loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
-        accuracy = (logits.argmax(axis=1) == combined_y) * 100
+        accuracy = ((logits.argmax(axis=1) == combined_y) / batch_size) * 100
         return (
             loss.realize(),
             accuracy.realize(),
@@ -196,15 +196,14 @@ def train(
 
     @TinyJit
     def get_test_acc() -> tuple[Tensor, Tensor]:
-        return (
-            (straight_forward(marketplace, X_test).argmax(axis=1) == Y_test).mean()
-            * 100,
-            (
-                straight_forward(marketplace, target_new_X_test).argmax(axis=1)
-                == target_new_Y_test
-            ).mean()
-            * 100,
-        )
+        old = (
+            straight_forward(marketplace, X_test).argmax(axis=1) == Y_test
+        ).mean() * 100
+        new = (
+            straight_forward(marketplace, target_new_X_test).argmax(axis=1)
+            == target_new_Y_test
+        ).mean() * 100
+        return old.realize(), new.realize()
 
     i = 0
     old_test_acc = float("nan")
