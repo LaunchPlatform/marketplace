@@ -28,11 +28,6 @@ from marketplace.utils import write_checkpoint
 logger = logging.getLogger(__name__)
 
 
-@functools.cache
-def load_data():
-    return mnist(fashion=getenv("FASHION"))
-
-
 def make_marketplace(
     structure: list[tuple[int, int]] | None = None,
     default_vendor_count: int = 8,
@@ -127,7 +122,9 @@ def train(
     if manual_seed is not None:
         Tensor.manual_seed(manual_seed)
 
-    X_train, Y_train, X_test, Y_test = load_data()
+    X_train, Y_train, X_test, Y_test = mnist()
+    fasion_X_train, fasion_Y_train, fasion_X_test, fasion_Y_test = mnist(fashion=True)
+
     lr = Tensor(initial_lr).contiguous().realize()
     optimizer = Optimizer(
         marketplace=marketplace,
