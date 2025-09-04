@@ -188,7 +188,7 @@ def train(
         )
         accuracy = Tensor.stack(
             *(
-                ((logits.argmax(axis=1) == y).sum() / batch_size) * 100
+                ((logits.argmax(axis=1) == combined_y).sum() / batch_size) * 100
                 for logits in batch_logits
             ),
             dim=0,
@@ -247,8 +247,7 @@ def train(
             current_forward_pass, batch_size, high=X_train.shape[0]
         ).realize()
 
-        # direction probing forward pass
-        loss, _, paths = forward_step(sample_batches[0])
+        loss, accuracy, paths = forward_step(sample_batches[0])
 
         best_loss, best_accuracy = optimize_step(
             samples=sample_batches[0], loss=loss, paths=paths
