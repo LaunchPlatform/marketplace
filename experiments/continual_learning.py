@@ -148,7 +148,7 @@ def train(
     @TinyJit
     def forward_step(
         old_samples: Tensor, new_samples: Tensor
-    ) -> tuple[Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         old_x = X_train[old_samples]
         old_y = Y_train[old_samples]
         new_x = target_new_X_train[new_samples]
@@ -173,10 +173,16 @@ def train(
             deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
         loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
-        accuracy = ((logits.argmax(axis=1) == combined_y).sum() / batch_size) * 100
+        old_accuracy = (
+            (logits[: len(old_samples)].argmax(axis=1) == combined_y).sum() / batch_size
+        ) * 100
+        new_accuracy = (
+            (logits[len(old_samples) :].argmax(axis=1) == combined_y).sum() / batch_size
+        ) * 100
         return (
             loss.realize(),
-            accuracy.realize(),
+            old_accuracy.realize(),
+            new_accuracy.realize(),
             batch_paths.realize(),
         )
 
@@ -220,14 +226,12 @@ def train(
         new_samples = Tensor.randint(
             new_train_size, low=0, high=new_train_size, dtype=dtypes.uint
         )
-        loss, accuracy, paths = forward_step(
+        loss, old_accuracy, new_accuracy, paths = forward_step(
             old_samples=old_samples, new_samples=new_samples
         )
 
         old_loss = loss[:old_train_size].mean()
-        old_accuracy = accuracy[:old_train_size].mean()
         new_loss = loss[old_train_size:].mean()
-        new_accuracy = accuracy[old_train_size:].mean()
 
         optimize_step(loss, paths)
 
