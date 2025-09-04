@@ -36,7 +36,7 @@ def main():
     else:
         logger.info("Checkpoint file %s already exists, skip", checkpoint_file)
     for fw in [1, 2, 4, 8, 16]:
-        for lr in [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]:
+        for lr in [1e-2, 3e-2, 5e-2, 7e-2]:
             with mlflow.start_run(
                 run_name=f"learn-lr-{lr:.1e}-fw-{fw}",
                 experiment_id=exp_id,
