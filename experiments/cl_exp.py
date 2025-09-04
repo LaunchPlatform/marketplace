@@ -23,7 +23,7 @@ def main():
             marketplace = make_marketplace(default_vendor_count=train_vendor_count)
             mlflow.log_param("vendor_count", train_vendor_count)
             train(
-                step_count=1_000,
+                step_count=2_000,
                 batch_size=512,
                 initial_lr=1e-1,
                 lr_decay_rate=1e-5,

@@ -75,7 +75,7 @@ def make_marketplace(
     ]
 
 
-def train(
+def learn(
     step_count: int,
     batch_size: int,
     initial_lr: float,
@@ -92,7 +92,7 @@ def train(
     manual_seed: int | None = None,
 ):
     logger.info(
-        "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
+        "Running beautiful MNIST continual learning with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
         "target_new_classes=%s, new_train_size=%s, probe_scale=%s, marketplace_replica=%s, metrics_per_steps=%s, "
         "input_checkpoint_filepath=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
@@ -354,7 +354,7 @@ def main(
         run_name="beautiful-mnist" if run_name is None else run_name,
     ):
         mlflow.log_param("vendor_count", vendor_count)
-        train(
+        learn(
             step_count=step_count,
             batch_size=batch_size,
             initial_lr=initial_lr,
