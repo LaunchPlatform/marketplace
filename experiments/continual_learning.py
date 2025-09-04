@@ -262,7 +262,7 @@ def learn(
             all_new_loss.append(new_loss)
             all_new_accuracy.append(new_accuracy)
 
-        optimize_step(Tensor.cat(*all_loss), Tensor.cat(all_paths))
+        optimize_step(Tensor.cat(*all_loss), Tensor.cat(*all_paths))
 
         old_loss = Tensor.cat(*all_old_loss).mean()
         old_accuracy = Tensor.cat(*all_old_accuracy).mean()
