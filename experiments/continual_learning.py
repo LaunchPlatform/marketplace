@@ -7,6 +7,7 @@ import time
 
 import click
 import mlflow
+import numpy as np
 from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
@@ -81,12 +82,10 @@ def train(
     initial_lr: float,
     lr_decay_rate: float,
     marketplace: list[Spec],
-    target_new_class: int = 3,
+    target_new_classes: tuple[int] = (3,),
     new_train_size: int = 8,
     probe_scale: float | None = None,
     marketplace_replica: int = 1,
-    initial_forward_pass: int = 1,
-    forward_pass_schedule: list[tuple[int, int]] | None = None,
     metrics_per_steps: int = 10,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
@@ -94,20 +93,17 @@ def train(
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "target_new_class=%s, new_train_size=%s, probe_scale=%s, marketplace_replica=%s, "
-        "initial_forward_pass=%s, forward_pass_schedule=%s, metrics_per_steps=%s, checkpoint_filepath=%s, "
-        "checkpoint_per_steps=%s, manual_seed=%s",
+        "target_new_classes=%s, new_train_size=%s, probe_scale=%s, marketplace_replica=%s, metrics_per_steps=%s, "
+        "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
-        target_new_class,
+        target_new_classes,
         new_train_size,
         probe_scale,
         marketplace_replica,
-        initial_forward_pass,
         metrics_per_steps,
-        forward_pass_schedule,
         checkpoint_filepath,
         checkpoint_per_steps,
         manual_seed,
@@ -116,13 +112,11 @@ def train(
     mlflow.log_param("step_count", step_count)
     mlflow.log_param("batch_size", batch_size)
     mlflow.log_param("marketplace_replica", marketplace_replica)
-    mlflow.log_param("initial_forward_pass", initial_forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
-    mlflow.log_param("target_new_class", target_new_class)
+    mlflow.log_param("target_new_classes", target_new_classes)
     mlflow.log_param("new_train_size", new_train_size)
     mlflow.log_param("probe_scale", probe_scale)
-    mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
     mlflow.log_param("manual_seed", manual_seed)
@@ -133,11 +127,11 @@ def train(
     X_train, Y_train, X_test, Y_test = mnist()
     new_X_train, new_Y_train, new_X_test, new_Y_test = mnist(fashion=True)
 
-    if target_new_class is not None:
-        class_mask = new_Y_train.numpy() == target_new_class
+    if target_new_classes is not None:
+        class_mask = np.isin(new_Y_train.numpy(), target_new_classes)
         target_new_X_train = Tensor(new_X_train.numpy()[class_mask])
         target_new_Y_train = Tensor(new_Y_train.numpy()[class_mask])
-        class_mask = new_Y_test.numpy() == target_new_class
+        class_mask = np.isin(new_Y_test.numpy(), target_new_classes)
         target_new_X_test = Tensor(new_X_test.numpy()[class_mask])
         target_new_Y_test = Tensor(new_Y_test.numpy()[class_mask])
     else:
@@ -181,7 +175,7 @@ def train(
             deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
         loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
-        accuracy = ((logits.argmax(axis=1) == combined_y).sum() / batch_size) * 100
+        accuracy = (logits.argmax(axis=1) == combined_y) * 100
         return (
             loss.realize(),
             accuracy.realize(),
@@ -203,22 +197,22 @@ def train(
         Tensor.realize(*optimizer.schedule_delta_update())
 
     @TinyJit
-    def get_test_acc() -> Tensor:
+    def get_test_acc() -> tuple[Tensor, Tensor]:
         return (
-            straight_forward(marketplace, X_test).argmax(axis=1) == Y_test
-        ).mean() * 100
+            (straight_forward(marketplace, X_test).argmax(axis=1) == Y_test).mean()
+            * 100,
+            (
+                straight_forward(marketplace, target_new_X_test).argmax(axis=1)
+                == target_new_Y_test
+            ).mean()
+            * 100,
+        )
 
     i = 0
-    test_acc = float("nan")
-    current_forward_pass = initial_forward_pass
+    old_test_acc = float("nan")
+    new_test_acc = float("nan")
     for i in (t := trange(step_count)):
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
-
-        if forward_pass_schedule is not None:
-            for threshold, forward_pass in reversed(forward_pass_schedule):
-                if i >= threshold:
-                    current_forward_pass = forward_pass
-                    break
 
         start_time = time.perf_counter()
 
@@ -246,14 +240,15 @@ def train(
         gflops = GlobalCounters.global_ops * 1e-9 / run_time
 
         if i % metrics_per_steps == (metrics_per_steps - 1):
-            test_acc = get_test_acc().item()
+            old_test_acc, new_test_acc = get_test_acc().item()
             mlflow.log_metric("training/old_loss", old_loss.item(), step=i)
             mlflow.log_metric("training/old_accuracy", old_accuracy.item(), step=i)
             mlflow.log_metric("training/new_loss", new_loss.item(), step=i)
             mlflow.log_metric("training/new_accuracy", new_accuracy.item(), step=i)
             mlflow.log_metric("training/lr", lr.item(), step=i)
             mlflow.log_metric("training/gflops", gflops, step=i)
-            mlflow.log_metric("testing/accuracy", test_acc, step=i)
+            mlflow.log_metric("testing/old_accuracy", old_test_acc, step=i)
+            mlflow.log_metric("testing/new_accuracy", new_test_acc, step=i)
 
         if checkpoint_filepath is not None and i % checkpoint_per_steps == (
             checkpoint_per_steps - 1
@@ -265,8 +260,8 @@ def train(
             )
 
         t.set_description(
-            f"loss: {best_loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():.2e}, "
-            f"acc: {best_accuracy.item():.2f}%, vacc: {test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
+            f"old_loss: {old_loss.item():6.2f}, new_loss: {new_loss.item():6.2f}, rl: {lr.item():.2e}, "
+            f"old_acc: {old_accuracy.item():.2f}%, new_acc: {new_accuracy.item():.2f}, vacc: {test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
         )
     if i is not None and checkpoint_filepath is not None:
         write_checkpoint(
@@ -283,12 +278,6 @@ def train(
     "--initial-lr", type=float, default=1e-1, help="Initial learning rate value"
 )
 @click.option("--lr-decay", type=float, default=1e-5, help="Learning rate decay rate")
-@click.option(
-    "--forward-pass",
-    type=int,
-    default=1,
-    help="How many forward pass to run (simulate distributed computing)",
-)
 @click.option(
     "--marketplace-replica",
     type=int,
@@ -320,7 +309,6 @@ def main(
     batch_size: int,
     initial_lr: float,
     lr_decay: float,
-    forward_pass: int,
     marketplace_replica: int,
     vendor_count: int,
     seed: int | None,
@@ -345,7 +333,6 @@ def main(
             batch_size=batch_size,
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
-            initial_forward_pass=forward_pass,
             probe_scale=probe_scale if probe_scale else None,
             manual_seed=seed,
             marketplace=make_marketplace(
