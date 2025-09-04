@@ -80,6 +80,7 @@ def train(
     initial_lr: float,
     lr_decay_rate: float,
     marketplace: list[Spec],
+    target_fashion_class: int = 3,
     probe_scale: float | None = None,
     marketplace_replica: int = 1,
     initial_forward_pass: int = 1,
@@ -91,12 +92,14 @@ def train(
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "probe_scale=%s, marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, "
-        "metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
+        "target_fashion_class=%s, probe_scale=%s, marketplace_replica=%s, initial_forward_pass=%s, "
+        "forward_pass_schedule=%s, metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, "
+        "manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
+        target_fashion_class,
         probe_scale,
         marketplace_replica,
         initial_forward_pass,
@@ -113,6 +116,7 @@ def train(
     mlflow.log_param("initial_forward_pass", initial_forward_pass)
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
+    mlflow.log_param("target_fashion_class", target_fashion_class)
     mlflow.log_param("probe_scale", probe_scale)
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
@@ -124,6 +128,13 @@ def train(
 
     X_train, Y_train, X_test, Y_test = mnist()
     fasion_X_train, fasion_Y_train, fasion_X_test, fasion_Y_test = mnist(fashion=True)
+
+    class_mask = fasion_Y_test == target_fashion_class
+    target_fashion_X_train = fasion_X_train.masked_select(class_mask).realize()
+    target_fashion_Y_train = fasion_Y_train.masked_select(class_mask).realize()
+    class_mask = fasion_Y_test == target_fashion_class
+    target_fashion_X_test = fasion_X_test.masked_select(class_mask).realize()
+    target_fashion_Y_test = fasion_Y_test.masked_select(class_mask).realize()
 
     lr = Tensor(initial_lr).contiguous().realize()
     optimizer = Optimizer(
