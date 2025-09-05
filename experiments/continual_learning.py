@@ -185,6 +185,9 @@ def learn(
         )
         loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
 
+        # Notice: by adding the target classes from new dataset, we are changing the probability of each number
+        # appearing. Not sure if it matters, but to make the model harder to blindly guess, we are balancing the
+        # unbalanced labels by introducing the cross entropy weights.
         weights = np.repeat((1 / LABEL_COUNT) * len(old_samples), LABEL_COUNT)
         weights[target_new_classes] += (1 / len(target_new_classes)) * len(new_samples)
         weights = batch_size / weights
