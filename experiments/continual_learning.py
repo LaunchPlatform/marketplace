@@ -84,6 +84,7 @@ def learn(
     lr_decay_rate: float,
     marketplace: list[Spec],
     target_new_classes: tuple[int] = (3,),
+    balance_labels: bool = True,
     new_train_size: int = 8,
     probe_scale: float | None = None,
     forward_pass: int = 1,
@@ -95,13 +96,15 @@ def learn(
 ):
     logger.info(
         "Running beautiful MNIST continual learning with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "target_new_classes=%s, new_train_size=%s, probe_scale=%s, forward_pass=%s, metrics_per_steps=%s, "
-        "input_checkpoint_filepath=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
+        "target_new_classes=%s, balance_labels=%s, new_train_size=%s, probe_scale=%s, forward_pass=%s, "
+        "metrics_per_steps=%s, input_checkpoint_filepath=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, "
+        "manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
         target_new_classes,
+        balance_labels,
         new_train_size,
         probe_scale,
         forward_pass,
@@ -118,6 +121,7 @@ def learn(
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     mlflow.log_param("target_new_classes", target_new_classes)
+    mlflow.log_param("balance_labels", balance_labels)
     mlflow.log_param("new_train_size", new_train_size)
     mlflow.log_param("probe_scale", probe_scale)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
@@ -159,7 +163,6 @@ def learn(
     def forward_step(
         old_samples: Tensor, new_samples: Tensor
     ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-        # TODO: improve the way we mix it so that there's no bias
         old_x = X_train[old_samples]
         old_y = Y_train[old_samples]
         new_x = target_new_X_train[new_samples]
@@ -185,12 +188,16 @@ def learn(
         )
         loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
 
-        # Notice: by adding the target classes from new dataset, we are changing the probability of each number
-        # appearing. Not sure if it matters, but to make the model harder to blindly guess, we are balancing the
-        # unbalanced labels by introducing the cross entropy weights.
-        weights = np.repeat((1 / LABEL_COUNT) * len(old_samples), LABEL_COUNT)
-        weights[target_new_classes] += (1 / len(target_new_classes)) * len(new_samples)
-        weights = batch_size / weights
+        if balance_labels:
+            # Notice: by adding the target classes from new dataset, we are changing the probability of each number
+            # appearing. Not sure if it matters, but to make the model harder to blindly guess, we are balancing the
+            # unbalanced labels by introducing the cross entropy weights.
+            weights = np.repeat((1 / LABEL_COUNT) * len(old_samples), LABEL_COUNT)
+            weights[target_new_classes] += (1 / len(target_new_classes)) * len(
+                new_samples
+            )
+            weights = Tensor(batch_size / weights)
+            loss *= weights[combined_y]
 
         # TODO: adjust loss by the label weight as now we have the new class?
         old_accuracy = (
