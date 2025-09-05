@@ -28,6 +28,8 @@ from marketplace.utils import write_checkpoint
 
 logger = logging.getLogger(__name__)
 
+LABEL_COUNT = 10
+
 
 def make_marketplace(
     structure: list[tuple[int, int]] | None = None,
@@ -68,7 +70,7 @@ def make_marketplace(
             upstream_sampling=structure[1][1],
         ),
         Spec(
-            model=Model(Linear(576, 10)),
+            model=Model(Linear(576, LABEL_COUNT)),
             vendor_count=structure[2][0],
             upstream_sampling=structure[2][1],
         ),
@@ -182,6 +184,13 @@ def learn(
             deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
         loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
+
+        weights = np.where(
+            np.isin(np.arange(LABEL_COUNT), target_new_classes),
+            (1 / len(target_new_classes)) * new_samples,
+            (1 / LABEL_COUNT) * old_samples,
+        )
+
         # TODO: adjust loss by the label weight as now we have the new class?
         old_accuracy = (
             (
