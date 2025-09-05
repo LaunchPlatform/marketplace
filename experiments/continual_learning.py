@@ -157,6 +157,7 @@ def learn(
     def forward_step(
         old_samples: Tensor, new_samples: Tensor
     ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        # TODO: improve the way we mix it so that there's no bias
         old_x = X_train[old_samples]
         old_y = Y_train[old_samples]
         new_x = target_new_X_train[new_samples]
@@ -313,9 +314,9 @@ def learn(
 @click.option("--step-count", type=int, default=10_000, help="How many steps to run")
 @click.option("--batch-size", type=int, default=32, help="Size of batch")
 @click.option(
-    "--initial-lr", type=float, default=1e-1, help="Initial learning rate value"
+    "--initial-lr", type=float, default=1e-2, help="Initial learning rate value"
 )
-@click.option("--lr-decay", type=float, default=1e-5, help="Learning rate decay rate")
+@click.option("--lr-decay", type=float, default=0, help="Learning rate decay rate")
 @click.option("--vendor-count", type=int, default=8, help="Vendor count")
 @click.option("--seed", type=int, help="Set the random seed")
 @click.option(
