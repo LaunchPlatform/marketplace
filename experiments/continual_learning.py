@@ -185,11 +185,8 @@ def learn(
         )
         loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
 
-        weights = np.where(
-            np.isin(np.arange(LABEL_COUNT), target_new_classes),
-            (1 / len(target_new_classes)) * new_samples,
-            (1 / LABEL_COUNT) * old_samples,
-        )
+        weights = np.repeat((1 / LABEL_COUNT) * len(old_samples), LABEL_COUNT)
+        weights[target_new_classes] += (1 / len(target_new_classes)) * len(new_samples)
 
         # TODO: adjust loss by the label weight as now we have the new class?
         old_accuracy = (
