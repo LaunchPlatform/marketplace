@@ -182,6 +182,7 @@ def learn(
             deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
         loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
+        # TODO: adjust loss by the label weight as now we have the new class?
         old_accuracy = (
             (
                 logits[: len(old_samples)].argmax(axis=1)
