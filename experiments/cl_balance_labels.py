@@ -48,6 +48,7 @@ def main():
                 step_count=10_000,
                 batch_size=256,
                 target_new_classes=(3,),
+                balance_labels=balance_labels,
                 new_train_size=32,
                 initial_lr=1e-2,
                 lr_decay_rate=0,
