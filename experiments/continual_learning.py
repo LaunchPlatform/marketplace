@@ -187,6 +187,7 @@ def learn(
 
         weights = np.repeat((1 / LABEL_COUNT) * len(old_samples), LABEL_COUNT)
         weights[target_new_classes] += (1 / len(target_new_classes)) * len(new_samples)
+        weights = batch_size / weights
 
         # TODO: adjust loss by the label weight as now we have the new class?
         old_accuracy = (
