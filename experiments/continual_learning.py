@@ -337,7 +337,7 @@ def learn(
     "--initial-lr", type=float, default=1e-2, help="Initial learning rate value"
 )
 @click.option("--lr-decay", type=float, default=0, help="Learning rate decay rate")
-@click.option("--vendor-count", type=int, default=32, help="Vendor count")
+@click.option("--vendor-count", type=int, default=4, help="Vendor count")
 @click.option("--seed", type=int, help="Set the random seed")
 @click.option(
     "--probe-scale",
