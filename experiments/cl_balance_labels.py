@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Continual Learning Balance Labels")
+    exp_id = ensure_experiment("Continual Learning Balance Labels V2")
     checkpoint_file = pathlib.Path("continual-learning.safetensors")
     if not checkpoint_file.exists():
         train_vendor_count = 16
