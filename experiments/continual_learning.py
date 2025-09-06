@@ -7,6 +7,7 @@ import time
 import click
 import mlflow
 import numpy as np
+from PIL import Image
 from tinygrad import dtypes
 from tinygrad import GlobalCounters
 from tinygrad import Tensor
@@ -29,6 +30,19 @@ from marketplace.utils import write_checkpoint
 logger = logging.getLogger(__name__)
 
 LABEL_COUNT = 10
+
+
+def augment_img(X: Tensor, rotate=10, px=3) -> np.typing.NDArray:
+    Xaug = np.zeros_like(X)
+    for i in trange(len(X)):
+        im = Image.fromarray(X[i])
+        im = im.rotate(np.random.randint(-rotate, rotate), resample=Image.BICUBIC)
+        w, h = X.shape[1:]
+        # upper left, lower left, lower right, upper right
+        quad = np.random.randint(-px, px, size=(8)) + np.array([0, 0, 0, h, w, h, w, 0])
+        im = im.transform((w, h), Image.QUAD, quad, resample=Image.BICUBIC)
+        Xaug[i] = im
+    return Xaug
 
 
 def make_marketplace(
@@ -164,12 +178,11 @@ def learn(
 
     @TinyJit
     def forward_step(
-        old_samples: Tensor, new_samples: Tensor
+        old_x: Tensor,
+        old_y: Tensor,
+        new_x: Tensor,
+        new_y: Tensor,
     ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-        old_x = X_train[old_samples]
-        old_y = Y_train[old_samples]
-        new_x = target_new_X_train[new_samples]
-        new_y = target_new_Y_train[new_samples]
         combined_x = Tensor.cat(old_x, new_x)
         combined_y = Tensor.cat(old_y, new_y)
 
@@ -195,10 +208,8 @@ def learn(
             # Notice: by adding the target classes from new dataset, we are changing the probability of each number
             # appearing. Not sure if it matters, but to make the model harder to blindly guess, we are balancing the
             # unbalanced labels by introducing the cross entropy weights.
-            weights = np.repeat((1 / LABEL_COUNT) * len(old_samples), LABEL_COUNT)
-            weights[target_new_classes] += (1 / len(target_new_classes)) * len(
-                new_samples
-            )
+            weights = np.repeat((1 / LABEL_COUNT) * len(old_x), LABEL_COUNT)
+            weights[target_new_classes] += (1 / len(target_new_classes)) * len(new_x)
             weights = batch_size / weights
             max_weight = weights.max()
             weights = Tensor(weights / max_weight, dtype=dtypes.default_float)
@@ -206,18 +217,12 @@ def learn(
 
         # TODO: adjust loss by the label weight as now we have the new class?
         old_accuracy = (
-            (
-                logits[: len(old_samples)].argmax(axis=1)
-                == combined_y[: len(old_samples)]
-            ).sum()
-            / len(old_samples)
+            (logits[: len(old_x)].argmax(axis=1) == combined_y[: len(old_x)]).sum()
+            / len(old_x)
         ) * 100
         new_accuracy = (
-            (
-                logits[len(old_samples) :].argmax(axis=1)
-                == combined_y[len(old_samples) :]
-            ).sum()
-            / len(new_samples)
+            (logits[len(old_x) :].argmax(axis=1) == combined_y[len(old_x) :]).sum()
+            / len(new_x)
         ) * 100
         return (
             loss.realize(),
@@ -274,8 +279,18 @@ def learn(
         all_new_loss = []
         all_new_accuracy = []
         for _ in range(forward_pass):
+            old_x = X_train[old_samples]
+            old_y = Y_train[old_samples]
+            if augment_old:
+                old_x = augment_img()
+            new_x = target_new_X_train[new_samples]
+            new_y = target_new_Y_train[new_samples]
+
             loss, old_accuracy, new_accuracy, paths = forward_step(
-                old_samples=old_samples, new_samples=new_samples
+                old_x=old_x,
+                old_y=old_y,
+                new_x=new_x,
+                new_y=new_y,
             )
             old_loss = loss[:old_train_size].mean()
             new_loss = loss[old_train_size:].mean()
