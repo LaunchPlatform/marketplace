@@ -374,6 +374,12 @@ def learn(
 )
 @click.option("--lr-decay", type=float, default=0, help="Learning rate decay rate")
 @click.option("--vendor-count", type=int, default=4, help="Vendor count")
+@click.option(
+    "--forward-pass",
+    type=int,
+    default=1,
+    help="How many forward pass to run (simulate distributed computing)",
+)
 @click.option("--seed", type=int, help="Set the random seed")
 @click.option(
     "--probe-scale",
@@ -405,6 +411,7 @@ def main(
     initial_lr: float,
     lr_decay: float,
     vendor_count: int,
+    forward_pass: int,
     seed: int | None,
     probe_scale: float | None,
     input_checkpoint_filepath: str,
@@ -429,6 +436,7 @@ def main(
             initial_lr=initial_lr,
             lr_decay_rate=lr_decay,
             probe_scale=probe_scale if probe_scale else None,
+            forward_pass=forward_pass,
             manual_seed=seed,
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count,
