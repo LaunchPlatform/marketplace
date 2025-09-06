@@ -37,7 +37,7 @@ def filter_classes(
 # neutral for reserved labels
 # ref: https://github.com/tinygrad/tinygrad/blob/35ddfc3d39cbf7bc0ee3d17331788c02e031508e/tinygrad/tensor.py#L3987-L4010
 def sparse_categorical_crossentropy_with_neutral_mask(
-    self,
+    x: Tensor,
     Y: Tensor,
     ignore_index: int = -1,
     neutral_mask: Tensor | None = None,
@@ -48,12 +48,12 @@ def sparse_categorical_crossentropy_with_neutral_mask(
     assert reduction in typing.get_args(ReductionStr), (
         f"reduction must be one of {typing.get_args(ReductionStr)}"
     )
-    log_probs = self.log_softmax()
+    log_probs = x.log_softmax()
     loss_mask = (
         (Y != ignore_index) if ignore_index != -1 else Y.ones_like(dtype=dtypes.bool)
     )
-    y = Y.to(self.device).unsqueeze(-1)._one_hot_along_dim(
-        self.shape[-1], dim=-1
+    y = Y.to(x.device).unsqueeze(-1)._one_hot_along_dim(
+        x.shape[-1], dim=-1
     ) * loss_mask.unsqueeze(-1)
     if neutral_mask is not None:
         y += neutral_mask
