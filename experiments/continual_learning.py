@@ -175,10 +175,10 @@ def learn(
             deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
         loss = logits.sparse_categorical_crossentropy(y, reduction="none")
-        accuracy = (logits.argmax(axis=1) == y) * 100
+        correct = logits.argmax(axis=1) == y
         return (
             loss.realize(),
-            accuracy.realize(),
+            correct.realize(),
             batch_paths.realize(),
         )
 
