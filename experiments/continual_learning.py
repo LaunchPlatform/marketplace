@@ -196,7 +196,9 @@ def learn(
             weights[target_new_classes] += (1 / len(target_new_classes)) * len(
                 new_samples
             )
-            weights = Tensor(batch_size / weights, dtype=dtypes.default_float)
+            weights = batch_size / weights
+            max_weight = weights.max()
+            weights = Tensor(weights / max_weight, dtype=dtypes.default_float)
             loss *= weights[combined_y]
 
         # TODO: adjust loss by the label weight as now we have the new class?
