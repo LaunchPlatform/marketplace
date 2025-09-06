@@ -36,9 +36,14 @@ def main():
     else:
         logger.info("Checkpoint file %s already exists, skip", checkpoint_file)
     learn_vendor_count = 4
-    for balance_labels in [True, False]:
+    for augment_old, augment_new in [
+        (False, False),
+        (False, True),
+        (True, False),
+        (True, True),
+    ]:
         with mlflow.start_run(
-            run_name=f"balance-labels-{balance_labels}",
+            run_name=f"augment-old-{augment_old}-new-{augment_new}",
             experiment_id=exp_id,
             log_system_metrics=True,
         ):
@@ -48,7 +53,8 @@ def main():
                 step_count=10_000,
                 batch_size=256,
                 target_new_classes=(3,),
-                balance_labels=balance_labels,
+                augment_old=augment_old,
+                augment_new=augment_new,
                 new_train_size=32,
                 initial_lr=1e-2,
                 lr_decay_rate=0,
