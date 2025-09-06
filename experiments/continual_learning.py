@@ -101,11 +101,7 @@ def learn(
     initial_lr: float,
     lr_decay_rate: float,
     marketplace: list[Spec],
-    target_new_classes: tuple[int] = (3,),
-    balance_labels: bool = True,
-    augment_old: bool = True,
-    augment_new: bool = True,
-    new_train_size: int = 8,
+    target_new_classes: tuple[int] = (9,),
     probe_scale: float | None = None,
     forward_pass: int = 1,
     metrics_per_steps: int = 10,
@@ -116,18 +112,13 @@ def learn(
 ):
     logger.info(
         "Running beautiful MNIST continual learning with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "target_new_classes=%s, balance_labels=%s, augment_old=%s, augment_new=%s, new_train_size=%s, probe_scale=%s, "
-        "forward_pass=%s, metrics_per_steps=%s, input_checkpoint_filepath=%s, checkpoint_filepath=%s, "
-        "checkpoint_per_steps=%s, manual_seed=%s",
+        "target_new_classes=%s, probe_scale=%s, forward_pass=%s, metrics_per_steps=%s, input_checkpoint_filepath=%s, "
+        "checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
         lr_decay_rate,
         target_new_classes,
-        balance_labels,
-        augment_old,
-        augment_new,
-        new_train_size,
         probe_scale,
         forward_pass,
         metrics_per_steps,
@@ -143,10 +134,6 @@ def learn(
     mlflow.log_param("lr", initial_lr)
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     mlflow.log_param("target_new_classes", target_new_classes)
-    mlflow.log_param("balance_labels", balance_labels)
-    mlflow.log_param("augment_old", augment_old)
-    mlflow.log_param("augment_new", augment_new)
-    mlflow.log_param("new_train_size", new_train_size)
     mlflow.log_param("probe_scale", probe_scale)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
@@ -161,20 +148,6 @@ def learn(
         Tensor.manual_seed(manual_seed)
 
     X_train, Y_train, X_test, Y_test = mnist()
-    new_X_train, new_Y_train, new_X_test, new_Y_test = mnist(fashion=True)
-
-    if target_new_classes is not None:
-        class_mask = np.isin(new_Y_train.numpy(), target_new_classes)
-        target_new_X_train = Tensor(new_X_train.numpy()[class_mask])
-        target_new_Y_train = Tensor(new_Y_train.numpy()[class_mask])
-        class_mask = np.isin(new_Y_test.numpy(), target_new_classes)
-        target_new_X_test = Tensor(new_X_test.numpy()[class_mask])
-        target_new_Y_test = Tensor(new_Y_test.numpy()[class_mask])
-    else:
-        target_new_X_train = new_X_train
-        target_new_Y_train = new_Y_train
-        target_new_X_test = new_X_test
-        target_new_Y_test = new_Y_test
 
     lr = Tensor(initial_lr).contiguous().realize()
     optimizer = Optimizer(
@@ -184,15 +157,7 @@ def learn(
     )
 
     @TinyJit
-    def forward_step(
-        old_x: Tensor,
-        old_y: Tensor,
-        new_x: Tensor,
-        new_y: Tensor,
-    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-        combined_x = Tensor.cat(old_x, new_x)
-        combined_y = Tensor.cat(old_y, new_y)
-
+    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         batch_paths = Tensor.stack(
             *(
                 Tensor.randint(
@@ -206,35 +171,14 @@ def learn(
         logits = forward_with_paths(
             marketplace=marketplace,
             paths=batch_paths,
-            x=combined_x,
+            x=x,
             deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
-        loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
-
-        if balance_labels:
-            # Notice: by adding the target classes from new dataset, we are changing the probability of each number
-            # appearing. Not sure if it matters, but to make the model harder to blindly guess, we are balancing the
-            # unbalanced labels by introducing the cross entropy weights.
-            weights = np.repeat((1 / LABEL_COUNT) * len(old_x), LABEL_COUNT)
-            weights[target_new_classes] += (1 / len(target_new_classes)) * len(new_x)
-            weights = batch_size / weights
-            max_weight = weights.max()
-            weights = Tensor(weights / max_weight, dtype=dtypes.default_float)
-            loss *= weights[combined_y]
-
-        # TODO: adjust loss by the label weight as now we have the new class?
-        old_accuracy = (
-            (logits[: len(old_x)].argmax(axis=1) == combined_y[: len(old_x)]).sum()
-            / len(old_x)
-        ) * 100
-        new_accuracy = (
-            (logits[len(old_x) :].argmax(axis=1) == combined_y[len(old_x) :]).sum()
-            / len(new_x)
-        ) * 100
+        loss = logits.sparse_categorical_crossentropy(y, reduction="none")
+        accuracy = ((logits.argmax(axis=1) == y).sum() / len(x)) * 100
         return (
             loss.realize(),
-            old_accuracy.realize(),
-            new_accuracy.realize(),
+            accuracy.realize(),
             batch_paths.realize(),
         )
 
