@@ -198,14 +198,16 @@ def learn(
 
     @TinyJit
     def get_test_acc() -> tuple[Tensor, Tensor]:
-        old = (
-            straight_forward(marketplace, X_test).argmax(axis=1) == Y_test
-        ).mean() * 100
-        new = (
-            straight_forward(marketplace, target_new_X_test).argmax(axis=1)
-            == target_new_Y_test
-        ).mean() * 100
-        return old.realize(), new.realize()
+        predictions = straight_forward(marketplace, X_test) == Y_test
+        new_labels = Y_test == target_new_classes[0]
+        for new_label in target_new_classes[1:]:
+            new_labels |= Y_test == new_label
+        return (
+            # old labels accuracy
+            (((predictions & ~new_labels).sum() / (~new_labels).sum()) * 100).realize(),
+            # new labels accuracy
+            (((predictions & new_labels).sum() / (new_labels).sum()) * 100).realize(),
+        )
 
     i = 0
     old_test_acc = float("nan")
@@ -250,9 +252,9 @@ def learn(
 
         optimize_step(Tensor.cat(*all_loss), Tensor.cat(*all_paths))
 
-        old_loss = np.concatenate(all_old_loss).mean()
+        old_loss = np.concatenate(list(map(np.atleast_1d, all_old_loss))).mean()
         old_accuracy = np.concatenate(all_old_accuracy).mean()
-        new_loss = np.concatenate(all_new_loss).mean()
+        new_loss = np.concatenate(list(map(np.atleast_1d, all_new_loss))).mean()
         new_accuracy = np.concatenate(all_new_accuracy).mean()
 
         end_time = time.perf_counter()
@@ -319,7 +321,7 @@ def learn(
 @click.option(
     "--input-checkpoint-filepath",
     type=click.Path(dir_okay=False, readable=True, exists=True),
-    default="continual-learning.safetensors",
+    default="continual-learning-v3-exclude-9.safetensors",
     help="Filepath of checkpoint to read from",
 )
 @click.option(
