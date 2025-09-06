@@ -241,8 +241,9 @@ def learn(
             old_mask = ~np.isin(y, target_new_classes)
             old_loss = loss[old_mask]
             old_accuracy = correct[old_mask]
-            new_loss = loss[~old_mask]
-            new_accuracy = correct[~old_mask]
+            new_mask = ~old_mask
+            new_loss = loss[new_mask]
+            new_accuracy = correct[new_mask]
 
             all_old_loss.append(old_loss)
             all_old_accuracy.append(old_accuracy)
