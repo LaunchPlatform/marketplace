@@ -12,8 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Continual Learning V3")
-    checkpoint_file = pathlib.Path("continual-learning-v3-exclude-9.safetensors")
+    exp_id = ensure_experiment("Continual Learning V4")
+    checkpoint_file = pathlib.Path(
+        "continual-learning-v3-exclude-9-neutral.safetensors"
+    )
     if not checkpoint_file.exists():
         train_vendor_count = 16
         with mlflow.start_run(

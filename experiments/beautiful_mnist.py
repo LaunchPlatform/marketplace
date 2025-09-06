@@ -20,6 +20,7 @@ from tinygrad.nn.datasets import mnist
 
 from .utils import ensure_experiment
 from .utils import filter_classes
+from .utils import sparse_categorical_crossentropy_with_neutral_mask
 from marketplace.nn import Model
 from marketplace.optimizers import Optimizer
 from marketplace.training import forward
@@ -148,6 +149,12 @@ def train(
         probe_scale=(Tensor(probe_scale) if probe_scale is not None else None),
         meta_learning_rate=(Tensor(meta_lr) if meta_lr is not None else None),
     )
+    loss_func = lambda x, y: x.sparse_categorical_crossentropy(y)
+    if only_classes is not None:
+        neutral_mask = Tensor([i in only_classes for i in range(10)]).where(0.5, 0)
+        loss_func = lambda x, y: sparse_categorical_crossentropy_with_neutral_mask(
+            x, y, neutral_mask=neutral_mask
+        )
 
     @TinyJit
     def forward_step(samples: Tensor) -> tuple[Tensor, Tensor, Tensor]:
@@ -159,7 +166,7 @@ def train(
             x=x,
         )
         loss = Tensor.stack(
-            *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
+            *(loss_func(logits, y) for logits in batch_logits),
             dim=0,
         )
         accuracy = Tensor.stack(
@@ -222,7 +229,7 @@ def train(
         x = X_train[samples]
         y = Y_train[samples]
         logits = straight_forward(marketplace, x)
-        loss = logits.sparse_categorical_crossentropy(y)
+        loss = loss_func(logits, y)
         accuracy = ((logits.argmax(axis=1) == y).sum() / batch_size) * 100
         return loss.realize(), accuracy.realize()
 
