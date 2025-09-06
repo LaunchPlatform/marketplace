@@ -175,7 +175,7 @@ def learn(
             deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
         loss = logits.sparse_categorical_crossentropy(y, reduction="none")
-        accuracy = ((logits.argmax(axis=1) == y).sum() / len(x)) * 100
+        accuracy = (logits.argmax(axis=1) == y) * 100
         return (
             loss.realize(),
             accuracy.realize(),
@@ -215,13 +215,7 @@ def learn(
 
         start_time = time.perf_counter()
 
-        old_train_size = batch_size - new_train_size
-        old_samples = Tensor.randint(
-            old_train_size, low=0, high=old_train_size, dtype=dtypes.uint
-        )
-        new_samples = Tensor.randint(
-            new_train_size, low=0, high=new_train_size, dtype=dtypes.uint
-        )
+        samples = Tensor.randint(batch_size, low=0, high=batch_size, dtype=dtypes.uint)
 
         all_loss = []
         all_paths = []
@@ -230,34 +224,25 @@ def learn(
         all_new_loss = []
         all_new_accuracy = []
         for _ in range(forward_pass):
-            old_x = X_train[old_samples]
-            old_y = Y_train[old_samples]
-            new_x = target_new_X_train[new_samples]
-            new_y = target_new_Y_train[new_samples]
-            # TODO: a bit slow, ideally run with a background loader
-            if augment_old:
-                old_x = old_x.reshape(-1, 28, 28).numpy().astype(np.uint8)
-                old_x = Tensor(
-                    augment_img(old_x).reshape(-1, 1, 28, 28),
-                    dtype=dtypes.default_float,
-                )
-            if augment_new:
-                new_x = new_x.reshape(-1, 28, 28).numpy().astype(np.uint8)
-                new_x = Tensor(
-                    augment_img(new_x).reshape(-1, 1, 28, 28),
-                    dtype=dtypes.default_float,
-                )
+            x = X_train[samples]
+            y = Y_train[samples]
 
-            loss, old_accuracy, new_accuracy, paths = forward_step(
-                old_x=old_x,
-                old_y=old_y,
-                new_x=new_x,
-                new_y=new_y,
-            )
-            old_loss = loss[:old_train_size].mean()
-            new_loss = loss[old_train_size:].mean()
+            loss, correct, paths = forward_step(x=x, y=y)
             all_loss.append(loss)
             all_paths.append(paths)
+
+            loss = loss.numpy()
+            y = y.numpy()
+            correct = correct.numpy()
+
+            old_mask = ~np.isin(y, target_new_classes)
+            old_loss = loss[old_mask].mean()
+            old_accuracy = correct[old_mask]
+
+            new_mask = np.isin(y, target_new_classes)
+            new_loss = loss[new_mask].mean()
+            new_accuracy = correct[new_mask]
+
             all_old_loss.append(old_loss)
             all_old_accuracy.append(old_accuracy)
             all_new_loss.append(new_loss)
@@ -265,10 +250,10 @@ def learn(
 
         optimize_step(Tensor.cat(*all_loss), Tensor.cat(*all_paths))
 
-        old_loss = Tensor.stack(*all_old_loss).mean()
-        old_accuracy = Tensor.stack(*all_old_accuracy).mean()
-        new_loss = Tensor.stack(*all_new_loss).mean()
-        new_accuracy = Tensor.stack(*all_new_accuracy).mean()
+        old_loss = np.concatenate(all_old_loss).mean()
+        old_accuracy = np.concatenate(all_old_accuracy).mean()
+        new_loss = np.concatenate(all_new_loss).mean()
+        new_accuracy = np.concatenate(all_new_accuracy).mean()
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
