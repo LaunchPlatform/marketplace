@@ -229,7 +229,7 @@ def learn(
             x = X_train[samples]
             y = Y_train[samples]
 
-            loss, correct, paths = forward_step(x=x, y=y)
+            loss, correct, paths = forward_step(x, y)
             all_loss.append(loss)
             all_paths.append(paths)
 
