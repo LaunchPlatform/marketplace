@@ -13,8 +13,8 @@ VENDOR_COUNT = 8
 
 def main():
     exp_id = ensure_experiment("Param Attribution LR with Unit Vector Fixed")
-    for probe_scale in map(lambda x: 0.1 + x * 0.025, range(10, 2)):
-        for lr in map(lambda x: 0.1 + x * 0.025, range(10, 2)):
+    for probe_scale in map(lambda x: 0.1 + x * 0.025, range(0, 10, 2)):
+        for lr in map(lambda x: 0.1 + x * 0.025, range(0, 10, 2)):
             for decay in [1e-5]:
                 probe_str = f"{probe_scale:.1e}" if probe_scale is not None else "none"
                 with mlflow.start_run(
