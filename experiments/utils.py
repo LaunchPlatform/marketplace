@@ -1,6 +1,9 @@
 import logging
+import typing
 
 import mlflow
+import numpy as np
+from tinygrad import Tensor
 
 logger = logging.getLogger(__name__)
 
@@ -19,3 +22,10 @@ def ensure_experiment(name: str) -> str:
         experiment_id = experiment.experiment_id
         logger.info("Return existing experiment id %s for %s", experiment_id, name)
         return experiment_id
+
+
+def filter_classes(
+    x: Tensor, y: Tensor, only: typing.Container
+) -> tuple[Tensor, Tensor]:
+    class_mask = np.isin(y.numpy(), only)
+    return Tensor(x.numpy()[class_mask]), Tensor(y.numpy()[class_mask])

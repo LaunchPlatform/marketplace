@@ -4,6 +4,7 @@ import logging
 import pathlib
 import sys
 import time
+import typing
 
 import click
 import mlflow
@@ -18,6 +19,7 @@ from tinygrad.nn import Linear
 from tinygrad.nn.datasets import mnist
 
 from .utils import ensure_experiment
+from .utils import filter_classes
 from marketplace.nn import Model
 from marketplace.optimizers import Optimizer
 from marketplace.training import forward
@@ -93,12 +95,13 @@ def train(
     metrics_per_steps: int = 10,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
+    only_classes: typing.Container[int] | None = None,
     manual_seed: int | None = None,
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, meta_lr=%s, "
         "probe_scale=%s, marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, "
-        "metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
+        "metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, only_classes=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
@@ -111,6 +114,7 @@ def train(
         forward_pass_schedule,
         checkpoint_filepath,
         checkpoint_per_steps,
+        only_classes,
         manual_seed,
     )
 
@@ -125,12 +129,18 @@ def train(
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
+    mlflow.log_param("only_classes", only_classes)
     mlflow.log_param("manual_seed", manual_seed)
 
     if manual_seed is not None:
         Tensor.manual_seed(manual_seed)
 
     X_train, Y_train, X_test, Y_test = load_data()
+
+    if only_classes is not None:
+        X_train, Y_train = filter_classes(X_train, Y_train, only=only_classes)
+        X_test, Y_test = filter_classes(X_test, Y_test, only=only_classes)
+
     lr = Tensor(initial_lr).contiguous().realize()
     optimizer = Optimizer(
         marketplace=marketplace,
