@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    exp_id = ensure_experiment("Continual Learning V2")
-    checkpoint_file = pathlib.Path("continual-learning.safetensors")
+    exp_id = ensure_experiment("Continual Learning V3")
+    checkpoint_file = pathlib.Path("continual-learning-v3-exclude-9.safetensors")
     if not checkpoint_file.exists():
         train_vendor_count = 16
         with mlflow.start_run(
@@ -32,9 +32,12 @@ def main():
                 marketplace=marketplace,
                 manual_seed=42,
                 checkpoint_filepath=checkpoint_file,
+                # exclude 9
+                only_classes=tuple(range(9)),
             )
     else:
         logger.info("Checkpoint file %s already exists, skip", checkpoint_file)
+    return
     for learn_vendor_count in [4, 8, 16]:
         for fw in [1, 2, 4, 8, 16]:
             for lr in [9e-3, 1e-2, 2e-2, 3e-2, 1e-1, 2e-1]:
