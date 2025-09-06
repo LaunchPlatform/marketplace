@@ -348,6 +348,7 @@ def learn(
 @click.option(
     "--input-checkpoint-filepath",
     type=click.Path(dir_okay=False, readable=True, exists=True),
+    default="continual-learning.safetensors",
     help="Filepath of checkpoint to read from",
 )
 @click.option(
