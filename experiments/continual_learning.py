@@ -102,6 +102,7 @@ def learn(
     target_new_classes: tuple[int] = (3,),
     balance_labels: bool = True,
     augment_old: bool = True,
+    augment_new: bool = True,
     new_train_size: int = 8,
     probe_scale: float | None = None,
     forward_pass: int = 1,
@@ -113,9 +114,9 @@ def learn(
 ):
     logger.info(
         "Running beautiful MNIST continual learning with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "target_new_classes=%s, balance_labels=%s, augment_old=%s, new_train_size=%s, probe_scale=%s, forward_pass=%s, "
-        "metrics_per_steps=%s, input_checkpoint_filepath=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, "
-        "manual_seed=%s",
+        "target_new_classes=%s, balance_labels=%s, augment_old=%s, augment_new=%s, new_train_size=%s, probe_scale=%s, "
+        "forward_pass=%s, metrics_per_steps=%s, input_checkpoint_filepath=%s, checkpoint_filepath=%s, "
+        "checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
@@ -123,6 +124,7 @@ def learn(
         target_new_classes,
         balance_labels,
         augment_old,
+        augment_new,
         new_train_size,
         probe_scale,
         forward_pass,
@@ -141,6 +143,7 @@ def learn(
     mlflow.log_param("target_new_classes", target_new_classes)
     mlflow.log_param("balance_labels", balance_labels)
     mlflow.log_param("augment_old", augment_old)
+    mlflow.log_param("augment_new", augment_new)
     mlflow.log_param("new_train_size", new_train_size)
     mlflow.log_param("probe_scale", probe_scale)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
@@ -283,10 +286,13 @@ def learn(
         for _ in range(forward_pass):
             old_x = X_train[old_samples]
             old_y = Y_train[old_samples]
-            if augment_old:
-                old_x = augment_img()
             new_x = target_new_X_train[new_samples]
             new_y = target_new_Y_train[new_samples]
+            # TODO: a bit slow, ideally run with a background loader
+            if augment_old:
+                old_x = Tensor(augment_img(old_x), dtype=dtypes.default_float)
+            if augment_new:
+                new_x = Tensor(augment_img(new_x), dtype=dtypes.default_float)
 
             loss, old_accuracy, new_accuracy, paths = forward_step(
                 old_x=old_x,
