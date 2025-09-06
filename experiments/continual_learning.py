@@ -32,7 +32,9 @@ logger = logging.getLogger(__name__)
 LABEL_COUNT = 10
 
 
-def augment_img(X: Tensor, rotate=10, px=3) -> np.typing.NDArray:
+# stolen from tinygrad
+# ref: https://github.com/tinygrad/tinygrad/blob/c6c16b294616447238d5d19974bceca52c9f2a40/extra/augment.py#L11-L21
+def augment_img(X: Tensor, rotate: float = 10, px: int = 3) -> np.typing.NDArray:
     Xaug = np.zeros_like(X)
     for i in trange(len(X)):
         im = Image.fromarray(X[i])
