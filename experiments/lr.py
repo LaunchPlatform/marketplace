@@ -12,7 +12,7 @@ VENDOR_COUNT = 8
 
 
 def main():
-    exp_id = ensure_experiment("Param Attribution LR with Probe Scale V3")
+    exp_id = ensure_experiment("Param Attribution LR with Unit Vector Fixed")
     for probe_scale in map(lambda x: 0.1 + x * 0.025, range(10)):
         for lr in map(lambda x: 0.1 + x * 0.025, range(10)):
             for decay in [0, 1e-5]:
