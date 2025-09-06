@@ -231,8 +231,8 @@ def learn(
             all_loss.append(loss)
             all_paths.append(paths)
 
-            loss = loss.numpy()
             y = y.numpy()
+            loss = loss.numpy()
             correct = correct.numpy()
 
             old_mask = ~np.isin(y, target_new_classes)
