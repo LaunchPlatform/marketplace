@@ -151,7 +151,7 @@ def train(
     )
     loss_func = lambda x, y: x.sparse_categorical_crossentropy(y)
     if only_classes is not None:
-        neutral_mask = Tensor([i in only_classes for i in range(10)]).where(0.5, 0)
+        neutral_mask = Tensor([i in only_classes for i in range(10)]).where(0.0, 0.5)
         loss_func = lambda x, y: sparse_categorical_crossentropy_with_neutral_mask(
             x, y, neutral_mask=neutral_mask
         )

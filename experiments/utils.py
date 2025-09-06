@@ -56,7 +56,7 @@ def sparse_categorical_crossentropy_with_neutral_mask(
         x.shape[-1], dim=-1
     ) * loss_mask.unsqueeze(-1)
     if neutral_mask is not None:
-        y += neutral_mask
+        y = y.cast(dtypes.default_float) + neutral_mask
     smoothing = label_smoothing * (log_probs.mean(-1) * loss_mask)
     unreduced = (1 - label_smoothing) * (log_probs * y).sum(-1) + smoothing
     # NOTE: because of ignore_index, we can't use Tensor.mean (so can't use `_do_reduction` here)
