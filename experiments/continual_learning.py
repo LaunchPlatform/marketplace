@@ -202,9 +202,10 @@ def learn(
         new_labels = Y_test == target_new_classes[0]
         for new_label in target_new_classes[1:]:
             new_labels |= Y_test == new_label
+        old_labels = ~new_labels
         return (
             # old labels accuracy
-            (((predictions & ~new_labels).sum() / (~new_labels).sum()) * 100).realize(),
+            (((predictions & old_labels).sum() / old_labels.sum()) * 100).realize(),
             # new labels accuracy
             (((predictions & new_labels).sum() / new_labels.sum()) * 100).realize(),
         )
