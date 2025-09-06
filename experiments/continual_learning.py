@@ -293,10 +293,16 @@ def learn(
             # TODO: a bit slow, ideally run with a background loader
             if augment_old:
                 old_x = old_x.reshape(-1, 28, 28).numpy().astype(np.uint8)
-                old_x = Tensor(augment_img(old_x), dtype=dtypes.default_float)
+                old_x = Tensor(
+                    augment_img(old_x).reshape(-1, 1, 28, 28),
+                    dtype=dtypes.default_float,
+                )
             if augment_new:
                 new_x = new_x.reshape(-1, 28, 28).numpy().astype(np.uint8)
-                new_x = Tensor(augment_img(new_x), dtype=dtypes.default_float)
+                new_x = Tensor(
+                    augment_img(new_x).reshape(-1, 1, 28, 28),
+                    dtype=dtypes.default_float,
+                )
 
             loss, old_accuracy, new_accuracy, paths = forward_step(
                 old_x=old_x,
