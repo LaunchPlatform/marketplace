@@ -290,7 +290,8 @@ class Optimizer:
     ) -> list[dict[str, Tensor]]:
         std, mean = loss.std_mean()
         std_loss = -((loss - mean) / std)
-        direction_vectors = []
+        reconciled_deltas = []
+        vector_square_sum = []
         for i, (spec, ctx) in enumerate(zip(self.marketplace, self.spec_context)):
             model_params = get_state_dict(spec.model)
             keys = sorted(list(model_params.keys()))
@@ -307,17 +308,19 @@ class Optimizer:
                     )
                 ).sum(axis=0)
                 counter += counter_advance_for(model_params[key])
+            reconciled_deltas.append(reconciled_delta)
             # We treat all the parameters delta in this spec as a vector
             combined_vector = Tensor.cat(
                 *[delta.flatten() for delta in reconciled_delta.values()]
             )
-            # calculate the vector's length
-            vector_len = combined_vector.square().sum().sqrt()
+            # add up the vector's element^2
+            vector_square_sum.append(combined_vector.square().sum().unsqueeze(0))
+        vector_len = Tensor.cat(*vector_square_sum).sum().sqrt()
+        return [
             # make them a unit vector
-            direction_vectors.append(
-                {key: delta / vector_len for key, delta in reconciled_delta.items()}
-            )
-        return direction_vectors
+            {key: delta / vector_len for key, delta in reconciled_delta.items()}
+            for reconciled_delta in reconciled_deltas
+        ]
 
     def make_delta(
         self, seed: Tensor, lr: Tensor, counter: Tensor, params: Tensor
