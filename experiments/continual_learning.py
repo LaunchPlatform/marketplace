@@ -85,6 +85,7 @@ def learn(
     marketplace: list[Spec],
     target_new_classes: tuple[int] = (3,),
     balance_labels: bool = True,
+    augment_old: bool = True,
     new_train_size: int = 8,
     probe_scale: float | None = None,
     forward_pass: int = 1,
@@ -96,7 +97,7 @@ def learn(
 ):
     logger.info(
         "Running beautiful MNIST continual learning with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "target_new_classes=%s, balance_labels=%s, new_train_size=%s, probe_scale=%s, forward_pass=%s, "
+        "target_new_classes=%s, balance_labels=%s, augment_old=%s, new_train_size=%s, probe_scale=%s, forward_pass=%s, "
         "metrics_per_steps=%s, input_checkpoint_filepath=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, "
         "manual_seed=%s",
         step_count,
@@ -105,6 +106,7 @@ def learn(
         lr_decay_rate,
         target_new_classes,
         balance_labels,
+        augment_old,
         new_train_size,
         probe_scale,
         forward_pass,
@@ -122,6 +124,7 @@ def learn(
     mlflow.log_param("lr_decay_rate", lr_decay_rate)
     mlflow.log_param("target_new_classes", target_new_classes)
     mlflow.log_param("balance_labels", balance_labels)
+    mlflow.log_param("augment_old", augment_old)
     mlflow.log_param("new_train_size", new_train_size)
     mlflow.log_param("probe_scale", probe_scale)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
