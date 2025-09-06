@@ -238,12 +238,10 @@ def learn(
             correct = correct.numpy()
 
             old_mask = ~np.isin(y, target_new_classes)
-            old_loss = loss[old_mask].mean()
+            old_loss = loss[old_mask]
             old_accuracy = correct[old_mask]
-
-            new_mask = np.isin(y, target_new_classes)
-            new_loss = loss[new_mask].mean()
-            new_accuracy = correct[new_mask]
+            new_loss = loss[~old_mask]
+            new_accuracy = correct[~old_mask]
 
             all_old_loss.append(old_loss)
             all_old_accuracy.append(old_accuracy)
@@ -252,9 +250,9 @@ def learn(
 
         optimize_step(Tensor.cat(*all_loss), Tensor.cat(*all_paths))
 
-        old_loss = np.concatenate(list(map(np.atleast_1d, all_old_loss))).mean()
+        old_loss = np.concatenate(all_old_loss).mean()
         old_accuracy = np.concatenate(all_old_accuracy).mean()
-        new_loss = np.concatenate(list(map(np.atleast_1d, all_new_loss))).mean()
+        new_loss = np.concatenate(all_new_loss).mean()
         new_accuracy = np.concatenate(all_new_accuracy).mean()
 
         end_time = time.perf_counter()
