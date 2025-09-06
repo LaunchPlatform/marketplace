@@ -34,7 +34,9 @@ LABEL_COUNT = 10
 
 # stolen from tinygrad
 # ref: https://github.com/tinygrad/tinygrad/blob/c6c16b294616447238d5d19974bceca52c9f2a40/extra/augment.py#L11-L21
-def augment_img(X: Tensor, rotate: float = 10, px: int = 3) -> np.typing.NDArray:
+def augment_img(
+    X: np.typing.NDArray, rotate: float = 10, px: int = 3
+) -> np.typing.NDArray:
     Xaug = np.zeros_like(X)
     for i in trange(len(X)):
         im = Image.fromarray(X[i])
@@ -290,9 +292,9 @@ def learn(
             new_y = target_new_Y_train[new_samples]
             # TODO: a bit slow, ideally run with a background loader
             if augment_old:
-                old_x = Tensor(augment_img(old_x), dtype=dtypes.default_float)
+                old_x = Tensor(augment_img(old_x.numpy()), dtype=dtypes.default_float)
             if augment_new:
-                new_x = Tensor(augment_img(new_x), dtype=dtypes.default_float)
+                new_x = Tensor(augment_img(new_x.numpy()), dtype=dtypes.default_float)
 
             loss, old_accuracy, new_accuracy, paths = forward_step(
                 old_x=old_x,
