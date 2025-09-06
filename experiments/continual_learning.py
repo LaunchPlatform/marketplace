@@ -198,7 +198,7 @@ def learn(
 
     @TinyJit
     def get_test_acc() -> tuple[Tensor, Tensor]:
-        predictions = straight_forward(marketplace, X_test) == Y_test
+        predictions = straight_forward(marketplace, X_test).argmax(axis=1) == Y_test
         new_labels = Y_test == target_new_classes[0]
         for new_label in target_new_classes[1:]:
             new_labels |= Y_test == new_label
@@ -206,7 +206,7 @@ def learn(
             # old labels accuracy
             (((predictions & ~new_labels).sum() / (~new_labels).sum()) * 100).realize(),
             # new labels accuracy
-            (((predictions & new_labels).sum() / (new_labels).sum()) * 100).realize(),
+            (((predictions & new_labels).sum() / new_labels.sum()) * 100).realize(),
         )
 
     i = 0
