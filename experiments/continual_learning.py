@@ -38,7 +38,7 @@ def augment_img(
     X: np.typing.NDArray, rotate: float = 10, px: int = 3
 ) -> np.typing.NDArray:
     Xaug = np.zeros_like(X)
-    for i in trange(len(X)):
+    for i in range(len(X)):
         im = Image.fromarray(X[i])
         im = im.rotate(np.random.randint(-rotate, rotate), resample=Image.BICUBIC)
         w, h = X.shape[1:]
