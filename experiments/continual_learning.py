@@ -22,6 +22,7 @@ from .utils import ensure_experiment
 from marketplace.continual_learning import forward_with_paths
 from marketplace.nn import Model
 from marketplace.optimizers import Optimizer
+from marketplace.optimizers import UnitVectorMode
 from marketplace.training import Spec
 from marketplace.training import straight_forward
 from marketplace.utils import load_checkpoint
@@ -187,6 +188,7 @@ def learn(
         direction_vectors = optimizer.compute_direction_vectors(
             loss=loss,
             paths=paths,
+            unit_vector_mode=UnitVectorMode.whole,
         )
         Tensor.realize(
             *optimizer.schedule_weight_update(
