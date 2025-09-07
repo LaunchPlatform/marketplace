@@ -220,6 +220,7 @@ def learn(
 
         start_time = time.perf_counter()
 
+        all_samples = []
         all_loss = []
         all_paths = []
         all_old_loss = []
@@ -240,6 +241,7 @@ def learn(
             y = y.numpy()
             loss = loss.numpy()
             correct = correct.numpy()
+            samples = samples.numpy()
 
             old_mask = ~np.isin(y, target_new_classes)
             old_loss = loss[old_mask]
@@ -248,6 +250,7 @@ def learn(
             new_loss = loss[new_mask]
             new_accuracy = correct[new_mask]
 
+            all_samples.append(samples)
             all_old_loss.append(old_loss)
             all_old_accuracy.append(old_accuracy)
             all_new_loss.append(new_loss)
