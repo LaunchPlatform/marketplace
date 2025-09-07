@@ -319,7 +319,7 @@ class Optimizer:
                 # add up the vector's element^2
                 vector_square_sum.append(combined_vector.square().sum().unsqueeze(0))
             elif unit_vector_mode == "per_spec":
-                vector_len = Tensor.cat(*vector_square_sum).sum().sqrt()
+                vector_len = combined_vector.square().sum().sqrt()
                 direction_vectors.append(
                     {key: delta / vector_len for key, delta in reconciled_delta.items()}
                 )
