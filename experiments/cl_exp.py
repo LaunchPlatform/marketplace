@@ -41,7 +41,6 @@ def main():
             )
     else:
         logger.info("Checkpoint file %s already exists, skip", checkpoint_file)
-    return
     for learn_vendor_count in [4, 8, 16]:
         for fw in [1, 2, 4, 8, 16]:
             for lr in [9e-3, 1e-2, 2e-2, 3e-2, 1e-1, 2e-1]:
@@ -57,8 +56,7 @@ def main():
                     learn(
                         step_count=10_000,
                         batch_size=256,
-                        target_new_classes=(3,),
-                        new_train_size=32,
+                        target_new_classes=(9,),
                         initial_lr=lr,
                         lr_decay_rate=0,
                         probe_scale=1.0,
