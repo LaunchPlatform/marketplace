@@ -36,7 +36,7 @@ plt.rcParams["font.size"] = original_font_size * scale_factor
 
 # Set up figure with gridspec for images and charts
 fig = plt.figure(figsize=(32, 32))
-gs = fig.add_gridspec(2, 2, width_ratios=[1, 1], hspace=0.1, wspace=0.05)
+gs = fig.add_gridspec(2, 2, width_ratios=[1, 1], hspace=0.1, wspace=0.1)
 
 # Image grid axes
 ax_top = fig.add_subplot(gs[0, 0])
