@@ -220,8 +220,6 @@ def learn(
 
         start_time = time.perf_counter()
 
-        samples = Tensor.randint(batch_size, low=0, high=batch_size, dtype=dtypes.uint)
-
         all_loss = []
         all_paths = []
         all_old_loss = []
@@ -229,6 +227,9 @@ def learn(
         all_new_loss = []
         all_new_accuracy = []
         for _ in range(forward_pass):
+            samples = Tensor.randint(
+                batch_size, low=0, high=batch_size, dtype=dtypes.uint
+            )
             x = X_train[samples]
             y = Y_train[samples]
 
