@@ -1,8 +1,11 @@
 # model based off https://medium.com/data-science/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
+import json
 import logging
 import pathlib
 import sys
 import time
+import typing
+from contextlib import nullcontext
 
 import click
 import mlflow
@@ -109,6 +112,7 @@ def learn(
     input_checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
+    replay_file: typing.TextIO | None = None,
     manual_seed: int | None = None,
 ):
     logger.info(
@@ -221,6 +225,7 @@ def learn(
         start_time = time.perf_counter()
 
         all_samples = []
+        all_correct = []
         all_loss = []
         all_paths = []
         all_old_loss = []
@@ -251,6 +256,7 @@ def learn(
             new_accuracy = correct[new_mask]
 
             all_samples.append(samples)
+            all_correct.append(correct)
             all_old_loss.append(old_loss)
             all_old_accuracy.append(old_accuracy)
             all_new_loss.append(new_loss)
@@ -280,6 +286,16 @@ def learn(
             mlflow.log_metric("learning/gflops", gflops, step=i)
             mlflow.log_metric("testing/old_accuracy", old_test_acc, step=i)
             mlflow.log_metric("testing/new_accuracy", new_test_acc, step=i)
+            if replay_file is not None:
+                replay_file.write(
+                    json.dumps(
+                        dict(
+                            samples=np.concatenate(all_samples),
+                            correct=np.concatenate(all_correct),
+                            global_step=i,
+                        )
+                    )
+                )
 
         if checkpoint_filepath is not None and i % checkpoint_per_steps == (
             checkpoint_per_steps - 1
@@ -341,6 +357,11 @@ def learn(
     default=100,
     help="For how many steps we should write a checkpoint",
 )
+@click.option(
+    "--replay-filepath",
+    type=click.Path(dir_okay=False, writable=True),
+    help="Filepath of replay JSON file to write to",
+)
 @click.option("--run-name", type=str, help="Set the run name")
 def main(
     step_count: int,
@@ -354,6 +375,7 @@ def main(
     input_checkpoint_filepath: str,
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
+    replay_filepath: str | None,
     run_name: str | None,
 ):
     # ref: https://github.com/tinygrad/tinygrad/issues/8617
@@ -362,6 +384,11 @@ def main(
     logger.info("Current recursion limit is %s", sys.getrecursionlimit())
     sys.setrecursionlimit(NEW_RECURSION_LIMIT)
     logger.info("Set recursion limit to %s", NEW_RECURSION_LIMIT)
+    if replay_filepath is not None:
+        replay_filepath = pathlib.Path(replay_filepath)
+        replay_file = replay_filepath.open("wt")
+    else:
+        replay_file = nullcontext()
     with mlflow.start_run(
         experiment_id=ensure_experiment("Continual Learning"),
         run_name="beautiful-mnist" if run_name is None else run_name,
@@ -389,6 +416,7 @@ def main(
                 else None
             ),
             checkpoint_per_steps=checkpoint_per_steps,
+            replay_file=replay_file,
         )
 
 
