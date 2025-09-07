@@ -287,7 +287,7 @@ class Optimizer:
         return lr_updates
 
     def compute_direction_vectors(
-        self, loss: Tensor, paths: Tensor, unit_vector_mode: UnitVectorMode = "whole"
+        self, loss: Tensor, paths: Tensor, unit_vector_mode: UnitVectorMode = "per_spec"
     ) -> list[dict[str, Tensor]]:
         std, mean = loss.std_mean()
         std_loss = -((loss - mean) / std)
