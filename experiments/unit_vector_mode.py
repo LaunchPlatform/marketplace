@@ -17,7 +17,7 @@ def main():
     for lr in [0.09, 0.1, 0.2, 0.3]:
         for mode in [UnitVectorMode.per_spec, UnitVectorMode.whole]:
             with mlflow.start_run(
-                run_name=f"lr-{lr}-{mode.value}",
+                run_name=f"lr-{lr}-{mode.value}-scale-1e-3",
                 experiment_id=exp_id,
                 log_system_metrics=True,
             ):
@@ -28,7 +28,7 @@ def main():
                     batch_size=512,
                     initial_lr=lr,
                     lr_decay_rate=1e-5,
-                    probe_scale=0.1,
+                    probe_scale=0.001,
                     unit_vector_mode=mode,
                     marketplace=marketplace,
                 )
