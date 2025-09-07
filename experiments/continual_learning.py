@@ -317,13 +317,13 @@ def learn(
 @click.option(
     "--probe-scale",
     type=float,
-    default=1,
+    default=0.01,
     help="The scale we use to apply on LR for making the reconciled delta direction",
 )
 @click.option(
     "--input-checkpoint-filepath",
     type=click.Path(dir_okay=False, readable=True, exists=True),
-    default="continual-learning-v3-exclude-9.safetensors",
+    default="continual-learning-v3-exclude-9-neutral.safetensors",
     help="Filepath of checkpoint to read from",
 )
 @click.option(
