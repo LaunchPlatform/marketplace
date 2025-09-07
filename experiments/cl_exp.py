@@ -44,27 +44,28 @@ def main():
     for learn_vendor_count in [4, 8, 16]:
         for fw in [1, 2, 4, 8, 16]:
             for lr in [9e-3, 1e-2, 2e-2, 3e-2, 1e-1, 2e-1]:
-                with mlflow.start_run(
-                    run_name=f"learn-vendor-{learn_vendor_count}-lr-{lr:.1e}-fw-{fw}",
-                    experiment_id=exp_id,
-                    log_system_metrics=True,
-                ):
-                    marketplace = make_marketplace(
-                        default_vendor_count=learn_vendor_count
-                    )
-                    mlflow.log_param("vendor_count", learn_vendor_count)
-                    learn(
-                        step_count=10_000,
-                        batch_size=256,
-                        target_new_classes=(9,),
-                        initial_lr=lr,
-                        lr_decay_rate=0,
-                        probe_scale=0.1,
-                        forward_pass=fw,
-                        marketplace=marketplace,
-                        manual_seed=42,
-                        input_checkpoint_filepath=checkpoint_file,
-                    )
+                for probe_scale in [1, 0.1, 0.01]:
+                    with mlflow.start_run(
+                        run_name=f"learn-vendor-{learn_vendor_count}-lr-{lr:.1e}-fw-{fw}-probe-scale-{probe_scale}",
+                        experiment_id=exp_id,
+                        log_system_metrics=True,
+                    ):
+                        marketplace = make_marketplace(
+                            default_vendor_count=learn_vendor_count
+                        )
+                        mlflow.log_param("vendor_count", learn_vendor_count)
+                        learn(
+                            step_count=10_000,
+                            batch_size=256,
+                            target_new_classes=(9,),
+                            initial_lr=lr,
+                            lr_decay_rate=0,
+                            probe_scale=probe_scale,
+                            forward_pass=fw,
+                            marketplace=marketplace,
+                            manual_seed=42,
+                            input_checkpoint_filepath=checkpoint_file,
+                        )
 
 
 if __name__ == "__main__":
