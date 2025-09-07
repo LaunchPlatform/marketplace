@@ -27,13 +27,22 @@ accuracy_train_bottom = 0.45 + 0.35 * (1 - np.exp(-epochs / 12))
 accuracy_val_bottom = 0.43 + 0.33 * (1 - np.exp(-epochs / 10))
 loss_bottom = 2.5 * np.exp(-epochs / 4)
 
+# Save the original default for potential restoration
+original_font_size = plt.rcParams["font.size"]
+
+# Scale up font size (e.g., 1.5x the default, which is usually 10pt)
+scale_factor = 2.0
+plt.rcParams["font.size"] = original_font_size * scale_factor
+
 # Set up figure with gridspec for images and charts
 fig = plt.figure(figsize=(32, 32))
-gs = fig.add_gridspec(2, 2, width_ratios=[1, 1], hspace=0.2, wspace=0.1)
+gs = fig.add_gridspec(2, 2, width_ratios=[1, 1], hspace=0.1, wspace=0.05)
 
 # Image grid axes
 ax_top = fig.add_subplot(gs[0, 0])
+ax_top.set_title("Old Data")
 ax_bottom = fig.add_subplot(gs[1, 0])
+ax_bottom.set_title("New Data")
 
 # Chart axes
 ax_acc_top = fig.add_subplot(gs[0, 1])
@@ -106,5 +115,6 @@ ax_top.set_yticks([])
 ax_bottom.set_xticks([])
 ax_bottom.set_yticks([])
 
+plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95)
 plt.tight_layout()
 plt.show()
