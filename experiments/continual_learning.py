@@ -317,7 +317,7 @@ def learn(
 @click.option(
     "--probe-scale",
     type=float,
-    default=0.01,
+    default=1,
     help="The scale we use to apply on LR for making the reconciled delta direction",
 )
 @click.option(
