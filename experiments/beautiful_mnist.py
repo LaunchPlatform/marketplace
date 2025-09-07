@@ -23,6 +23,7 @@ from .utils import filter_classes
 from .utils import sparse_categorical_crossentropy_with_neutral_mask
 from marketplace.nn import Model
 from marketplace.optimizers import Optimizer
+from marketplace.optimizers import UnitVectorMode
 from marketplace.training import forward
 from marketplace.training import Spec
 from marketplace.training import straight_forward
@@ -97,12 +98,14 @@ def train(
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
     only_classes: typing.Container[int] | None = None,
+    unit_vector_mode: UnitVectorMode = "per_spec",
     manual_seed: int | None = None,
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, meta_lr=%s, "
         "probe_scale=%s, marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, "
-        "metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, only_classes=%s, manual_seed=%s",
+        "metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, only_classes=%s, unit_vector_mode=%s, "
+        "manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
@@ -116,6 +119,7 @@ def train(
         checkpoint_filepath,
         checkpoint_per_steps,
         only_classes,
+        unit_vector_mode,
         manual_seed,
     )
 
@@ -131,6 +135,7 @@ def train(
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
     mlflow.log_param("only_classes", only_classes)
+    mlflow.log_param("unit_vector_mode", unit_vector_mode)
     mlflow.log_param("manual_seed", manual_seed)
 
     if manual_seed is not None:
@@ -216,6 +221,7 @@ def train(
         direction_vectors = optimizer.compute_direction_vectors(
             loss=loss,
             paths=paths,
+            unit_vector_mode=unit_vector_mode,
         )
         Tensor.realize(
             *optimizer.schedule_weight_update(
@@ -356,6 +362,12 @@ def train(
     help="The scale we use to apply on LR for making the reconciled delta direction",
 )
 @click.option(
+    "--unit-vector-mode",
+    type=click.Choice(UnitVectorMode, case_sensitive=False),
+    default=UnitVectorMode.per_spec.value,
+    help="The unit vector mode to use",
+)
+@click.option(
     "--checkpoint-filepath",
     type=click.Path(dir_okay=False, writable=True),
     help="Filepath of checkpoint to write to",
@@ -378,6 +390,7 @@ def main(
     vendor_count: int,
     seed: int | None,
     probe_scale: float | None,
+    unit_vector_mode: UnitVectorMode,
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
     run_name: str | None,
@@ -401,6 +414,7 @@ def main(
             meta_lr=meta_lr,
             initial_forward_pass=forward_pass,
             probe_scale=probe_scale if probe_scale else None,
+            unit_vector_mode=unit_vector_mode,
             manual_seed=seed,
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count,

@@ -1,5 +1,6 @@
 import copy
 import dataclasses
+import enum
 import typing
 
 from tinygrad import dtypes
@@ -13,7 +14,11 @@ from .random import RandomNumberGenerator
 from .training import Spec
 
 SEED_MAX = 2**64
-UnitVectorMode = typing.Literal["per_spec", "whole"]
+
+
+class UnitVectorMode(enum.Enum):
+    whole = "whole"
+    per_spec = "per_spec"
 
 
 @dataclasses.dataclass
@@ -287,7 +292,10 @@ class Optimizer:
         return lr_updates
 
     def compute_direction_vectors(
-        self, loss: Tensor, paths: Tensor, unit_vector_mode: UnitVectorMode = "per_spec"
+        self,
+        loss: Tensor,
+        paths: Tensor,
+        unit_vector_mode: UnitVectorMode = UnitVectorMode.per_spec,
     ) -> list[dict[str, Tensor]]:
         std, mean = loss.std_mean()
         std_loss = -((loss - mean) / std)
@@ -315,17 +323,17 @@ class Optimizer:
             combined_vector = Tensor.cat(
                 *[delta.flatten() for delta in reconciled_delta.values()]
             )
-            if unit_vector_mode == "whole":
+            if unit_vector_mode == UnitVectorMode.whole:
                 # add up the vector's element^2
                 vector_square_sum.append(combined_vector.square().sum().unsqueeze(0))
-            elif unit_vector_mode == "per_spec":
+            elif unit_vector_mode == UnitVectorMode.per_spec:
                 vector_len = combined_vector.square().sum().sqrt()
                 direction_vectors.append(
                     {key: delta / vector_len for key, delta in reconciled_delta.items()}
                 )
             else:
                 raise ValueError(f"Unexpected unit vector mode {unit_vector_mode}")
-        if unit_vector_mode == "per_spec":
+        if unit_vector_mode == UnitVectorMode.per_spec:
             return direction_vectors
         vector_len = Tensor.cat(*vector_square_sum).sum().sqrt()
         return [
