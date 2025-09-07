@@ -386,12 +386,15 @@ def main(
     logger.info("Set recursion limit to %s", NEW_RECURSION_LIMIT)
     if replay_filepath is not None:
         replay_filepath = pathlib.Path(replay_filepath)
-        replay_file = replay_filepath.open("wt")
+        replay_file_ctx = replay_filepath.open("wt")
     else:
-        replay_file = nullcontext()
-    with mlflow.start_run(
-        experiment_id=ensure_experiment("Continual Learning"),
-        run_name="beautiful-mnist" if run_name is None else run_name,
+        replay_file_ctx = nullcontext()
+    with (
+        mlflow.start_run(
+            experiment_id=ensure_experiment("Continual Learning"),
+            run_name="beautiful-mnist" if run_name is None else run_name,
+        ),
+        replay_file_ctx as replay_file,
     ):
         mlflow.log_param("vendor_count", vendor_count)
         learn(
