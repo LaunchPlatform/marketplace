@@ -29,9 +29,9 @@ def main():
             train(
                 step_count=2_000,
                 batch_size=512,
-                initial_lr=1e-1,
+                initial_lr=2e-1,
                 lr_decay_rate=1e-5,
-                probe_scale=1e-1,
+                probe_scale=1e-2,
                 marketplace=marketplace,
                 manual_seed=42,
                 unit_vector_mode=UnitVectorMode.whole,
