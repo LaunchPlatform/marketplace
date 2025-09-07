@@ -7,6 +7,7 @@ from .beautiful_mnist import make_marketplace
 from .beautiful_mnist import train
 from .continual_learning import learn
 from .utils import ensure_experiment
+from marketplace.optimizers import UnitVectorMode
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ def main():
                 probe_scale=1e-1,
                 marketplace=marketplace,
                 manual_seed=42,
+                unit_vector_mode=UnitVectorMode.whole,
                 checkpoint_filepath=checkpoint_file,
                 # exclude 9
                 only_classes=tuple(range(9)),
