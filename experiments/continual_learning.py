@@ -290,8 +290,8 @@ def learn(
                 replay_file.write(
                     json.dumps(
                         dict(
-                            samples=np.concatenate(all_samples),
-                            correct=np.concatenate(all_correct),
+                            samples=np.concatenate(all_samples).tolist(),
+                            correct=np.concatenate(all_correct).tolist(),
                             global_step=i,
                         )
                     )
