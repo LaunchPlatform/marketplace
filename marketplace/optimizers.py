@@ -13,6 +13,7 @@ from .random import RandomNumberGenerator
 from .training import Spec
 
 SEED_MAX = 2**64
+UnitVectorMode = typing.Literal["per_spec", "whole"]
 
 
 @dataclasses.dataclass
@@ -286,11 +287,12 @@ class Optimizer:
         return lr_updates
 
     def compute_direction_vectors(
-        self, loss: Tensor, paths: Tensor
+        self, loss: Tensor, paths: Tensor, unit_vector_mode: UnitVectorMode = "whole"
     ) -> list[dict[str, Tensor]]:
         std, mean = loss.std_mean()
         std_loss = -((loss - mean) / std)
         reconciled_deltas = []
+        direction_vectors = []
         vector_square_sum = []
         for i, (spec, ctx) in enumerate(zip(self.marketplace, self.spec_context)):
             model_params = get_state_dict(spec.model)
@@ -313,8 +315,18 @@ class Optimizer:
             combined_vector = Tensor.cat(
                 *[delta.flatten() for delta in reconciled_delta.values()]
             )
-            # add up the vector's element^2
-            vector_square_sum.append(combined_vector.square().sum().unsqueeze(0))
+            if unit_vector_mode == "whole":
+                # add up the vector's element^2
+                vector_square_sum.append(combined_vector.square().sum().unsqueeze(0))
+            elif unit_vector_mode == "per_spec":
+                vector_len = Tensor.cat(*vector_square_sum).sum().sqrt()
+                direction_vectors.append(
+                    {key: delta / vector_len for key, delta in reconciled_delta.items()}
+                )
+            else:
+                raise ValueError(f"Unexpected unit vector mode {unit_vector_mode}")
+        if unit_vector_mode == "per_spec":
+            return direction_vectors
         vector_len = Tensor.cat(*vector_square_sum).sum().sqrt()
         return [
             # make them a unit vector
