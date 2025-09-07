@@ -156,7 +156,7 @@ def train(
     loss_func = lambda x, y: x.sparse_categorical_crossentropy(y)
     if only_classes is not None:
         excluded_classes = frozenset(range(10)) - frozenset(only_classes)
-        if len(excluded_classes):
+        if len(excluded_classes) != 1:
             raise ValueError("Currently only support one excluded class")
         loss_func = lambda x, y: x.sparse_categorical_crossentropy(
             y, ignore_index=list(excluded_classes)[0]
