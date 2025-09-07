@@ -59,7 +59,7 @@ def main():
                         target_new_classes=(9,),
                         initial_lr=lr,
                         lr_decay_rate=0,
-                        probe_scale=1.0,
+                        probe_scale=0.1,
                         forward_pass=fw,
                         marketplace=marketplace,
                         manual_seed=42,
