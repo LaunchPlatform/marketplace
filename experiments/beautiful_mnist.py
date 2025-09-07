@@ -20,7 +20,6 @@ from tinygrad.nn.datasets import mnist
 
 from .utils import ensure_experiment
 from .utils import filter_classes
-from .utils import sparse_categorical_crossentropy_with_neutral_mask
 from marketplace.nn import Model
 from marketplace.optimizers import Optimizer
 from marketplace.optimizers import UnitVectorMode
