@@ -4,6 +4,7 @@ import multiprocessing
 import pathlib
 import signal
 
+import click
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import ticker
@@ -162,8 +163,15 @@ def plot_frame(
     plt.savefig(output_file, dpi=dpi, bbox_inches=None)
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+@click.command()
+@click.argument(
+    "INPUT_FILE", type=click.Path(dir_okay=False, exists=True, readable=True)
+)
+@click.argument(
+    "OUTPUT_FOLDER",
+    type=click.Path(dir_okay=True, file_okay=False, exists=True, writable=True),
+)
+def main(input_file: str, output_folder: str):
     steps = []
 
     old_samples = []
@@ -178,7 +186,7 @@ if __name__ == "__main__":
     new_validation_accuracy = []
     new_loss = []
 
-    with open("fashion.jsonl") as replay_file:
+    with open(input_file) as replay_file:
         for line in replay_file.readlines():
             data = json.loads(line)
 
@@ -213,7 +221,7 @@ if __name__ == "__main__":
     def prepare_kwargs(item: tuple[int, int]):
         i, step = item
         count = i + 1
-        output_file = pathlib.Path("fashion_replay") / f"{i}.png"
+        output_file = pathlib.Path(output_folder) / f"{i}.png"
         logger.info("Writing %s (step %s) to %s", i, step, output_file)
         return dict(
             old_images=X_train[old_samples[i]].reshape(-1, 28, 28),
@@ -247,3 +255,8 @@ if __name__ == "__main__":
             ),
         ):
             logger.info("Wrote to %s", output_file)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    main()
