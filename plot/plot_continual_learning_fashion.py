@@ -55,6 +55,7 @@ def plot_frame(
 
     # Set up figure with gridspec for images and charts
     fig = plt.figure(figsize=(32, 32))
+    fig.suptitle(f"Marketplace V2 Continual Learning - Step {steps[-1]}", fontsize=16)
     gs = fig.add_gridspec(2, 2, width_ratios=[1, 1], hspace=0.2, wspace=0.2)
 
     # Image grid axes
@@ -149,6 +150,7 @@ def plot_frame(
 
     plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95)
     plt.tight_layout()
+
     plt.savefig(output_file, dpi=dpi, bbox_inches="tight")
 
 
