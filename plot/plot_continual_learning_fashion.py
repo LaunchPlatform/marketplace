@@ -55,7 +55,7 @@ def plot_frame(
 
     # Set up figure with gridspec for images and charts
     fig = plt.figure(figsize=(32, 32))
-    gs = fig.add_gridspec(2, 2, width_ratios=[1, 1], hspace=0.1, wspace=0.1)
+    gs = fig.add_gridspec(2, 2, width_ratios=[1, 1], hspace=0.2, wspace=0.2)
 
     # Image grid axes
     ax_top = fig.add_subplot(gs[0, 0])
