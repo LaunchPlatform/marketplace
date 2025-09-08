@@ -279,14 +279,9 @@ def learn(
 
         start_time = time.perf_counter()
         old_train_size = batch_size - new_train_size
-        old_samples = Tensor.randint(
-            old_train_size, low=0, high=old_train_size, dtype=dtypes.uint
-        )
-        new_samples = Tensor.randint(
-            new_train_size, low=0, high=new_train_size, dtype=dtypes.uint
-        )
 
-        all_samples = []
+        all_old_samples = []
+        all_new_samples = []
         all_correct = []
         all_loss = []
         all_paths = []
@@ -327,6 +322,9 @@ def learn(
             )
             old_loss = loss[:old_train_size].mean()
             new_loss = loss[old_train_size:].mean()
+
+            all_old_samples.append(old_samples.numpy())
+            all_new_samples.append(new_samples.numpy())
             all_loss.append(loss)
             all_paths.append(paths)
             all_old_loss.append(old_loss)
@@ -362,7 +360,8 @@ def learn(
                 replay_file.write(
                     json.dumps(
                         dict(
-                            samples=np.concatenate(all_samples).tolist(),
+                            old_samples=np.concatenate(all_old_samples).tolist(),
+                            new_samples=np.concatenate(all_new_samples).tolist(),
                             correct=np.concatenate(all_correct).tolist(),
                             global_step=i,
                         )
