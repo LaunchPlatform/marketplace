@@ -106,7 +106,7 @@ def plot_frame(
     )
     ax_loss_top.plot(steps, old_loss, label="Loss", color="red", linestyle="--")
     ax_acc_top.set_title(
-        f"Old Data (acc={old_learning_accuracy[-1]:.2f}%, vacc={old_validation_accuracy[-1]:.2f}, loss={old_loss[-1]:.2f}))"
+        f"Old Data (acc={old_learning_accuracy[-1]:.2f}%, vacc={old_validation_accuracy[-1]:.2f}, loss={old_loss[-1]:.2f})"
     )
     ax_acc_top.set_xlabel("Steps")
     ax_acc_top.set_ylabel("Accuracy", color="blue")
