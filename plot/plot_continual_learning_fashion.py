@@ -131,7 +131,7 @@ def plot_frame(
     )
     ax_loss_bottom.plot(steps, new_loss, label="Loss", color="red", linestyle="--")
     ax_acc_bottom.set_title(
-        f"New Data (vacc={new_validation_accuracy[-1]:.2f}, loss={new_loss[-1]:.2f}))"
+        f"New Data (vacc={new_validation_accuracy[-1]:.2f}, loss={new_loss[-1]:.2f})"
     )
     ax_acc_bottom.set_xlabel("Steps")
     ax_acc_bottom.set_ylabel("Accuracy", color="blue")
