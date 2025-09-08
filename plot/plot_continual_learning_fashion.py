@@ -60,7 +60,7 @@ def plot_frame(
     # Set up figure with gridspec for images and charts
     fig = plt.figure(figsize=(32, 32))
     fig.suptitle(
-        f"Marketplace V2 Continual Learning - Step {steps[-1] + 1}",
+        f"Marketplace Continual Learning +Fashion CLS 3 - Step {steps[-1] + 1}",
         fontsize=48,
     )
     gs = fig.add_gridspec(2, 2, width_ratios=[1, 1], hspace=0.2, wspace=0.2)
