@@ -17,8 +17,12 @@ target_new_Y_train = Tensor(new_Y_train.numpy()[class_mask])
 def plot_frame(
     old_samples: np.typing.NDArray,
     old_correct: np.typing.NDArray,
+    old_learning_accuracy: np.typing.NDArray,
+    old_validation_accuracy: np.typing.NDArray,
+    old_loss: np.typing.NDArray,
     new_samples: np.typing.NDArray,
     new_correct: np.typing.NDArray,
+    steps: np.typing.NDArray,
 ):
     images_top = list(
         zip(
@@ -32,15 +36,6 @@ def plot_frame(
             new_correct,
         )
     )
-
-    # Simulated accuracy and loss data
-    epochs = np.arange(1, 21)
-    accuracy_train_top = 0.5 + 0.4 * (1 - np.exp(-epochs / 10))
-    accuracy_val_top = 0.48 + 0.38 * (1 - np.exp(-epochs / 8))
-    loss_top = 2.0 * np.exp(-epochs / 5)
-    accuracy_train_bottom = 0.45 + 0.35 * (1 - np.exp(-epochs / 12))
-    accuracy_val_bottom = 0.43 + 0.33 * (1 - np.exp(-epochs / 10))
-    loss_bottom = 2.5 * np.exp(-epochs / 4)
 
     # Save the original default for potential restoration
     original_font_size = plt.rcParams["font.size"]
@@ -94,13 +89,15 @@ def plot_frame(
     plot_grid(ax_bottom, images_bottom)
 
     # Plot accuracy and loss for top grid
-    ax_acc_top.plot(epochs, accuracy_train_top, label="Training Accuracy", color="blue")
     ax_acc_top.plot(
-        epochs, accuracy_val_top, label="Validation Accuracy", color="orange"
+        steps, old_learning_accuracy, label="Learning Accuracy", color="blue"
     )
-    ax_loss_top.plot(epochs, loss_top, label="Loss", color="red", linestyle="--")
-    ax_acc_top.set_title("Top Grid: Accuracy and Loss")
-    ax_acc_top.set_xlabel("Epoch")
+    ax_acc_top.plot(
+        steps, old_validation_accuracy, label="Validation Accuracy", color="orange"
+    )
+    ax_loss_top.plot(steps, old_loss, label="Loss", color="red", linestyle="--")
+    ax_acc_top.set_title("New Data: Accuracy and Loss")
+    ax_acc_top.set_xlabel("Steps")
     ax_acc_top.set_ylabel("Accuracy", color="blue")
     ax_loss_top.set_ylabel("Loss", color="red")
     ax_acc_top.tick_params(axis="y", colors="blue")
@@ -110,13 +107,13 @@ def plot_frame(
 
     # Plot accuracy and loss for bottom grid
     ax_acc_bottom.plot(
-        epochs, accuracy_train_bottom, label="Training Accuracy", color="blue"
+        steps, old_learning_accuracy, label="Learning Accuracy", color="blue"
     )
     ax_acc_bottom.plot(
-        epochs, accuracy_val_bottom, label="Validation Accuracy", color="orange"
+        steps, old_validation_accuracy, label="Validation Accuracy", color="orange"
     )
-    ax_loss_bottom.plot(epochs, loss_bottom, label="Loss", color="red", linestyle="--")
-    ax_acc_bottom.set_title("Bottom Grid: Accuracy and Loss")
+    ax_loss_bottom.plot(steps, old_loss, label="Loss", color="red", linestyle="--")
+    ax_acc_bottom.set_title("Old Data: Accuracy and Loss")
     ax_acc_bottom.set_xlabel("Epoch")
     ax_acc_bottom.set_ylabel("Accuracy", color="blue")
     ax_loss_bottom.set_ylabel("Loss", color="red")
