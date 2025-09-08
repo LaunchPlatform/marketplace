@@ -55,7 +55,9 @@ def plot_frame(
 
     # Set up figure with gridspec for images and charts
     fig = plt.figure(figsize=(32, 32))
-    fig.suptitle(f"Marketplace V2 Continual Learning - Step {steps[-1]}", fontsize=16)
+    fig.suptitle(
+        f"Marketplace V2 Continual Learning - Step {steps[-1] + 1}", fontsize=16
+    )
     gs = fig.add_gridspec(2, 2, width_ratios=[1, 1], hspace=0.2, wspace=0.2)
 
     # Image grid axes
@@ -75,7 +77,7 @@ def plot_frame(
     ax_loss_bottom = ax_acc_bottom.twinx()
 
     # Function to plot a single grid
-    def plot_grid(ax, images, grid_size=16):
+    def plot_grid(ax, images, grid_size=48):
         for i in range(grid_size):
             for j in range(grid_size):
                 idx = i * grid_size + j
