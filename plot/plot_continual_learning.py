@@ -22,6 +22,9 @@ def plot_frame(
     old_loss: np.typing.NDArray,
     new_samples: np.typing.NDArray,
     new_correct: np.typing.NDArray,
+    new_learning_accuracy: np.typing.NDArray,
+    new_validation_accuracy: np.typing.NDArray,
+    new_loss: np.typing.NDArray,
     steps: np.typing.NDArray,
 ):
     images_top = list(
@@ -96,7 +99,7 @@ def plot_frame(
         steps, old_validation_accuracy, label="Validation Accuracy", color="orange"
     )
     ax_loss_top.plot(steps, old_loss, label="Loss", color="red", linestyle="--")
-    ax_acc_top.set_title("New Data: Accuracy and Loss")
+    ax_acc_top.set_title("Old Data: Accuracy and Loss")
     ax_acc_top.set_xlabel("Steps")
     ax_acc_top.set_ylabel("Accuracy", color="blue")
     ax_loss_top.set_ylabel("Loss", color="red")
@@ -107,13 +110,13 @@ def plot_frame(
 
     # Plot accuracy and loss for bottom grid
     ax_acc_bottom.plot(
-        steps, old_learning_accuracy, label="Learning Accuracy", color="blue"
+        steps, new_learning_accuracy, label="Learning Accuracy", color="blue"
     )
     ax_acc_bottom.plot(
-        steps, old_validation_accuracy, label="Validation Accuracy", color="orange"
+        steps, new_validation_accuracy, label="Validation Accuracy", color="orange"
     )
-    ax_loss_bottom.plot(steps, old_loss, label="Loss", color="red", linestyle="--")
-    ax_acc_bottom.set_title("Old Data: Accuracy and Loss")
+    ax_loss_bottom.plot(steps, new_loss, label="Loss", color="red", linestyle="--")
+    ax_acc_bottom.set_title("New Data: Accuracy and Loss")
     ax_acc_bottom.set_xlabel("Epoch")
     ax_acc_bottom.set_ylabel("Accuracy", color="blue")
     ax_loss_bottom.set_ylabel("Loss", color="red")
