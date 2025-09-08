@@ -239,5 +239,11 @@ if __name__ == "__main__":
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     with multiprocessing.Pool(16, init_worker) as pool:
-        for output_file in pool.imap(make_frame, map(prepare_kwargs, enumerate(steps))):
+        for output_file in pool.imap(
+            make_frame,
+            filter(
+                lambda x: not x["output_file"].exists(),
+                map(prepare_kwargs, enumerate(steps)),
+            ),
+        ):
             logger.info("Wrote to %s", output_file)
