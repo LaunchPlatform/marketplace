@@ -4,6 +4,7 @@ import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import ticker
 from tinygrad import Tensor
 from tinygrad.nn.datasets import mnist
 
@@ -120,6 +121,7 @@ def plot_frame(
     ax_acc_top.set_ylabel("Accuracy", color="blue")
     ax_acc_top.set_ylim(0, 100)
     ax_loss_top.set_ylabel("Loss", color="red")
+    ax_loss_top.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
     ax_acc_top.tick_params(axis="y", colors="blue")
     ax_loss_top.tick_params(axis="y", colors="red")
     ax_acc_top.legend(loc="upper left")
@@ -140,6 +142,7 @@ def plot_frame(
     ax_acc_bottom.set_ylabel("Accuracy", color="blue")
     ax_acc_bottom.set_ylim(0, 100)
     ax_loss_bottom.set_ylabel("Loss", color="red")
+    ax_loss_bottom.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
     ax_acc_bottom.tick_params(axis="y", colors="blue")
     ax_loss_bottom.tick_params(axis="y", colors="red")
     ax_acc_bottom.legend(loc="upper left")
@@ -151,7 +154,7 @@ def plot_frame(
     ax_bottom.set_xticks([])
     ax_bottom.set_yticks([])
 
-    plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.925)
+    plt.subplots_adjust(left=0.025, right=0.95, bottom=0.05, top=0.925)
     plt.tight_layout()
 
     plt.savefig(output_file, dpi=dpi, bbox_inches="tight")
