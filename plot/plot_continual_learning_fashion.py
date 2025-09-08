@@ -100,7 +100,7 @@ def plot_frame(
                     border_color = "green" if is_correct else "red"
                     for spine in sub_ax.spines.values():
                         spine.set_edgecolor(border_color)
-                        spine.set_linewidth(2)
+                        spine.set_linewidth(4)
                     sub_ax.set_xticks([])
                     sub_ax.set_yticks([])
 
