@@ -426,7 +426,7 @@ def learn(
     help="For how many steps we should write a checkpoint",
 )
 @click.option(
-    "--replay-filepath",
+    "--replay-file",
     type=click.Path(dir_okay=False, writable=True),
     help="Filepath of replay JSON file to write to",
 )
@@ -443,7 +443,7 @@ def main(
     input_checkpoint_filepath: str,
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
-    replay_filepath: str | None,
+    replay_file: str | None,
     run_name: str | None,
 ):
     # ref: https://github.com/tinygrad/tinygrad/issues/8617
@@ -452,8 +452,8 @@ def main(
     logger.info("Current recursion limit is %s", sys.getrecursionlimit())
     sys.setrecursionlimit(NEW_RECURSION_LIMIT)
     logger.info("Set recursion limit to %s", NEW_RECURSION_LIMIT)
-    if replay_filepath is not None:
-        replay_filepath = pathlib.Path(replay_filepath)
+    if replay_file is not None:
+        replay_filepath = pathlib.Path(replay_file)
         replay_file_ctx = replay_filepath.open("wt")
     else:
         replay_file_ctx = nullcontext()
