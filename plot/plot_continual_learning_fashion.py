@@ -59,9 +59,13 @@ def plot_frame(
 
     # Image grid axes
     ax_top = fig.add_subplot(gs[0, 0])
-    ax_top.set_title(f"Old Data ({old_correct.sum()}/{len(old_correct)})")
+    ax_top.set_title(
+        f"Old Data ({old_correct.sum()}/{len(old_correct)}, acc={old_learning_accuracy[-1]:.2f}%)"
+    )
     ax_bottom = fig.add_subplot(gs[1, 0])
-    ax_bottom.set_title(f"New Data ({old_correct.sum()}/{len(old_correct)})")
+    ax_bottom.set_title(
+        f"New Data ({new_correct.sum()}/{len(new_correct)}, acc={new_learning_accuracy[-1]:.2f}%)"
+    )
 
     # Chart axes
     ax_acc_top = fig.add_subplot(gs[0, 1])
@@ -106,7 +110,7 @@ def plot_frame(
     )
     ax_loss_top.plot(steps, old_loss, label="Loss", color="red", linestyle="--")
     ax_acc_top.set_title(
-        f"Old Data (acc={old_learning_accuracy[-1]:.2f}%, vacc={old_validation_accuracy[-1]:.2f}, loss={old_loss[-1]:.2f})"
+        f"Old Data (vacc={old_validation_accuracy[-1]:.2f}, loss={old_loss[-1]:.2f})"
     )
     ax_acc_top.set_xlabel("Steps")
     ax_acc_top.set_ylabel("Accuracy", color="blue")
@@ -126,7 +130,7 @@ def plot_frame(
     )
     ax_loss_bottom.plot(steps, new_loss, label="Loss", color="red", linestyle="--")
     ax_acc_bottom.set_title(
-        f"New Data (acc={new_learning_accuracy[-1]:.2f}%, vacc={new_validation_accuracy[-1]:.2f}, loss={new_loss[-1]:.2f}))"
+        f"New Data (vacc={new_validation_accuracy[-1]:.2f}, loss={new_loss[-1]:.2f}))"
     )
     ax_acc_bottom.set_xlabel("Steps")
     ax_acc_bottom.set_ylabel("Accuracy", color="blue")
