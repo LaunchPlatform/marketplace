@@ -109,7 +109,7 @@ def learn(
     balance_labels: bool = True,
     augment_old: bool = False,
     augment_new: bool = False,
-    new_train_size: int = 8,
+    new_train_size: int = 16,
     probe_scale: float | None = None,
     forward_pass: int = 1,
     metrics_per_steps: int = 10,
