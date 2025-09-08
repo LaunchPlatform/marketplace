@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # Save the original default for potential restoration
 original_font_size = plt.rcParams["font.size"]
 # Scale up font size (e.g., 1.5x the default, which is usually 10pt)
-scale_factor = 4.0
+scale_factor = 3.8
 plt.rcParams["font.size"] = original_font_size * scale_factor
 
 X_train, Y_train, _, _ = mnist()
@@ -59,13 +59,9 @@ def plot_frame(
 
     # Image grid axes
     ax_top = fig.add_subplot(gs[0, 0])
-    ax_top.set_title(
-        f"Old Data (acc={old_learning_accuracy[-1]:.2f}, vacc={old_validation_accuracy[-1]:.2f}, loss={old_loss[-1]:.2f})"
-    )
+    ax_top.set_title(f"Old Data ()")
     ax_bottom = fig.add_subplot(gs[1, 0])
-    ax_bottom.set_title(
-        f"New Data (acc={new_learning_accuracy[-1]:.2f}, vacc={new_validation_accuracy[-1]:.2f}, loss={new_loss[-1]:.2f})"
-    )
+    ax_bottom.set_title(f"New Data ()")
 
     # Chart axes
     ax_acc_top = fig.add_subplot(gs[0, 1])
@@ -109,7 +105,9 @@ def plot_frame(
         steps, old_validation_accuracy, label="Validation Accuracy", color="green"
     )
     ax_loss_top.plot(steps, old_loss, label="Loss", color="red", linestyle="--")
-    ax_acc_top.set_title("Old Data: Accuracy and Loss")
+    ax_acc_top.set_title(
+        f"Old Data (acc={old_learning_accuracy[-1]:.2f}%, vacc={old_validation_accuracy[-1]:.2f}, loss={old_loss[-1]:.2f}))"
+    )
     ax_acc_top.set_xlabel("Steps")
     ax_acc_top.set_ylabel("Accuracy", color="blue")
     ax_loss_top.set_ylabel("Loss", color="red")
@@ -126,8 +124,10 @@ def plot_frame(
         steps, new_validation_accuracy, label="Validation Accuracy", color="green"
     )
     ax_loss_bottom.plot(steps, new_loss, label="Loss", color="red", linestyle="--")
-    ax_acc_bottom.set_title("New Data: Accuracy and Loss")
-    ax_acc_bottom.set_xlabel("Epoch")
+    ax_acc_bottom.set_title(
+        f"New Data (acc={new_learning_accuracy[-1]:.2f}%, vacc={new_validation_accuracy[-1]:.2f}, loss={new_loss[-1]:.2f}))"
+    )
+    ax_acc_bottom.set_xlabel("Steps")
     ax_acc_bottom.set_ylabel("Accuracy", color="blue")
     ax_loss_bottom.set_ylabel("Loss", color="red")
     ax_acc_bottom.tick_params(axis="y", colors="blue")
@@ -168,13 +168,13 @@ if __name__ == "__main__":
 
             steps.append(data["global_step"])
 
-            old_learning_accuracy.append(np.array(data["old_correct"]).mean())
+            old_learning_accuracy.append(np.array(data["old_correct"]).mean() * 100)
             old_validation_accuracy.append(data["old_test_acc"])
             old_loss.append(data["old_loss"])
             old_correct.append(data["old_correct"])
             old_samples.append(data["old_samples"])
 
-            new_learning_accuracy.append(np.array(data["new_correct"]).mean())
+            new_learning_accuracy.append(np.array(data["new_correct"]).mean() * 100)
             new_validation_accuracy.append(data["new_test_acc"])
             new_loss.append(data["new_loss"])
             new_correct.append(data["new_correct"])
