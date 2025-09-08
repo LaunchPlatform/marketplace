@@ -173,13 +173,13 @@ if __name__ == "__main__":
 
     old_learning_accuracy = np.array(old_learning_accuracy)
     old_validation_accuracy = np.array(old_validation_accuracy)
-    old_loss = np.array(old_loss)
+    old_loss = np.array(old_loss).mean(axis=1)
     old_correct = np.array(old_correct)
     old_samples = np.array(old_samples)
 
     new_learning_accuracy = np.array(new_learning_accuracy)
     new_validation_accuracy = np.array(new_validation_accuracy)
-    new_loss = np.array(new_loss)
+    new_loss = np.array(new_loss).mean(axis=1)
     new_correct = np.array(new_correct)
     new_samples = np.array(new_samples)
 
