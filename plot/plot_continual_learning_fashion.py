@@ -238,6 +238,6 @@ if __name__ == "__main__":
     def init_worker():
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    with multiprocessing.Pool(8, init_worker) as pool:
+    with multiprocessing.Pool(16, init_worker) as pool:
         for output_file in pool.imap(make_frame, map(prepare_kwargs, enumerate(steps))):
             logger.info("Wrote to %s", output_file)
