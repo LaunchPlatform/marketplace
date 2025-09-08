@@ -329,8 +329,8 @@ def learn(
             all_paths.append(paths)
             all_old_loss.append(old_loss.numpy())
             all_old_accuracy.append(old_accuracy.numpy())
-            all_new_loss.append(new_loss)
-            all_new_accuracy.append(new_accuracy)
+            all_new_loss.append(new_loss.numpy())
+            all_new_accuracy.append(new_accuracy.numpy())
 
         optimize_step(Tensor.cat(*all_loss), Tensor.cat(*all_paths))
 
