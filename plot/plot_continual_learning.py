@@ -644,4 +644,8 @@ if __name__ == "__main__":
         old_correct=np.array(data["old_correct"]),
         new_samples=np.array(data["new_samples"]),
         new_correct=np.array(data["new_correct"]),
+        old_learning_accuracy=np.array([30, 33, 34]),
+        old_validation_accuracy=np.array([40, 50, 60]),
+        old_loss=np.array([0.1, 0.2, 0.3]),
+        steps=np.array([0, 9, 19]),
     )
