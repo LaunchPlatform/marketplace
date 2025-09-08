@@ -41,7 +41,7 @@ def plot_frame(
     new_loss: np.typing.NDArray,
     steps: np.typing.NDArray,
     output_file: pathlib.Path,
-    dpi: int = 100,
+    dpi: int = 50,
 ):
     images_top = list(
         zip(
