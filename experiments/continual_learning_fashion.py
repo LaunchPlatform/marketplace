@@ -327,17 +327,17 @@ def learn(
             all_new_samples.append(new_samples.numpy())
             all_loss.append(loss)
             all_paths.append(paths)
-            all_old_loss.append(old_loss)
-            all_old_accuracy.append(old_accuracy)
+            all_old_loss.append(old_loss.numpy())
+            all_old_accuracy.append(old_accuracy.numpy())
             all_new_loss.append(new_loss)
             all_new_accuracy.append(new_accuracy)
 
         optimize_step(Tensor.cat(*all_loss), Tensor.cat(*all_paths))
 
-        old_loss = np.concatenate(all_old_loss).mean()
-        old_accuracy = np.concatenate(all_old_accuracy).mean() * 100
-        new_loss = np.concatenate(all_new_loss).mean()
-        new_accuracy = np.concatenate(all_new_accuracy).mean() * 100
+        old_loss = np.array(all_old_loss).mean()
+        old_accuracy = np.array(all_old_accuracy).mean() * 100
+        new_loss = np.array(all_new_loss).mean()
+        new_accuracy = np.array(all_new_accuracy).mean() * 100
 
         end_time = time.perf_counter()
         run_time = end_time - start_time
@@ -414,7 +414,7 @@ def learn(
 @click.option(
     "--input-checkpoint-filepath",
     type=click.Path(dir_okay=False, readable=True, exists=True),
-    default="continual-learning-v3-exclude-9-neutral.safetensors",
+    default="continual-learning.safetensors",
     help="Filepath of checkpoint to read from",
 )
 @click.option(
