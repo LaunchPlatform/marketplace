@@ -59,9 +59,9 @@ def plot_frame(
 
     # Image grid axes
     ax_top = fig.add_subplot(gs[0, 0])
-    ax_top.set_title(f"Old Data ()")
+    ax_top.set_title(f"Old Data ({old_correct.sum()}/{len(old_correct)})")
     ax_bottom = fig.add_subplot(gs[1, 0])
-    ax_bottom.set_title(f"New Data ()")
+    ax_bottom.set_title(f"New Data ({old_correct.sum()}/{len(old_correct)})")
 
     # Chart axes
     ax_acc_top = fig.add_subplot(gs[0, 1])
