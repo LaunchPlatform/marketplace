@@ -1,4 +1,5 @@
 import json
+import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,6 +29,8 @@ def plot_frame(
     new_validation_accuracy: np.typing.NDArray,
     new_loss: np.typing.NDArray,
     steps: np.typing.NDArray,
+    output_file: pathlib.Path,
+    dpi: int = 300,
 ):
     images_top = list(
         zip(
@@ -135,7 +138,7 @@ def plot_frame(
 
     plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95)
     plt.tight_layout()
-    plt.show()
+    plt.savefig(output_file, dpi=dpi, bbox_inches="tight")
 
 
 if __name__ == "__main__":
@@ -199,6 +202,5 @@ if __name__ == "__main__":
             new_validation_accuracy=new_validation_accuracy[:count],
             new_loss=new_loss[:count],
             steps=steps[:count],
+            output_file=pathlib.Path("fashion_replay") / f"{i}.png",
         )
-        # XXX:
-        break
