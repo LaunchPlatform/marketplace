@@ -462,7 +462,7 @@ def main(
         replay_file_ctx = nullcontext()
     with (
         mlflow.start_run(
-            experiment_id=ensure_experiment("Continual Learning"),
+            experiment_id=ensure_experiment("Continual Learning - Fashion"),
             run_name="beautiful-mnist" if run_name is None else run_name,
         ),
         replay_file_ctx as replay_file,
