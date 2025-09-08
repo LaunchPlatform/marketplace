@@ -109,6 +109,7 @@ def learn(
     balance_labels: bool = True,
     augment_old: bool = True,
     augment_new: bool = True,
+    new_train_size: int = 8,
     probe_scale: float | None = None,
     forward_pass: int = 1,
     metrics_per_steps: int = 10,
@@ -120,9 +121,9 @@ def learn(
 ):
     logger.info(
         "Running beautiful MNIST continual learning with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, "
-        "target_new_classes=%s, balance_labels=%s, augment_old=%s, augment_new=%s, probe_scale=%s, forward_pass=%s, "
-        "metrics_per_steps=%s, input_checkpoint_filepath=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, "
-        "manual_seed=%s",
+        "target_new_classes=%s, balance_labels=%s, augment_old=%s, augment_new=%s, new_train_size=%s, probe_scale=%s, "
+        "forward_pass=%s, metrics_per_steps=%s, input_checkpoint_filepath=%s, checkpoint_filepath=%s, "
+        "checkpoint_per_steps=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
@@ -131,6 +132,7 @@ def learn(
         balance_labels,
         augment_old,
         augment_new,
+        new_train_size,
         probe_scale,
         forward_pass,
         metrics_per_steps,
@@ -149,6 +151,7 @@ def learn(
     mlflow.log_param("balance_labels", balance_labels)
     mlflow.log_param("augment_old", augment_old)
     mlflow.log_param("augment_new", augment_new)
+    mlflow.log_param("new_train_size", new_train_size)
     mlflow.log_param("probe_scale", probe_scale)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
@@ -186,7 +189,15 @@ def learn(
     )
 
     @TinyJit
-    def forward_step(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+    def forward_step(
+        old_x: Tensor,
+        old_y: Tensor,
+        new_x: Tensor,
+        new_y: Tensor,
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        combined_x = Tensor.cat(old_x, new_x)
+        combined_y = Tensor.cat(old_y, new_y)
+
         batch_paths = Tensor.stack(
             *(
                 Tensor.randint(
@@ -200,14 +211,34 @@ def learn(
         logits = forward_with_paths(
             marketplace=marketplace,
             paths=batch_paths,
-            x=x,
+            x=combined_x,
             deltas=[ctx.delta for ctx in optimizer.spec_context],
         )
-        loss = logits.sparse_categorical_crossentropy(y, reduction="none")
-        correct = logits.argmax(axis=1) == y
+        loss = logits.sparse_categorical_crossentropy(combined_y, reduction="none")
+
+        if balance_labels:
+            # Notice: by adding the target classes from new dataset, we are changing the probability of each number
+            # appearing. Not sure if it matters, but to make the model harder to blindly guess, we are balancing the
+            # unbalanced labels by introducing the cross entropy weights.
+            weights = np.repeat((1 / LABEL_COUNT) * len(old_x), LABEL_COUNT)
+            weights[target_new_classes] += (1 / len(target_new_classes)) * len(new_x)
+            weights = batch_size / weights
+            max_weight = weights.max()
+            weights = Tensor(weights / max_weight, dtype=dtypes.default_float)
+            loss *= weights[combined_y]
+
+        old_accuracy = (
+            (logits[: len(old_x)].argmax(axis=1) == combined_y[: len(old_x)]).sum()
+            / len(old_x)
+        ) * 100
+        new_accuracy = (
+            (logits[len(old_x) :].argmax(axis=1) == combined_y[len(old_x) :]).sum()
+            / len(new_x)
+        ) * 100
         return (
             loss.realize(),
-            correct.realize(),
+            old_accuracy.realize(),
+            new_accuracy.realize(),
             batch_paths.realize(),
         )
 
@@ -247,6 +278,13 @@ def learn(
         GlobalCounters.reset()  # NOTE: this makes it nice for DEBUG=2 timing
 
         start_time = time.perf_counter()
+        old_train_size = batch_size - new_train_size
+        old_samples = Tensor.randint(
+            old_train_size, low=0, high=old_train_size, dtype=dtypes.uint
+        )
+        new_samples = Tensor.randint(
+            new_train_size, low=0, high=new_train_size, dtype=dtypes.uint
+        )
 
         all_samples = []
         all_correct = []
@@ -257,30 +295,40 @@ def learn(
         all_new_loss = []
         all_new_accuracy = []
         for _ in range(forward_pass):
-            samples = Tensor.randint(
-                batch_size, low=0, high=batch_size, dtype=dtypes.uint
+            old_samples = Tensor.randint(
+                old_train_size, low=0, high=old_train_size, dtype=dtypes.uint
             )
-            x = X_train[samples]
-            y = Y_train[samples]
+            new_samples = Tensor.randint(
+                new_train_size, low=0, high=new_train_size, dtype=dtypes.uint
+            )
+            old_x = X_train[old_samples]
+            old_y = Y_train[old_samples]
+            new_x = target_new_X_train[new_samples]
+            new_y = target_new_Y_train[new_samples]
+            # TODO: a bit slow, ideally run with a background loader
+            if augment_old:
+                old_x = old_x.reshape(-1, 28, 28).numpy().astype(np.uint8)
+                old_x = Tensor(
+                    augment_img(old_x).reshape(-1, 1, 28, 28),
+                    dtype=dtypes.default_float,
+                )
+            if augment_new:
+                new_x = new_x.reshape(-1, 28, 28).numpy().astype(np.uint8)
+                new_x = Tensor(
+                    augment_img(new_x).reshape(-1, 1, 28, 28),
+                    dtype=dtypes.default_float,
+                )
 
-            loss, correct, paths = forward_step(x, y)
+            loss, old_accuracy, new_accuracy, paths = forward_step(
+                old_x=old_x,
+                old_y=old_y,
+                new_x=new_x,
+                new_y=new_y,
+            )
+            old_loss = loss[:old_train_size].mean()
+            new_loss = loss[old_train_size:].mean()
             all_loss.append(loss)
             all_paths.append(paths)
-
-            y = y.numpy()
-            loss = loss.numpy()
-            correct = correct.numpy()
-            samples = samples.numpy()
-
-            old_mask = ~np.isin(y, target_new_classes)
-            old_loss = loss[old_mask]
-            old_accuracy = correct[old_mask]
-            new_mask = ~old_mask
-            new_loss = loss[new_mask]
-            new_accuracy = correct[new_mask]
-
-            all_samples.append(samples)
-            all_correct.append(correct)
             all_old_loss.append(old_loss)
             all_old_accuracy.append(old_accuracy)
             all_new_loss.append(new_loss)
