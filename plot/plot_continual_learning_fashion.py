@@ -29,12 +29,12 @@ target_new_Y_train = Tensor(new_Y_train.numpy()[class_mask])
 
 
 def plot_frame(
-    old_samples: np.typing.NDArray,
+    old_images: np.typing.NDArray,
     old_correct: np.typing.NDArray,
     old_learning_accuracy: np.typing.NDArray,
     old_validation_accuracy: np.typing.NDArray,
     old_loss: np.typing.NDArray,
-    new_samples: np.typing.NDArray,
+    new_images: np.typing.NDArray,
     new_correct: np.typing.NDArray,
     new_learning_accuracy: np.typing.NDArray,
     new_validation_accuracy: np.typing.NDArray,
@@ -45,13 +45,13 @@ def plot_frame(
 ):
     images_top = list(
         zip(
-            X_train[Tensor(old_samples)].reshape(-1, 28, 28).numpy(),
+            old_images,
             old_correct,
         )
     )
     images_bottom = list(
         zip(
-            target_new_X_train[Tensor(new_samples)].reshape(-1, 28, 28).numpy(),
+            new_images,
             new_correct,
         )
     )
@@ -216,12 +216,14 @@ if __name__ == "__main__":
         output_file = pathlib.Path("fashion_replay") / f"{i}.png"
         logger.info("Writing %s (step %s) to %s", i, step, output_file)
         return dict(
-            old_samples=old_samples[i],
+            old_images=X_train[Tensor(old_samples[i])].reshape(-1, 28, 28).numpy(),
             old_correct=old_correct[i],
             old_learning_accuracy=old_learning_accuracy[:count],
             old_validation_accuracy=old_validation_accuracy[:count],
             old_loss=old_loss[:count],
-            new_samples=new_samples[i],
+            new_images=target_new_X_train[Tensor(new_samples[i])]
+            .reshape(-1, 28, 28)
+            .numpy(),
             new_correct=new_correct[i],
             new_learning_accuracy=new_learning_accuracy[:count],
             new_validation_accuracy=new_validation_accuracy[:count],
