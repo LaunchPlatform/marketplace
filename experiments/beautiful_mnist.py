@@ -97,14 +97,15 @@ def train(
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
     only_classes: typing.Container[int] | None = None,
+    exclude_missing_from_loss_func: bool = True,
     unit_vector_mode: UnitVectorMode = "per_spec",
     manual_seed: int | None = None,
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, meta_lr=%s, "
         "probe_scale=%s, marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, "
-        "metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, only_classes=%s, unit_vector_mode=%s, "
-        "manual_seed=%s",
+        "metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, only_classes=%s, "
+        "exclude_missing_from_loss_func=%s, unit_vector_mode=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
@@ -118,6 +119,7 @@ def train(
         checkpoint_filepath,
         checkpoint_per_steps,
         only_classes,
+        exclude_missing_from_loss_func,
         unit_vector_mode,
         manual_seed,
     )
@@ -134,6 +136,7 @@ def train(
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
     mlflow.log_param("only_classes", only_classes)
+    mlflow.log_param("exclude_missing_from_loss_func", exclude_missing_from_loss_func)
     mlflow.log_param("unit_vector_mode", unit_vector_mode)
     mlflow.log_param("manual_seed", manual_seed)
 
@@ -154,7 +157,7 @@ def train(
         meta_learning_rate=(Tensor(meta_lr) if meta_lr is not None else None),
     )
     loss_func = lambda x, y: x.sparse_categorical_crossentropy(y)
-    if only_classes is not None:
+    if only_classes is not None and exclude_missing_from_loss_func:
         excluded_classes = frozenset(range(10)) - frozenset(only_classes)
         if len(excluded_classes) != 1:
             raise ValueError("Currently only support one excluded class")
