@@ -70,6 +70,7 @@ def main():
                 marketplace=marketplace,
                 manual_seed=42,
                 replay_file=fo,
+                target_new_classes=(9,),
                 input_checkpoint_filepath=checkpoint_file,
             )
 
