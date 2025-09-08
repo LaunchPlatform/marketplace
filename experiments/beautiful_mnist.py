@@ -319,7 +319,7 @@ def train(
             )
 
         t.set_description(
-            f"loss: {best_loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():.2e}, "
+            f"loss: {best_loss.item():6.2f}, fw: {current_forward_pass}, lr: {lr.item():.2e}, "
             f"acc: {best_accuracy.item():.2f}%, vacc: {test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
         )
     if i is not None and checkpoint_filepath is not None:
