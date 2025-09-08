@@ -645,10 +645,13 @@ if __name__ == "__main__":
     plot_frame(
         old_samples=np.array(data["old_samples"]),
         old_correct=np.array(data["old_correct"]),
-        new_samples=np.array(data["new_samples"]),
-        new_correct=np.array(data["new_correct"]),
         old_learning_accuracy=np.array([30, 33, 34]),
         old_validation_accuracy=np.array([40, 50, 60]),
         old_loss=np.array([0.1, 0.2, 0.3]),
+        new_samples=np.array(data["new_samples"]),
+        new_correct=np.array(data["new_correct"]),
+        new_learning_accuracy=np.array([3, 33, 34]),
+        new_validation_accuracy=np.array([40, 70, 60]),
+        new_loss=np.array([0.1, 0.2, 0.3]),
         steps=np.array([0, 9, 19]),
     )
