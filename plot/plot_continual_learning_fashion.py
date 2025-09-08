@@ -1,6 +1,8 @@
 import json
 import logging
+import multiprocessing
 import pathlib
+import signal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -208,11 +210,12 @@ if __name__ == "__main__":
 
     steps = np.array(steps)
 
-    for i, step in enumerate(steps):
+    def prepare_kwargs(item: tuple[int, int]):
+        i, step = item
         count = i + 1
         output_file = pathlib.Path("fashion_replay") / f"{i}.png"
         logger.info("Writing %s (step %s) to %s", i, step, output_file)
-        plot_frame(
+        return dict(
             old_samples=old_samples[i],
             old_correct=old_correct[i],
             old_learning_accuracy=old_learning_accuracy[:count],
@@ -226,4 +229,15 @@ if __name__ == "__main__":
             steps=steps[:count],
             output_file=output_file,
         )
-        logger.info("Wrote %s (step %s) to %s", i, step, output_file)
+
+    def make_frame(kwargs):
+        plot_frame(**prepare_kwargs)
+        return prepare_kwargs["output_file"]
+
+    # ref: https://stackoverflow.com/a/6191991
+    def init_worker():
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    with multiprocessing.Pool(8, init_worker) as pool:
+        for output_file in pool.imap(make_frame, map(prepare_kwargs, enumerate(steps))):
+            logger.info("Wrote %s %s", output_file)
