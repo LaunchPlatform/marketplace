@@ -259,17 +259,14 @@ def learn(
 
     @TinyJit
     def get_test_acc() -> tuple[Tensor, Tensor]:
-        predictions = straight_forward(marketplace, X_test).argmax(axis=1) == Y_test
-        new_labels = Y_test == target_new_classes[0]
-        for new_label in target_new_classes[1:]:
-            new_labels |= Y_test == new_label
-        old_labels = ~new_labels
-        return (
-            # old labels accuracy
-            (((predictions & old_labels).sum() / old_labels.sum()) * 100).realize(),
-            # new labels accuracy
-            (((predictions & new_labels).sum() / new_labels.sum()) * 100).realize(),
-        )
+        old = (
+            straight_forward(marketplace, X_test).argmax(axis=1) == Y_test
+        ).mean() * 100
+        new = (
+            straight_forward(marketplace, target_new_X_test).argmax(axis=1)
+            == target_new_Y_test
+        ).mean() * 100
+        return old.realize(), new.realize()
 
     i = 0
     old_test_acc = float("nan")
