@@ -359,9 +359,11 @@ def learn(
                             old_samples=np.concatenate(all_old_samples).tolist(),
                             old_correct=np.concatenate(all_old_correct).tolist(),
                             old_loss=np.concatenate(all_old_loss).tolist(),
+                            old_test_acc=old_test_acc,
                             new_samples=np.concatenate(all_new_samples).tolist(),
                             new_correct=np.concatenate(all_new_correct).tolist(),
                             new_loss=np.concatenate(all_new_loss).tolist(),
+                            new_test_acc=new_test_acc,
                             global_step=i,
                         )
                     )
