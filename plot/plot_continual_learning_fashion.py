@@ -233,7 +233,7 @@ if __name__ == "__main__":
 
     def make_frame(kwargs):
         plot_frame(**kwargs)
-        return prepare_kwargs["output_file"]
+        return kwargs["output_file"]
 
     # ref: https://stackoverflow.com/a/6191991
     def init_worker():
