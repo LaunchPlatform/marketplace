@@ -10,6 +10,12 @@ from tinygrad.nn.datasets import mnist
 # Simulated image data: list of (image, is_correct) pairs, None for empty cells
 logger = logging.getLogger(__name__)
 
+# Save the original default for potential restoration
+original_font_size = plt.rcParams["font.size"]
+# Scale up font size (e.g., 1.5x the default, which is usually 10pt)
+scale_factor = 4.0
+plt.rcParams["font.size"] = original_font_size * scale_factor
+
 X_train, Y_train, _, _ = mnist()
 
 target_new_classes = (3,)
@@ -46,13 +52,6 @@ def plot_frame(
             new_correct,
         )
     )
-
-    # Save the original default for potential restoration
-    original_font_size = plt.rcParams["font.size"]
-
-    # Scale up font size (e.g., 1.5x the default, which is usually 10pt)
-    scale_factor = 2.0
-    plt.rcParams["font.size"] = original_font_size * scale_factor
 
     # Set up figure with gridspec for images and charts
     fig = plt.figure(figsize=(32, 32))
@@ -209,3 +208,4 @@ if __name__ == "__main__":
             steps=steps[:count],
             output_file=output_file,
         )
+        logger.info("Wrote %s (step %s) to %s", i, step, output_file)
