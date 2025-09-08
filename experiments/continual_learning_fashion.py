@@ -358,7 +358,7 @@ def learn(
                         dict(
                             old_samples=np.concatenate(all_old_samples).tolist(),
                             old_correct=np.concatenate(all_old_correct).tolist(),
-                            old_loss=np.concatenate(all_old_loss).tolist(),
+                            old_loss=np.array(all_old_loss).tolist(),
                             old_test_acc=old_test_acc,
                             new_samples=np.concatenate(all_new_samples).tolist(),
                             new_correct=np.concatenate(all_new_correct).tolist(),
