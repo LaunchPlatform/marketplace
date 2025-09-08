@@ -7,7 +7,6 @@ import signal
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import ticker
-from tinygrad import Tensor
 from tinygrad.nn.datasets import mnist
 
 # Simulated image data: list of (image, is_correct) pairs, None for empty cells
@@ -42,7 +41,7 @@ def plot_frame(
     new_loss: np.typing.NDArray,
     steps: np.typing.NDArray,
     output_file: pathlib.Path,
-    dpi: int = 300,
+    dpi: int = 100,
 ):
     images_top = list(
         zip(
