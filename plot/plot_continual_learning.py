@@ -1,18 +1,22 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from tinygrad.nn.datasets import mnist
 
 # Simulated image data: list of (image, is_correct) pairs, None for empty cells
-np.random.seed(42)
+
+X_train, Y_train, _, _ = mnist()
+X_fashion_train, Y_fashion_train, _, _ = mnist(fashion=True)
+
 images_top = [
     (
-        np.random.rand(28, 28),
+        X_train[0].reshape(28, 28).numpy(),
         np.random.choice([True, False]) if np.random.rand() > 0.2 else None,
     )
     for _ in range(256)
 ]
 images_bottom = [
     (
-        np.random.rand(28, 28),
+        X_fashion_train[0].reshape(28, 28).numpy(),
         np.random.choice([True, False]) if np.random.rand() > 0.2 else None,
     )
     for _ in range(256)
