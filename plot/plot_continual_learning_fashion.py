@@ -1,4 +1,5 @@
 import json
+import logging
 import pathlib
 
 import matplotlib.pyplot as plt
@@ -7,6 +8,7 @@ from tinygrad import Tensor
 from tinygrad.nn.datasets import mnist
 
 # Simulated image data: list of (image, is_correct) pairs, None for empty cells
+logger = logging.getLogger(__name__)
 
 X_train, Y_train, _, _ = mnist()
 
@@ -142,6 +144,7 @@ def plot_frame(
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     steps = []
 
     old_samples = []
@@ -190,6 +193,8 @@ if __name__ == "__main__":
 
     for i, step in enumerate(steps):
         count = i + 1
+        output_file = pathlib.Path("fashion_replay") / f"{i}.png"
+        logger.info("Writing %s (step %s) to %s", i, step, output_file)
         plot_frame(
             old_samples=old_samples[i],
             old_correct=old_correct[i],
@@ -202,5 +207,5 @@ if __name__ == "__main__":
             new_validation_accuracy=new_validation_accuracy[:count],
             new_loss=new_loss[:count],
             steps=steps[:count],
-            output_file=pathlib.Path("fashion_replay") / f"{i}.png",
+            output_file=output_file,
         )
