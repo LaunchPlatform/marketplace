@@ -158,7 +158,7 @@ def plot_frame(
     ax_bottom.set_yticks([])
 
     plt.subplots_adjust(left=0.025, right=0.95, bottom=0.05, top=0.925)
-    plt.tight_layout()
+    # plt.tight_layout()
 
     plt.savefig(output_file, dpi=dpi, bbox_inches="tight")
 
@@ -241,4 +241,4 @@ if __name__ == "__main__":
 
     with multiprocessing.Pool(8, init_worker) as pool:
         for output_file in pool.imap(make_frame, map(prepare_kwargs, enumerate(steps))):
-            logger.info("Wrote %s %s", output_file)
+            logger.info("Wrote to %s", output_file)
