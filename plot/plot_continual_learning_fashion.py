@@ -139,21 +139,66 @@ def plot_frame(
 
 
 if __name__ == "__main__":
+    steps = []
+
+    old_samples = []
+    old_correct = []
+    old_learning_accuracy = []
+    old_validation_accuracy = []
+    old_loss = []
+
+    new_samples = []
+    new_correct = []
+    new_learning_accuracy = []
+    new_validation_accuracy = []
+    new_loss = []
+
     with open("fashion.jsonl") as replay_file:
         for line in replay_file.readlines():
             data = json.loads(line)
-            plot_frame(
-                old_samples=np.array(data["old_samples"]),
-                old_correct=np.array(data["old_correct"]),
-                old_learning_accuracy=np.array([30, 33, 34]),
-                old_validation_accuracy=np.array([40, 50, 60]),
-                old_loss=np.array([0.1, 0.2, 0.3]),
-                new_samples=np.array(data["new_samples"]),
-                new_correct=np.array(data["new_correct"]),
-                new_learning_accuracy=np.array([3, 33, 34]),
-                new_validation_accuracy=np.array([40, 70, 60]),
-                new_loss=np.array([0.1, 0.2, 0.3]),
-                steps=np.array([0, 9, 19]),
-            )
-            # XXX:
-            break
+
+            steps.append(data["global_step"])
+
+            old_learning_accuracy.append(np.array(data["old_correct"]).mean())
+            old_validation_accuracy.append(data["old_test_acc"])
+            old_loss.append(data["old_loss"])
+            old_correct.append(data["old_correct"])
+            old_samples.append(data["old_samples"])
+
+            new_learning_accuracy.append(np.array(data["new_correct"]).mean())
+            new_validation_accuracy.append(data["new_test_acc"])
+            new_loss.append(data["new_loss"])
+            new_correct.append(data["new_correct"])
+            new_samples.append(data["new_samples"])
+
+    old_learning_accuracy = np.array(old_learning_accuracy)
+    old_validation_accuracy = np.array(old_validation_accuracy)
+    old_loss = np.array(old_loss)
+    old_correct = np.array(old_correct)
+    old_samples = np.array(old_samples)
+
+    new_learning_accuracy = np.array(new_learning_accuracy)
+    new_validation_accuracy = np.array(new_validation_accuracy)
+    new_loss = np.array(new_loss)
+    new_correct = np.array(new_correct)
+    new_samples = np.array(new_samples)
+
+    steps = np.array(steps)
+
+    for i, step in enumerate(steps):
+        count = i + 1
+        plot_frame(
+            old_samples=old_samples[i],
+            old_correct=old_correct[i],
+            old_learning_accuracy=old_learning_accuracy[:count],
+            old_validation_accuracy=old_validation_accuracy[:count],
+            old_loss=old_loss[:count],
+            new_samples=new_samples[i],
+            new_correct=new_correct[i],
+            new_learning_accuracy=new_learning_accuracy[:count],
+            new_validation_accuracy=new_validation_accuracy[:count],
+            new_loss=new_loss[:count],
+            steps=steps[:count],
+        )
+        # XXX:
+        break
