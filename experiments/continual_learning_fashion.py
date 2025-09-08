@@ -358,8 +358,10 @@ def learn(
                         dict(
                             old_samples=np.concatenate(all_old_samples).tolist(),
                             old_correct=np.concatenate(all_old_correct).tolist(),
+                            old_loss=np.concatenate(all_old_loss).tolist(),
                             new_samples=np.concatenate(all_new_samples).tolist(),
                             new_correct=np.concatenate(all_new_correct).tolist(),
+                            new_loss=np.concatenate(all_new_loss).tolist(),
                             global_step=i,
                         )
                     )
