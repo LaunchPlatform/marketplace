@@ -39,30 +39,34 @@ def main():
         logger.info("Checkpoint file %s already exists, skip", checkpoint_file)
 
     learn_vendor_count = 4
-    for fw in [4, 8, 16]:
-        for lr in [1e-3, 5e-3, 1e-2, 2e-2, 3e-2]:
-            for probe_scale in [1, 0.5, 0.1]:
-                with mlflow.start_run(
-                    run_name=f"learn--lr-{lr:.1e}-fw-{fw}-probe-scale-{probe_scale}",
-                    experiment_id=exp_id,
-                    log_system_metrics=True,
-                ):
-                    marketplace = make_marketplace(
-                        default_vendor_count=learn_vendor_count,
-                    )
-                    mlflow.log_param("vendor_count", learn_vendor_count)
-                    learn(
-                        step_count=10_000,
-                        batch_size=256,
-                        new_train_size=16,
-                        initial_lr=lr,
-                        lr_decay_rate=0,
-                        probe_scale=probe_scale,
-                        forward_pass=fw,
-                        marketplace=marketplace,
-                        manual_seed=42,
-                        input_checkpoint_filepath=checkpoint_file,
-                    )
+    for augment_old in [False, True]:
+        replay_file = pathlib.Path(f"augment-old-{augment_old}.jsonl")
+        with (
+            mlflow.start_run(
+                run_name=f"augment-old-{augment_old}",
+                experiment_id=exp_id,
+                log_system_metrics=True,
+            ),
+            replay_file.open("wt") as fo,
+        ):
+            marketplace = make_marketplace(
+                default_vendor_count=learn_vendor_count,
+            )
+            mlflow.log_param("vendor_count", learn_vendor_count)
+            learn(
+                step_count=30_000,
+                batch_size=256,
+                new_train_size=16,
+                initial_lr=1e-2,
+                lr_decay_rate=0,
+                probe_scale=1.0,
+                forward_pass=1,
+                augment_old=augment_old,
+                marketplace=marketplace,
+                manual_seed=42,
+                replay_file=fo,
+                input_checkpoint_filepath=checkpoint_file,
+            )
 
 
 if __name__ == "__main__":
