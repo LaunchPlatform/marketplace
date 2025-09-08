@@ -194,7 +194,7 @@ def learn(
         old_y: Tensor,
         new_x: Tensor,
         new_y: Tensor,
-    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor]:
         combined_x = Tensor.cat(old_x, new_x)
         combined_y = Tensor.cat(old_y, new_y)
 
@@ -226,19 +226,10 @@ def learn(
             max_weight = weights.max()
             weights = Tensor(weights / max_weight, dtype=dtypes.default_float)
             loss *= weights[combined_y]
-
-        old_accuracy = (
-            (logits[: len(old_x)].argmax(axis=1) == combined_y[: len(old_x)]).sum()
-            / len(old_x)
-        ) * 100
-        new_accuracy = (
-            (logits[len(old_x) :].argmax(axis=1) == combined_y[len(old_x) :]).sum()
-            / len(new_x)
-        ) * 100
+        correct = logits.argmax(axis=1) == combined_y
         return (
             loss.realize(),
-            old_accuracy.realize(),
-            new_accuracy.realize(),
+            correct.realize(),
             batch_paths.realize(),
         )
 
@@ -279,7 +270,8 @@ def learn(
 
         all_old_samples = []
         all_new_samples = []
-        all_correct = []
+        all_old_correct = []
+        all_new_correct = []
         all_loss = []
         all_paths = []
         all_old_loss = []
@@ -311,22 +303,29 @@ def learn(
                     dtype=dtypes.default_float,
                 )
 
-            loss, old_accuracy, new_accuracy, paths = forward_step(
+            loss, correct, paths = forward_step(
                 old_x=old_x,
                 old_y=old_y,
                 new_x=new_x,
                 new_y=new_y,
             )
             old_loss = loss[:old_train_size].mean()
+            old_correct = correct[:old_train_size]
+            old_accuracy = old_correct.mean()
+
             new_loss = loss[old_train_size:].mean()
+            new_correct = correct[old_train_size:]
+            new_accuracy = new_correct.mean()
 
             all_old_samples.append(old_samples.numpy())
             all_new_samples.append(new_samples.numpy())
             all_loss.append(loss)
             all_paths.append(paths)
             all_old_loss.append(old_loss.numpy())
+            all_old_correct.append(old_correct.numpy())
             all_old_accuracy.append(old_accuracy.numpy())
             all_new_loss.append(new_loss.numpy())
+            all_new_correct.append(new_correct.numpy())
             all_new_accuracy.append(new_accuracy.numpy())
 
         optimize_step(Tensor.cat(*all_loss), Tensor.cat(*all_paths))
@@ -358,8 +357,9 @@ def learn(
                     json.dumps(
                         dict(
                             old_samples=np.concatenate(all_old_samples).tolist(),
+                            old_correct=np.concatenate(all_old_correct).tolist(),
                             new_samples=np.concatenate(all_new_samples).tolist(),
-                            correct=np.concatenate(all_correct).tolist(),
+                            new_correct=np.concatenate(all_new_correct).tolist(),
                             global_step=i,
                         )
                     )
