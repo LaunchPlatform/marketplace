@@ -163,6 +163,16 @@ def plot_frame(
     plt.savefig(output_file, dpi=dpi, bbox_inches=None)
 
 
+# ref: https://stackoverflow.com/a/6191991
+def init_worker():
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
+def make_frame(kwargs):
+    plot_frame(**kwargs)
+    return kwargs["output_file"]
+
+
 @click.command()
 @click.argument(
     "INPUT_FILE", type=click.Path(dir_okay=False, exists=True, readable=True)
@@ -238,14 +248,6 @@ def main(input_file: str, output_folder: str, limit: int | None):
             steps=steps[:count],
             output_file=output_file,
         )
-
-    def make_frame(kwargs):
-        plot_frame(**kwargs)
-        return kwargs["output_file"]
-
-    # ref: https://stackoverflow.com/a/6191991
-    def init_worker():
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     limited_steps = steps
     if limit is not None:
