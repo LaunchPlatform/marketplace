@@ -6,7 +6,12 @@ from tinygrad.nn.datasets import mnist
 # Simulated image data: list of (image, is_correct) pairs, None for empty cells
 
 X_train, Y_train, _, _ = mnist()
-X_fashion_train, Y_fashion_train, _, _ = mnist(fashion=True)
+
+target_new_classes = (3,)
+new_X_train, new_Y_train, _, _ = mnist(fashion=True)
+class_mask = np.isin(new_Y_train.numpy(), target_new_classes)
+target_new_X_train = Tensor(new_X_train.numpy()[class_mask])
+target_new_Y_train = Tensor(new_Y_train.numpy()[class_mask])
 
 
 def plot_frame(
@@ -23,7 +28,7 @@ def plot_frame(
     )
     images_bottom = list(
         zip(
-            X_fashion_train[Tensor(new_samples)].reshape(-1, 28, 28).numpy(),
+            target_new_X_train[Tensor(new_samples)].reshape(-1, 28, 28).numpy(),
             new_correct,
         )
     )
