@@ -159,7 +159,7 @@ def plot_frame(
     plt.subplots_adjust(left=0.025, right=0.95, bottom=0.05, top=0.925)
     # plt.tight_layout()
 
-    plt.savefig(output_file, dpi=dpi, bbox_inches="tight")
+    plt.savefig(output_file, dpi=dpi, bbox_inches=None)
 
 
 if __name__ == "__main__":
