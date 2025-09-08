@@ -171,7 +171,8 @@ def plot_frame(
     "OUTPUT_FOLDER",
     type=click.Path(dir_okay=True, file_okay=False, exists=True, writable=True),
 )
-def main(input_file: str, output_folder: str):
+@click.option("--limit", type=int)
+def main(input_file: str, output_folder: str, limit: int | None):
     steps = []
 
     old_samples = []
@@ -246,12 +247,15 @@ def main(input_file: str, output_folder: str):
     def init_worker():
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+    limited_steps = steps
+    if limit is not None:
+        limited_steps = steps[:limit]
     with multiprocessing.Pool(16, init_worker) as pool:
         for output_file in pool.imap(
             make_frame,
             filter(
                 lambda x: not x["output_file"].exists(),
-                map(prepare_kwargs, enumerate(steps)),
+                map(prepare_kwargs, enumerate(limited_steps)),
             ),
         ):
             logger.info("Wrote to %s", output_file)
