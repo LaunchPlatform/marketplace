@@ -160,7 +160,7 @@ def plot_frame(
     plt.subplots_adjust(left=0.025, right=0.95, bottom=0.05, top=0.925)
     # plt.tight_layout()
 
-    tmp_file = output_file.with_suffix(".tmp")
+    tmp_file = output_file.with_suffix(".tmp.png")
     plt.savefig(tmp_file, dpi=dpi, bbox_inches=None)
     tmp_file.rename(output_file)
 
