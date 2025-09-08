@@ -41,8 +41,8 @@ def main():
             )
     else:
         logger.info("Checkpoint file %s already exists, skip", checkpoint_file)
-    for learn_vendor_count in [4, 8, 16]:
-        for fw in [2, 4, 8, 16]:
+    for learn_vendor_count in [8, 16]:
+        for fw in [4, 8, 16]:
             for lr in [9e-3, 1e-2, 2e-2, 3e-2, 1e-1, 2e-1]:
                 for probe_scale in [1, 0.5, 0.1]:
                     with mlflow.start_run(

@@ -363,6 +363,7 @@ def learn(
                             global_step=i,
                         )
                     )
+                    + "\n"
                 )
 
         if checkpoint_filepath is not None and i % checkpoint_per_steps == (
