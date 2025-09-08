@@ -151,7 +151,7 @@ def plot_frame(
     ax_bottom.set_xticks([])
     ax_bottom.set_yticks([])
 
-    plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95)
+    plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.925)
     plt.tight_layout()
 
     plt.savefig(output_file, dpi=dpi, bbox_inches="tight")
