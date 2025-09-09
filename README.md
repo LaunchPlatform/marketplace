@@ -6,6 +6,7 @@ To learn more about the concept, please refer to the articles:
 
 1. [Marketplace: my first attempt at training without backprop on GPU efficiently](https://fangpenlin.com/posts/2025/08/18/marketplace-my-first-attempt-at-training-without-backprop-on-gpu-efficiently/)
 2. [Marketplace V2 is all you need: A training algorithm on par with backprop that needs only forward pass](https://fangpenlin.com/posts/2025/09/02/marketplace-v2-is-all-you-need-a-training-algorithm-on-par-with-backprop/)
+3. [Continual learning with the Marketplace algorithm: model learns new data through inference, not training](https://fangpenlin.com/posts/2025/09/09/continual-learning-with-marketplace-model-learns-new-data-with-mostly-inference/)
 
 For example, the [beautiful_mnist model](https://github.com/tinygrad/tinygrad/blob/c30a113b2a876cabaea1049601fea3a0b758c5b1/examples/beautiful_mnist.py) included in [Tinygrad](https://github.com/tinygrad/tinygrad)'s example folder can be broken down into three groups of layers:
 
