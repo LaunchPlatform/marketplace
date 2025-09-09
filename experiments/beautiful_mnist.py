@@ -4,6 +4,7 @@ import logging
 import pathlib
 import sys
 import time
+import typing
 
 import click
 import mlflow
@@ -18,8 +19,10 @@ from tinygrad.nn import Linear
 from tinygrad.nn.datasets import mnist
 
 from .utils import ensure_experiment
+from .utils import filter_classes
 from marketplace.nn import Model
 from marketplace.optimizers import Optimizer
+from marketplace.optimizers import UnitVectorMode
 from marketplace.training import forward
 from marketplace.training import Spec
 from marketplace.training import straight_forward
@@ -93,12 +96,16 @@ def train(
     metrics_per_steps: int = 10,
     checkpoint_filepath: pathlib.Path | None = None,
     checkpoint_per_steps: int = 1000,
+    only_classes: typing.Container[int] | None = None,
+    exclude_missing_from_loss_func: bool = True,
+    unit_vector_mode: UnitVectorMode = "per_spec",
     manual_seed: int | None = None,
 ):
     logger.info(
         "Running beautiful MNIST with step_count=%s, batch_size=%s, init_lr=%s, lr_decay=%s, meta_lr=%s, "
         "probe_scale=%s, marketplace_replica=%s, initial_forward_pass=%s, forward_pass_schedule=%s, "
-        "metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, manual_seed=%s",
+        "metrics_per_steps=%s, checkpoint_filepath=%s, checkpoint_per_steps=%s, only_classes=%s, "
+        "exclude_missing_from_loss_func=%s, unit_vector_mode=%s, manual_seed=%s",
         step_count,
         batch_size,
         initial_lr,
@@ -111,6 +118,9 @@ def train(
         forward_pass_schedule,
         checkpoint_filepath,
         checkpoint_per_steps,
+        only_classes,
+        exclude_missing_from_loss_func,
+        unit_vector_mode,
         manual_seed,
     )
 
@@ -125,12 +135,20 @@ def train(
     mlflow.log_param("forward_pass_schedule", forward_pass_schedule)
     mlflow.log_param("metrics_per_steps", metrics_per_steps)
     mlflow.log_param("checkpoint_per_steps", checkpoint_per_steps)
+    mlflow.log_param("only_classes", only_classes)
+    mlflow.log_param("exclude_missing_from_loss_func", exclude_missing_from_loss_func)
+    mlflow.log_param("unit_vector_mode", unit_vector_mode)
     mlflow.log_param("manual_seed", manual_seed)
 
     if manual_seed is not None:
         Tensor.manual_seed(manual_seed)
 
     X_train, Y_train, X_test, Y_test = load_data()
+
+    if only_classes is not None:
+        X_train, Y_train = filter_classes(X_train, Y_train, only=only_classes)
+        X_test, Y_test = filter_classes(X_test, Y_test, only=only_classes)
+
     lr = Tensor(initial_lr).contiguous().realize()
     optimizer = Optimizer(
         marketplace=marketplace,
@@ -138,6 +156,14 @@ def train(
         probe_scale=(Tensor(probe_scale) if probe_scale is not None else None),
         meta_learning_rate=(Tensor(meta_lr) if meta_lr is not None else None),
     )
+    loss_func = lambda x, y: x.sparse_categorical_crossentropy(y)
+    if only_classes is not None and exclude_missing_from_loss_func:
+        excluded_classes = frozenset(range(10)) - frozenset(only_classes)
+        if len(excluded_classes) != 1:
+            raise ValueError("Currently only support one excluded class")
+        loss_func = lambda x, y: x.sparse_categorical_crossentropy(
+            y, ignore_index=list(excluded_classes)[0]
+        )
 
     @TinyJit
     def forward_step(samples: Tensor) -> tuple[Tensor, Tensor, Tensor]:
@@ -149,7 +175,7 @@ def train(
             x=x,
         )
         loss = Tensor.stack(
-            *(logits.sparse_categorical_crossentropy(y) for logits in batch_logits),
+            *(loss_func(logits, y) for logits in batch_logits),
             dim=0,
         )
         accuracy = Tensor.stack(
@@ -199,6 +225,7 @@ def train(
         direction_vectors = optimizer.compute_direction_vectors(
             loss=loss,
             paths=paths,
+            unit_vector_mode=unit_vector_mode,
         )
         Tensor.realize(
             *optimizer.schedule_weight_update(
@@ -212,7 +239,7 @@ def train(
         x = X_train[samples]
         y = Y_train[samples]
         logits = straight_forward(marketplace, x)
-        loss = logits.sparse_categorical_crossentropy(y)
+        loss = loss_func(logits, y)
         accuracy = ((logits.argmax(axis=1) == y).sum() / batch_size) * 100
         return loss.realize(), accuracy.realize()
 
@@ -295,7 +322,7 @@ def train(
             )
 
         t.set_description(
-            f"loss: {best_loss.item():6.2f}, fw: {current_forward_pass}, rl: {lr.item():.2e}, "
+            f"loss: {best_loss.item():6.2f}, fw: {current_forward_pass}, lr: {lr.item():.2e}, "
             f"acc: {best_accuracy.item():.2f}%, vacc: {test_acc:.2f}%, {gflops:9,.2f} GFLOPS"
         )
     if i is not None and checkpoint_filepath is not None:
@@ -339,6 +366,12 @@ def train(
     help="The scale we use to apply on LR for making the reconciled delta direction",
 )
 @click.option(
+    "--unit-vector-mode",
+    type=click.Choice(UnitVectorMode, case_sensitive=False),
+    default=UnitVectorMode.per_spec.value,
+    help="The unit vector mode to use",
+)
+@click.option(
     "--checkpoint-filepath",
     type=click.Path(dir_okay=False, writable=True),
     help="Filepath of checkpoint to write to",
@@ -361,6 +394,7 @@ def main(
     vendor_count: int,
     seed: int | None,
     probe_scale: float | None,
+    unit_vector_mode: UnitVectorMode,
     checkpoint_filepath: str,
     checkpoint_per_steps: int,
     run_name: str | None,
@@ -384,6 +418,7 @@ def main(
             meta_lr=meta_lr,
             initial_forward_pass=forward_pass,
             probe_scale=probe_scale if probe_scale else None,
+            unit_vector_mode=unit_vector_mode,
             manual_seed=seed,
             marketplace=make_marketplace(
                 default_vendor_count=vendor_count,

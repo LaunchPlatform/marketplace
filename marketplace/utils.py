@@ -4,6 +4,8 @@ import pathlib
 
 from tinygrad import Tensor
 from tinygrad.nn.state import get_state_dict
+from tinygrad.nn.state import load_state_dict
+from tinygrad.nn.state import safe_load
 from tinygrad.nn.state import safe_save
 
 from .training import Spec
@@ -35,4 +37,28 @@ def write_checkpoint(
     checkpoint_tmp_filepath.rename(output_filepath)
     logger.info(
         "Wrote checkpoint with global_step %s to %s", global_step, output_filepath
+    )
+
+
+def load_checkpoint(
+    marketplace: list[Spec],
+    input_filepath: pathlib.Path,
+):
+    logger.info("Loading checkpoint from %s", input_filepath)
+    state = safe_load(input_filepath)
+
+    for i, spec in enumerate(marketplace):
+        prefix = f"spec.{i}."
+        spec_params = {
+            key.removeprefix(prefix): params
+            for key, params in state.items()
+            if key.startswith(prefix)
+        }
+        load_state_dict(spec.model, spec_params)
+
+    global_step = state.pop("global_step", None)
+    if global_step is not None:
+        global_step = global_step.item()
+    logger.info(
+        "Loaded checkpoint with global_step %s from %s", global_step, input_filepath
     )
